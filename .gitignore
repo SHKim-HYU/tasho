@@ -1,6 +1,3 @@
 # Directories
 __pycache__/
 tasho.egg-info/
-
-# Files
-example.py
