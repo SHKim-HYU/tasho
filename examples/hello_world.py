@@ -17,15 +17,16 @@ if __name__ == '__main__':
 
     task_spec = {'initial_constraints':[{'expression':x, 'reference':0}]}
     task_spec['path_constraints'] = [{'expression':u, 'reference':0, 'hard':False, 'gain':1}]
-    task_spec['final_constraints'] = [{'expression':x, 'reference':5, 'hard':True}]
+    task_spec['final_constraints'] = [{'expression':x, 'reference':1, 'hard':True}]
 
     tc.add_task_constraint(task_spec)
 
-    tc.ocp.solver('ipopt')
-    tc.ocp.method(MultipleShooting(N = 5, M = 2, intg='rk'))
+    tc.set_ocp_solver('ipopt')
+    disc_settings = {'discretization method': 'single shooting', 'horizon size': 5, 'order':1, 'integration':'rk'}
+    tc.set_discretization_settings(disc_settings)
 
-    ocp = tc.ocp
-    sol = ocp.solve()
+
+    sol = tc.solve_ocp()
     t, x_val= sol.sample(x, grid='control')
 
 

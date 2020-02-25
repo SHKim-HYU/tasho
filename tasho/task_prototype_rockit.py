@@ -1,7 +1,7 @@
 #Takes the task-specification and also the task context as an input and
 #returns a COP
 
-from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime
+from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting
 import casadi as cs
 
 ## Class for task context
@@ -123,6 +123,36 @@ class task_context:
 			func.save(name+'.casadi');
 		if codegen == True:
 			func.generate(name+'.c',{"with_header": True});
+
+	def set_ocp_solver(self, solver):
+
+		ocp = self.ocp
+		ocp.solver('ipopt')
+
+	def set_discretization_settings(self, settings):
+
+		ocp = self.ocp
+		disc_method = settings['discretization method']
+		N = settings['horizon size']
+
+		if 'order' not in settings:
+			M = 1
+		else:
+			M = settings['order']
+
+		if disc_method == 'multiple shooting':
+			ocp.method(MultipleShooting(N = N, M = M, intg = settings['integration']))
+		elif disc_method == 'single shooting':
+			ocp.method(SingleShooting(N = N, M = M, intg = settings['integration']))
+		else:
+			print("ERROR: discretization with " + settings['discretization_method'] + " is not defined")
+
+	def solve_ocp(self):
+
+		ocp = self.ocp
+		sol = ocp.solve()
+		return sol
+
 
 	def add_monitors(self, task_mon):
 
