@@ -18,6 +18,7 @@ class task_context:
 		self.variables = {}
 		self.parameters = {}
 		self.constraints = {}
+		self.monitors = {}
 		self.opti = ocp.opti
 
 	## create_state
@@ -82,7 +83,15 @@ class task_context:
 
 			if not path_con['hard']:
 				if 'norm' not in path_con or path_con['norm'] == 'L2':
-					ocp.add_objective(cs.sumsqr(path_con['expression'] - path_con['reference'])*path_con['gain'])
+					ocp.add_objective(ocp.integral(cs.sumsqr(path_con['expression'] - path_con['reference']))*path_con['gain'])
+
+			elif path_con['hard']:
+
+				a = 1
+
+	def add_monitors(self, task_mon):
+
+		a = 1
 
 ocp = Ocp(T = 5)
 param = ocp.parameter(5, 5)
