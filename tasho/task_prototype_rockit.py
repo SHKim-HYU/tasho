@@ -1,4 +1,4 @@
-#Takes the task-specification and also the task context as an input and 
+#Takes the task-specification and also the task context as an input and
 #returns a COP
 
 from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime
@@ -24,7 +24,7 @@ class task_context:
 	## create_state
 	# creates a state variable whose dynamics is known
 	def create_expression(self, name, type, shape):
-	
+
 		ocp = self.ocp
 
 		if type == 'state':
@@ -57,9 +57,9 @@ class task_context:
 
 
 
-	
+
 	def set_dynamics(self, state, state_der):
-	
+
 		ocp = self.ocp
 		ocp.set_der(state, state_der)
 
@@ -68,12 +68,12 @@ class task_context:
 	def add_task_constraint(self, task_spec):
 
 		ocp = self.ocp
-	
+
 		for init_con in task_spec['initial_constraints']:
 			#Made an assumption that the initial constraint is always hard
 			ocp.subject_to(ocp.at_t0(init_con['expression']) == init_con['reference'])
-	
-		
+
+
 		for final_con in task_spec['final_constraints']:
 
 			if final_con['hard']:
@@ -105,7 +105,7 @@ class task_context:
 						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
 
 			elif path_con['lower_and_upper_bounds']:
-				
+
 				if path_con['hard']:
 					ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'])
 
@@ -118,6 +118,17 @@ class task_context:
 	def add_monitors(self, task_mon):
 
 		print("Not implemented")
+
+	def generate_function(self, name="opti", save=True, codegen=True):
+
+		opti = self.opti
+		func = opti.to_function(name, [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
+
+		if save == True:
+			func.save(name+'.casadi');
+		if codegen == True:
+			func.generate(name+'.c',{"with_header": True});
+
 
 if __name__ == '__main__':
 	ocp = Ocp(T = 5)
