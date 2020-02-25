@@ -1,5 +1,6 @@
 import unittest
 from tasho import task_prototype_rockit as tp
+from tasho import robot as rb
 from rockit import MultipleShooting, Ocp
 
 class TestTask(unittest.TestCase):
@@ -36,6 +37,11 @@ class TestTask(unittest.TestCase):
 
         self.assertTrue( x_val[-1] - 2.236067977 <= 1e-8, "Final position test failed")
         self.assertTrue( t[-1] - 5 <= 1e-5, "Final time test failed")
+
+    def test_loader(self):
+        rob = rb.Robot(name="kinova")
+
+        self.assertEqual(sum([1, 2, 3]), 6, "aaa Should be 6")
 
 if __name__ == '__main__':
     unittest.main()
