@@ -1,0 +1,1 @@
+#File to visualize the robot motions in rviz
