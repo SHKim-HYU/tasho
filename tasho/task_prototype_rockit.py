@@ -86,17 +86,38 @@ class task_context:
 
 		for path_con in task_spec['path_constraints']:
 
-			if not path_con['hard']:
-				if 'norm' not in path_con or path_con['norm'] == 'L2':
-					ocp.add_objective(ocp.integral(cs.sumsqr(path_con['expression'] - path_con['reference']))*path_con['gain'])
+			if not 'inequality' in path_con:
+				if not path_con['hard']:
+					if 'norm' not in path_con or path_con['norm'] == 'L2':
+						ocp.add_objective(ocp.integral(cs.sumsqr(path_con['expression'] - path_con['reference']))*path_con['gain'])
 
-			elif path_con['hard']:
+				elif path_con['hard']:
 
-				a = 1
+					ocp.subject_to(path_con['expression'] == path_con['reference'])
+
+			elif path_con['inequality']:
+
+				if path_con['hard']:
+					ocp.subject_to(path_con['expression'] <= path_con['upper_limits'])
+				else:
+					con_violation = cs.f_max(path_con['expression'] - path_con['upper_limits'], 0)
+					if 'norm' not in path_con or path_con['norm'] == 'L2':
+						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
+
+			elif path_con['lower_and_upper_bounds']:
+				
+				if path_con['hard']:
+					ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'])
+
+				else:
+					con_violation = cs.f_max(path_con['expression'] - path_con['upper_limits'], 0)
+					con_violation = con_violation + cs.f_max(path_con['lower_limits'] - path_con['expression'], 0)
+					if 'norm' not in path_con or path_con['norm'] == 'L2':
+						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
 
 	def add_monitors(self, task_mon):
 
-		a = 1
+		print("Not implemented")
 
 if __name__ == '__main__':
 	ocp = Ocp(T = 5)
