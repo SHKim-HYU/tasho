@@ -71,13 +71,13 @@ class task_context:
 	
 		for init_con in task_spec['initial_constraints']:
 			#Made an assumption that the initial constraint is always hard
-			ocp.subject_to(ocp.at_t0(init_con['expression'], init_con['reference']))
+			ocp.subject_to(ocp.at_t0(init_con['expression']) == init_con['reference'])
 	
 		
 		for final_con in task_spec['final_constraints']:
 
 			if final_con['hard']:
-				ocp.subject_to(ocp.at_tf(final_con['expression'], final_con['reference']))
+				ocp.subject_to(ocp.at_tf(final_con['expression']) == final_con['reference'])
 
 			else:
 				if 'norm' not in final_con or final_con['norm'] == 'L2':
