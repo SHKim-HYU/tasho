@@ -3,6 +3,7 @@ from tasho import task_prototype_rockit as tp
 from tasho import robot as rb
 from rockit import MultipleShooting, Ocp
 import numpy as np
+import casadi as cs
 
 class TestTask(unittest.TestCase):
 
@@ -31,7 +32,7 @@ class TestTask(unittest.TestCase):
         sol = ocp.solve()
         t, x_val= sol.sample(x, grid='control')
 
-        tc.generate_function(name = 'opti_o', save=True, codegen=False)
+        # tc.generate_function(name = 'opti_o', save=True, codegen=False)
 
         self.assertAlmostEqual( x_val[-1], 2.236067977499, 10, "Final position test failed")
         self.assertEqual( t[-1], 5, "Final time test failed")
@@ -75,6 +76,12 @@ class TestTask(unittest.TestCase):
         # self.assertEqual( t[-1], 5, "Final time test failed")
 
         tc.generate_function(name = 'opti_o', save=True, codegen=False)
+
+        loaded_func = cs.Function.load('opti_o.casadi')
+        final_x = loaded_func(0.9,cs.vertcat(0,0,0,0,0,0,0,0,0,0,0),cs.vertcat(0,0,0,0,0,0,0))[0][-1]
+        self.assertAlmostEqual( final_x, 0.9486832980505, 10, "Function save/load - final position test failed")
+
+
 
     def test_robotloader(self):
         # Kinova Gen3
