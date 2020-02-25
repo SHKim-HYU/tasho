@@ -69,24 +69,25 @@ class task_context:
 
 		ocp = self.ocp
 
-		for init_con in task_spec['initial_constraints']:
-			#Made an assumption that the initial constraint is always hard
-			ocp.subject_to(ocp.at_t0(init_con['expression']) == init_con['reference'])
+		if 'initial_constraints' in task_spec:
+			for init_con in task_spec['initial_constraints']:
+				#Made an assumption that the initial constraint is always hard
+				ocp.subject_to(ocp.at_t0(init_con['expression']) == init_con['reference'])
 
+		if 'final_constraints' in task_spec:
+			for final_con in task_spec['final_constraints']:
 
-		for final_con in task_spec['final_constraints']:
+				if final_con['hard']:
+					ocp.subject_to(ocp.at_tf(final_con['expression']) == final_con['reference'])
 
-			if final_con['hard']:
-				ocp.subject_to(ocp.at_tf(final_con['expression']) == final_con['reference'])
-
-			else:
-				if 'norm' not in final_con or final_con['norm'] == 'L2':
-					ocp.add_objective(cs.sumsqr(final_con['expression'] - final_con['reference'])*final_con['gain'])
+				else:
+					if 'norm' not in final_con or final_con['norm'] == 'L2':
+						ocp.add_objective(cs.sumsqr(final_con['expression'] - final_con['reference'])*final_con['gain'])
 
 
 		for path_con in task_spec['path_constraints']:
 
-			if not 'inequality' in path_con:
+			if not 'inequality' in path_con and not 'lub' in path_con:
 				if not path_con['hard']:
 					if 'norm' not in path_con or path_con['norm'] == 'L2':
 						ocp.add_objective(ocp.integral(cs.sumsqr(path_con['expression'] - path_con['reference']))*path_con['gain'])
@@ -95,7 +96,7 @@ class task_context:
 
 					ocp.subject_to(path_con['expression'] == path_con['reference'])
 
-			elif path_con['inequality']:
+			elif 'inequality' in path_con:
 
 				if path_con['hard']:
 					ocp.subject_to(path_con['expression'] <= path_con['upper_limits'])
@@ -104,7 +105,7 @@ class task_context:
 					if 'norm' not in path_con or path_con['norm'] == 'L2':
 						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
 
-			elif path_con['lower_and_upper_bounds']:
+			elif 'lub' in path_con:
 
 				if path_con['hard']:
 					ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'])
@@ -114,6 +115,9 @@ class task_context:
 					con_violation = con_violation + cs.f_max(path_con['lower_limits'] - path_con['expression'], 0)
 					if 'norm' not in path_con or path_con['norm'] == 'L2':
 						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
+
+			else:
+				print('ERROR: unknown type of path constraint added')
 
 	def generate_function(self, name="opti", save=True, codegen=True):
 		opti = self.opti
