@@ -34,23 +34,28 @@ class task_context:
 			return state
 
 		elif type == 'control':
-			ocp = self.ocp
 			control = ocp.control(shape[0], shape[1])
 			self.controls[name] = control
 
 			return control
 
 		elif type == 'parameter':
-
-			ocp = self.ocp
 			parameter = ocp.parameter(shape[0], shape[1])
 			self.parameters[name] = parameter
 
 			return parameter
 
+		elif type == 'variable':
+			variable = ocp.variable(shape[0], shape[1])
+			self.variables[name] = variable
+
+			return variable
+
 		else:
 
 			print("ERROR: expression type undefined")
+
+
 
 	
 	def set_dynamics(self, state, state_der):
@@ -93,6 +98,7 @@ class task_context:
 
 		a = 1
 
-ocp = Ocp(T = 5)
-param = ocp.parameter(5, 5)
-print(param.size())
+if __name__ == '__main__':
+	ocp = Ocp(T = 5)
+	param = ocp.parameter(5, 5)
+	print(param.size())
