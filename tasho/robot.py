@@ -1,6 +1,7 @@
 from numpy import sin, cos, tan
 from casadi import vertcat, sumsqr, Function
 from math import inf
+from numbers import Real
 import matplotlib.pyplot as plt
 
 
@@ -13,6 +14,10 @@ class Robot:
         self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
         self.joint_ub = None
         self.joint_lb = None
+        self.joint_vel_ub = None
+        self.joint_vel_lb = None
+        self.joint_acc_ub = None
+        self.joint_acc_lb = None
         self.torque_ub = None
         self.torque_lb = None
 
@@ -23,11 +28,14 @@ class Robot:
 
     def set_joint_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
+        # TODO: Print some warning/error when size of lb and ub doesn't correspond to ndof
         ndof = self.ndof
         if ub == None:
             _ub = inf
             for i in range(1, ndof):
                 _ub = vertcat(_ub,inf)
+        elif isinstance(ub, Real):
+            _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
@@ -40,6 +48,8 @@ class Robot:
             _lb = -inf
             for i in range(1, ndof):
                 _lb = vertcat(_lb,-inf)
+        elif isinstance(lb, Real):
+            _lb = lb
         else:
             if len(lb) != ndof:
                 _lb = -inf
@@ -53,11 +63,14 @@ class Robot:
 
     def set_torque_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
+        # TODO: Print some warning/error when size of lb and ub doesn't correspond to ndof
         ndof = self.ndof
         if ub == None:
             _ub = inf
             for i in range(1, ndof):
                 _ub = vertcat(_ub,inf)
+        elif isinstance(ub, Real):
+            _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
@@ -70,6 +83,8 @@ class Robot:
             _lb = -inf
             for i in range(1, ndof):
                 _lb = vertcat(_lb,-inf)
+        elif isinstance(lb, Real):
+            _lb = lb
         else:
             if len(lb) != ndof:
                 _lb = -inf
