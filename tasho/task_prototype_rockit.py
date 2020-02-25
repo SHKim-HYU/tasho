@@ -14,6 +14,7 @@ class task_context:
 		ocp = Ocp(T = time)
 		self.ocp = ocp
 		self.states = {}
+		self.controls = {}
 		self.variables = {}
 		self.parameters = {}
 		self.constraints = {}
@@ -21,20 +22,44 @@ class task_context:
 
 	## create_state
 	# creates a state variable whose dynamics is known
-	def create_state(self, name, shape):
+	def create_expression(self, name, type, shape):
 	
-		a = 1
-	
-	def create_parameter(self, name, shape):
+		ocp = self.ocp
 
-		a = 1
+		if type == 'state':
+			state = ocp.state(shape[0], shape[1])
+			self.states[name] = state
+
+			return state
+
+		elif type == 'control':
+			ocp = self.ocp
+			control = ocp.control(shape[0], shape[1])
+			self.controls[name] = control
+
+			return control
+
+		elif type == 'parameter':
+
+			ocp = self.ocp
+			parameter = ocp.parameter(shape[0], shape[1])
+			self.parameters[name] = parameter
+
+			return parameter
+
+		else:
+
+			print("ERROR: expression type undefined")
+
 	
-	def set_dynamics(self, state):
+	def set_dynamics(self, state, state_der):
 	
-		a = 1
+		ocp = self.ocp
+		ocp.set_der(state, state_der)
 
 
-	def task_protype(self, task_spec):
+
+	def add_task_constraint(self, task_spec):
 
 		ocp = self.ocp
 	
@@ -52,5 +77,13 @@ class task_context:
 				if 'norm' not in final_con or final_con['norm'] == 'L2':
 					ocp.add_objective(cs.sumsqr(final_con['expression'] - final_con['reference'])*final_con['gain'])
 
+
+		for path_con in task_spec['path_constraints']:
+
+			if not path_con['hard']:
+				if 'norm' not in path_con or path_con['norm'] == 'L2':
+					ocp.add_objective(cs.sumsqr(path_con['expression'] - path_con['reference'])*path_con['gain'])
+
 ocp = Ocp(T = 5)
-print(type(ocp.opti.f))
+param = ocp.parameter(5, 5)
+print(param.size())
