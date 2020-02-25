@@ -2,6 +2,7 @@ import unittest
 from tasho import task_prototype_rockit as tp
 from tasho import robot as rb
 from rockit import MultipleShooting, Ocp
+import numpy as np
 
 class TestTask(unittest.TestCase):
 
@@ -35,20 +36,27 @@ class TestTask(unittest.TestCase):
         sol = ocp.solve()
         t, x_val= sol.sample(x, grid='control')
 
-        tc.generate_function('opti_o')
+        tc.generate_function(name = 'opti_o', save=True, codegen=False)
 
-        self.assertTrue( x_val[-1] - 2.236067977 <= 1e-8, "Final position test failed")
-        self.assertTrue( t[-1] - 5 <= 1e-5, "Final time test failed")
+        self.assertAlmostEqual( x_val[-1], 2.236067977499, 10, "Final position test failed")
+        self.assertEqual( t[-1], 5, "Final time test failed")
 
     def test_robotloader(self):
-
+        # Kinova Gen3
         rob_kinova = rb.Robot(name="kinova")
-        print(rob_kinova.fk)
+
+        self.assertEqual(rob_kinova.ndof, 7, "Kinova Gen3 - should have 7 degrees of freedom")
+
         rob_kinova.set_joint_limits([-3.14,-2,-3.14,-2,-3.14,-2,-3.14],[3.14,2,3.14,2,3.14,2,3.14])
 
+        arr_fromrobot = rob_kinova.fk([0,0,0,0,0,0,0])[rob_kinova.ndof].full()
+        arr_expected = np.array([[1, 0, 0, 6.1995e-05],[0,  1,  0, -2.48444537e-02],[0, 0, 1, 1.18738514],[0, 0, 0, 1]])
+        self.assertTrue(np.linalg.norm(arr_fromrobot - arr_expected) < 1e-8, "Kinova Gen3 - forward kinematics assert failed")
+
+        # ABB Yumi
         rob_yumi = rb.Robot(name="yumi")
 
-        self.assertEqual(sum([1, 2, 3]), 6, "aaa Should be 6")
+        self.assertEqual(rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom")
 
 if __name__ == '__main__':
     unittest.main()
