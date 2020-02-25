@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 class Robot:
     def __init__(self, name="kinova"):
         self.current_X = None
-        self.fd = Function.load('/robots/' + name + '/' + name + '_fd.casadi')
-        self.id = Function.load('/robots/' + name + '/' + name + '_id.casadi')
-        self.fk = Function.load('/robots/' + name + '/' + name + '_fk.casadi')
+        self.fd = Function.load('./robots/' + name + '/' + name + '_fd.casadi')
+        self.id = Function.load('./robots/' + name + '/' + name + '_id.casadi')
+        self.fk = Function.load('./robots/' + name + '/' + name + '_fk.casadi')
         self.joint_ub = None
         self.joint_lb = None
 
@@ -97,3 +97,27 @@ class Robot:
 #
 #     def get_output_controls(self, ocp):
 #         return vertcat(ocp.sample(self.dtheta)[1], ocp.sample(self.V)[1])
+#Function to load casadi robot models
+
+# import casadi as cs
+#
+# def load_fk(robot_name):
+#
+# 	file = '/robots/' + robot_name + '/' + robot_name + '_fk.casadi'
+# 	robot_fk = cs.Function.load(file)
+#
+# 	return load_fk
+#
+# def load_inverse_dynamics(robot_name):
+#
+# 	file = '/robots/' + robot_name + '/' + robot_name + '_id.casadi'
+# 	robot_id = cs.Function.load(file)
+#
+# 	return robot_id
+#
+# def load_forward_dynamics(robot_name):
+#
+# 	file = '/robots/' + robot_name + '/' + robot_name + '_fd.casadi'
+# 	robot_fd = cs.Function.load(file)
+#
+# 	return robot_fd

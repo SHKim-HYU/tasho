@@ -40,8 +40,13 @@ class TestTask(unittest.TestCase):
         self.assertTrue( x_val[-1] - 2.236067977 <= 1e-8, "Final position test failed")
         self.assertTrue( t[-1] - 5 <= 1e-5, "Final time test failed")
 
-    def test_loader(self):
-        rob = rb.Robot(name="kinova")
+    def test_robotloader(self):
+
+        rob_kinova = rb.Robot(name="kinova")
+        print(rob_kinova.fk)
+
+        rob_yumi = rb.Robot(name="yumi")
+        print(rob_yumi.fk)
 
         self.assertEqual(sum([1, 2, 3]), 6, "aaa Should be 6")
 

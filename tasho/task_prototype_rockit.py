@@ -115,12 +115,7 @@ class task_context:
 					if 'norm' not in path_con or path_con['norm'] == 'L2':
 						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
 
-	def add_monitors(self, task_mon):
-
-		print("Not implemented")
-
 	def generate_function(self, name="opti", save=True, codegen=True):
-
 		opti = self.opti
 		func = opti.to_function(name, [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
 
@@ -129,6 +124,9 @@ class task_context:
 		if codegen == True:
 			func.generate(name+'.c',{"with_header": True});
 
+	def add_monitors(self, task_mon):
+
+		print("Not implemented")
 
 if __name__ == '__main__':
 	ocp = Ocp(T = 5)
