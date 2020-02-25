@@ -13,7 +13,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name=NAME, # Replace with your own username
+    name=NAME,
     version=VERSION,
     author=AUTHORS,
     author_email=MAINTAINER_EMAIL,
@@ -25,8 +25,8 @@ setuptools.setup(
     url=URL,
     packages=setuptools.find_packages(),
     install_requires=[
-        'casadi>=3.4,<4.0',
         'rockit-meco',
+        'casadi>=3.4,<4.0',
         'numpy',
         'matplotlib',
         'scipy'
