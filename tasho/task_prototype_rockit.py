@@ -63,6 +63,14 @@ class task_context:
 		ocp = self.ocp
 		ocp.set_der(state, state_der)
 
+	def acceleration_resolved(self):
+
+		print("Not yet implemented")
+
+	def add_regularization(self, expression, gain):
+
+		print("Not yet implemented")
+
 
 
 	def add_task_constraint(self, task_spec):
