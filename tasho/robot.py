@@ -8,17 +8,20 @@ class Robot:
         self.fd = Function.load('./robots/' + name + '/' + name + '_fd.casadi')
         self.id = Function.load('./robots/' + name + '/' + name + '_id.casadi')
         self.fk = Function.load('./robots/' + name + '/' + name + '_fk.casadi')
+        self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
         self.joint_ub = None
         self.joint_lb = None
+
+    @property
+    def get_initial_conditions(self):
+        return self.current_X
+
 
     # def sim_system_dyn(self, ocp):
     #     # Get discretised dynamics as CasADi function to simulate the system
     #     sim_system_dyn = ocp._method.discrete_system(ocp)
     #     return sim_system_dyn
-    #
-    # @property
-    # def get_initial_conditions(self):
-    #     return self.current_X
+
 
 # class TwoLinkPlanar(Robot):
 #     def __init__(self, r_veh=1., bounds={}, safety_dist=0., look_ahead_distance=5.):

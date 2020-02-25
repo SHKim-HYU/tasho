@@ -46,7 +46,6 @@ class TestTask(unittest.TestCase):
         print(rob_kinova.fk)
 
         rob_yumi = rb.Robot(name="yumi")
-        print(rob_yumi.fk)
 
         self.assertEqual(sum([1, 2, 3]), 6, "aaa Should be 6")
 
