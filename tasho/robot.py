@@ -16,6 +16,11 @@ class Robot:
         self.torque_ub = None
         self.torque_lb = None
 
+    def sim_system_dyn(self, ocp):
+        # Get discretised dynamics as CasADi function to simulate the system
+        sim_system_dyn = ocp._method.discrete_system(ocp)
+        return sim_system_dyn
+
     def set_joint_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
         ndof = self.ndof
