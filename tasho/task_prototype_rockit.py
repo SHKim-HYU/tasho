@@ -128,10 +128,10 @@ class task_context:
 		if codegen == True:
 			func.generate(name+'.c',{"with_header": True});
 
-	def set_ocp_solver(self, solver):
+	def set_ocp_solver(self, solver, options={}):
 
 		ocp = self.ocp
-		ocp.solver('ipopt')
+		ocp.solver('ipopt',options)
 
 	def set_discretization_settings(self, settings):
 

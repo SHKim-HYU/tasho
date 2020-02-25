@@ -26,7 +26,7 @@ class TestTask(unittest.TestCase):
 
         solver_options = {"ipopt": {"print_level": 0}, "print_time": False, "expand" : True}
 
-        tc.ocp.solver('ipopt',solver_options)
+        tc.set_ocp_solver('ipopt',solver_options)
         disc_settings = {'discretization method': 'multiple shooting', 'horizon size': 5, 'order':2, 'integration':'rk'}
         tc.set_discretization_settings(disc_settings)
 
