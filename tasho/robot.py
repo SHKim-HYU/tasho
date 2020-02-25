@@ -46,6 +46,36 @@ class Robot:
         self.joint_ub = _ub
         self.joint_lb = _lb
 
+    def set_torque_limits(self, lb = None, ub = None):
+        # TODO: This should come from our Pinocchio's interface
+        ndof = self.ndof
+        if ub == None:
+            _ub = inf
+            for i in range(1, ndof):
+                _ub = vertcat(_ub,inf)
+        else:
+            if len(ub) != ndof:
+                _ub = inf
+                for i in range(1, ndof):
+                    _ub = vertcat(_ub,inf)
+            else:
+                _ub = ub
+
+        if lb == None:
+            _lb = -inf
+            for i in range(1, ndof):
+                _lb = vertcat(_lb,-inf)
+        else:
+            if len(lb) != ndof:
+                _lb = -inf
+                for i in range(1, ndof):
+                    _lb = vertcat(_lb,-inf)
+            else:
+                _lb = lb
+
+        self.torque_ub = _ub
+        self.torque_ub = _lb
+
 
     @property
     def get_initial_conditions(self):
