@@ -1,6 +1,8 @@
 from numpy import sin, cos, tan
 from casadi import vertcat, sumsqr, Function
+from math import inf
 import matplotlib.pyplot as plt
+
 
 class Robot:
     def __init__(self, name="kinova"):
@@ -11,6 +13,39 @@ class Robot:
         self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
         self.joint_ub = None
         self.joint_lb = None
+        self.torque_ub = None
+        self.torque_lb = None
+
+    def set_joint_limits(self, lb = None, ub = None):
+        # TODO: This should come from our Pinocchio's interface
+        ndof = self.ndof
+        if ub == None:
+            _ub = inf
+            for i in range(1, ndof):
+                _ub = vertcat(_ub,inf)
+        else:
+            if len(ub) != ndof:
+                _ub = inf
+                for i in range(1, ndof):
+                    _ub = vertcat(_ub,inf)
+            else:
+                _ub = ub
+
+        if lb == None:
+            _lb = -inf
+            for i in range(1, ndof):
+                _lb = vertcat(_lb,-inf)
+        else:
+            if len(lb) != ndof:
+                _lb = -inf
+                for i in range(1, ndof):
+                    _lb = vertcat(_lb,-inf)
+            else:
+                _lb = lb
+
+        self.joint_ub = _ub
+        self.joint_lb = _lb
+
 
     @property
     def get_initial_conditions(self):

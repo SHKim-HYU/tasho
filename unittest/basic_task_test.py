@@ -44,6 +44,7 @@ class TestTask(unittest.TestCase):
 
         rob_kinova = rb.Robot(name="kinova")
         print(rob_kinova.fk)
+        rob_kinova.set_joint_limits([-3.14,-2,-3.14,-2,-3.14,-2,-3.14],[3.14,2,3.14,2,3.14,2,3.14])
 
         rob_yumi = rb.Robot(name="yumi")
 
