@@ -16,7 +16,13 @@ if __name__ == '__main__':
 	#TODO: remove below line after pinocchio starts to provide the robot joint limits
 	rob_settings = {'n_dof' : 18, 'no_links' : 20, 'q_min' : [-2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, 0, 0, -2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, 0, 0], 'q_max' : [2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025, 2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025] }
 	robot = rob.Robot('yumi')
-	robot.set_joint_limits(lb = rob_settings['q_min'], ub = rob_settings['q_max'])
+	robot.set_from_json('yumi.json')
+
+	## Customise robot limits
+	# robot.set_joint_limits(lb = rob_settings['q_min'], ub = rob_settings['q_max'])
+	robot.set_joint_velocity_limits(lb = -max_joint_vel, ub = max_joint_vel)
+	robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
+
 	print(robot.joint_ub)
 
 	tc = tp.task_context(horizon_size*t_mpc)
@@ -29,13 +35,11 @@ if __name__ == '__main__':
 	tc.set_dynamics(q_dot, q_ddot)
 
 	pos_limits = {'lub':True, 'hard': True, 'expression':q, 'upper_limits':robot.joint_ub, 'lower_limits':robot.joint_lb}
-	vel_limits = {'lub':True, 'hard': True, 'expression':q_dot, 'upper_limits':max_joint_vel, 'lower_limits':-max_joint_vel}
-	acc_limits = {'lub':True, 'hard': True, 'expression':q_ddot, 'upper_limits':max_joint_acc, 'lower_limits':-max_joint_acc}
+	vel_limits = {'lub':True, 'hard': True, 'expression':q_dot, 'upper_limits':robot.joint_vel_ub, 'lower_limits':robot.joint_vel_lb}
+	acc_limits = {'lub':True, 'hard': True, 'expression':q_ddot, 'upper_limits':robot.joint_acc_ub, 'lower_limits':robot.joint_acc_lb}
 	joint_constraints = {'path_constraints':[pos_limits, vel_limits, acc_limits]}
 	tc.add_task_constraint(joint_constraints)
 
 	#parameters of the ocp
 	q0 = tc.create_expression('q0', 'parameter', (robot.ndof, 1))
 	q_dot0 = tc.create_expression('q_dot0', 'parameter', (robot.ndof, 1))
-
-	
