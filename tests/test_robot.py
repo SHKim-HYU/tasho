@@ -10,9 +10,13 @@ class TestTask(unittest.TestCase):
 
         self.assertEqual(rob_kinova.ndof, 7, "Kinova Gen3 - should have 7 degrees of freedom")
 
-        # rob_kinova.set_joint_limits([-3.14,-2,-3.14,-2,-3.14,-2,-3.14],[3.14,2,3.14,2,3.14,2,3.14])
+        rob_kinova.set_joint_limits()
+        rob_kinova.set_joint_limits([-3.14,-2,-3.14,-2,-3.14,-2,-3.14],[3.14,2,3.14,2,3.14,2,3.14])
         rob_kinova.set_joint_limits(1.25,2.12)
         # print(rob_kinova.joint_ub)
+        rob_kinova.set_torque_limits()
+        rob_kinova.set_torque_limits([-39,-38,-37,-36,-9,-9,-9],[39,38,37,36,9,9,9])
+        rob_kinova.set_torque_limits(1.5, 2.5)
 
         arr_fromrobot = rob_kinova.fk([0,0,0,0,0,0,0])[rob_kinova.ndof].full()
         arr_expected = np.array([[1, 0, 0, 6.1995e-05],[0,  1,  0, -2.48444537e-02],[0, 0, 1, 1.18738514],[0, 0, 0, 1]])
