@@ -9,9 +9,6 @@ KEYWORDS = "task specification optimal control robotics"
 URL = "https://gitlab.mech.kuleuven.be/meco-software/tasho"
 LICENSE = 'GNU LGPLv3'
 
-with open("README.md", "r") as fh:
-    long_description = fh.read()
-
 setuptools.setup(
     name=NAME,
     version=VERSION,
@@ -20,7 +17,7 @@ setuptools.setup(
     description=DESCRIPTION,
     keywords=KEYWORDS,
     license=LICENSE,
-    long_description=long_description,
+    long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     url=URL,
     packages=setuptools.find_packages(),
