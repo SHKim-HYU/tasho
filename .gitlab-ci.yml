@@ -79,7 +79,7 @@ stages:
   before_script:
     - source activate ocpx
     - mkdir -p .pip
-    - pip --cache-dir=.pip install casadi coverage nose
+    - pip --cache-dir=.pip install casadi rockit-meco coverage nose
     - python setup.py install
   cache:
     paths:
