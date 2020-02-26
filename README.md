@@ -1,4 +1,6 @@
 # TASHO - A model predictive control toolchain for constraint-based task specification of robot motions
+[![pipeline status](https://gitlab.mech.kuleuven.be/meco-software/tasho/badges/master/pipeline.svg)](https://gitlab.mech.kuleuven.be/meco-software/tasho/commits/master)
+[![coverage report](https://gitlab.mech.kuleuven.be/meco-software/tasho/badges/master/coverage.svg)](https://gitlab.mech.kuleuven.be/meco-software/tasho/coverage/index.html)
 
 ### Installing/Developing
 To install your application (ideally into a virtualenv) just run the setup.py script with the install parameter. It will install your application into the virtualenv site-packages folder and also download and install all dependencies:
