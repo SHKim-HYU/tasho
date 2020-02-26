@@ -1,0 +1,63 @@
+{
+    "name": "JACO3_URDF_V11",
+    "n_dof": "7",
+    "n_joints": "8",
+    "n_q": "7",
+    "n_frames": "19",
+    "gravity": {
+        "x": "0",
+        "y": "0",
+        "z": "-9.8100000000000005"
+    },
+    "joints": {
+        "Actuator1": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "3.1400000000000001",
+            "joint_pos_lb": "-3.1400000000000001",
+            "joint_torque_limit": "39",
+            "joint_vel_limit": "0.87270000000000003"
+        },
+        "Actuator2": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "2.2000000000000002",
+            "joint_pos_lb": "-2.2000000000000002",
+            "joint_torque_limit": "39",
+            "joint_vel_limit": "0.87270000000000003"
+        },
+        "Actuator3": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "3.1400000000000001",
+            "joint_pos_lb": "-3.1400000000000001",
+            "joint_torque_limit": "39",
+            "joint_vel_limit": "0.87270000000000003"
+        },
+        "Actuator4": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "2.5655999999999999",
+            "joint_pos_lb": "-2.5655999999999999",
+            "joint_torque_limit": "39",
+            "joint_vel_limit": "0.87270000000000003"
+        },
+        "Actuator5": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "3.1400000000000001",
+            "joint_pos_lb": "-3.1400000000000001",
+            "joint_torque_limit": "9",
+            "joint_vel_limit": "0.87270000000000003"
+        },
+        "Actuator6": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "2.0499999999999998",
+            "joint_pos_lb": "-2.0499999999999998",
+            "joint_torque_limit": "9",
+            "joint_vel_limit": "0.87270000000000003"
+        },
+        "Actuator7": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "3.1400000000000001",
+            "joint_pos_lb": "-3.1400000000000001",
+            "joint_torque_limit": "9",
+            "joint_vel_limit": "0.87270000000000003"
+        }
+    }
+}
