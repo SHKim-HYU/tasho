@@ -70,6 +70,7 @@
 
 stages:
   - testing
+  - publish
 
 # shorthand for testing
 .test_template: &template
@@ -79,7 +80,7 @@ stages:
   before_script:
     - source activate ocpx
     - mkdir -p .pip
-    - pip --cache-dir=.pip install casadi rockit-meco coverage nose
+    - pip --cache-dir=.pip install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose
     - python setup.py install
   cache:
     paths:
@@ -99,3 +100,38 @@ testing:examples:
   <<: *template
   script:
     - find  examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
+
+docs:sphinx:
+  stage: docs
+  <<: *template
+  dependencies:
+    - testing:unittests
+    - testing:examples
+  script:
+    - cd docs/sphinx && mkdir -p apidoc
+    - sphinx-apidoc -f -o ./apidoc/ ../../tasho/
+    - make html
+    - find -name "*.html" -print0 | xargs -0 sed -i 's|https://mybinder.org/v2/gh/meco-software/tasho.git/master?filepath=notebooks/|https://mybinder.org/v2/git/https%3A%2F%2Fgitlab.mech.kuleuven.be%2Fmeco-software%2Ftasho.git/master?filepath=|g'
+
+  artifacts:
+    paths:
+      - docs/sphinx/build
+  only:
+    - master
+
+pages:
+  stage: publish
+  tags:
+    - pages
+  dependencies:
+    - testing:unittests
+    - docs:sphinx
+  script:
+    - mkdir public
+    - cp -R ./docs/sphinx/build/html/* ./public/
+    - cp -R ./cover ./public/coverage
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
