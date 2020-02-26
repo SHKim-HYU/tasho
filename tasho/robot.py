@@ -9,7 +9,7 @@ import json
 class Robot:
     def __init__(self, name="kinova"):
         self.name = name
-        self.current_X = None
+        self.current_state = None
         self.fd = Function.load('./robots/' + name + '/' + name + '_fd.casadi')
         self.id = Function.load('./robots/' + name + '/' + name + '_id.casadi')
         self.fk = Function.load('./robots/' + name + '/' + name + '_fk.casadi')
@@ -28,6 +28,9 @@ class Robot:
         # Get discretised dynamics as CasADi function to simulate the system
         sim_system_dyn = ocp._method.discrete_system(ocp)
         return sim_system_dyn
+
+    def set_state(self, current_x):
+        self.current_state = current_x
 
     def set_joint_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
@@ -245,7 +248,7 @@ class Robot:
 
     @property
     def get_initial_conditions(self):
-        return self.current_X
+        return self.current_state
 
 
     # def sim_system_dyn(self, ocp):
