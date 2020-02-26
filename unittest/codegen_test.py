@@ -1,9 +1,11 @@
 import unittest
 from tasho import task_prototype_rockit as tp
+import casadi as cs
+from os import remove
 
 class TestTask(unittest.TestCase):
-
-    def test_task_hw(self):
+    # NOTE: Don't execute this test when using CI/CD
+    def test_codegen(self):
         tc = tp.task_context(5)
 
         x = tc.create_expression('x', 'state', (1, 1))
@@ -27,19 +29,19 @@ class TestTask(unittest.TestCase):
         tc.set_discretization_settings(disc_settings)
 
         ocp = tc.ocp
-        ocp.set_value(p, 5)
-        sol = ocp.solve()
-        t, x_val= sol.sample(x, grid='control')
-
-        self.assertAlmostEqual( x_val[-1], 2.236067977499, 10, "Final position test failed")
-        self.assertEqual( t[-1], 5, "Final time test failed")
-
-        ## Test parameter change
         ocp.set_value(p, 0.9)
         sol = ocp.solve()
         t, x_val= sol.sample(x, grid='control')
-        self.assertAlmostEqual( x_val[-1], 0.9486832980505, 10, "Final position test failed")
-        # self.assertEqual( t[-1], 5, "Final time test failed")
+
+        ## Test function generation/save
+        tc.generate_function(name = 'opti_o', save=True, codegen=False)
+
+        loaded_func = cs.Function.load('opti_o.casadi')
+        final_x = loaded_func(0.9,cs.vertcat(0,0,0,0,0,0,0,0,0,0,0),cs.vertcat(0,0,0,0,0,0,0))[0][-1]
+        self.assertAlmostEqual( final_x, x_val[-1], 10, "Function save/load - final position test failed")
+
+        remove('opti_o.casadi')
+
 
 if __name__ == '__main__':
     unittest.main()
