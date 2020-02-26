@@ -1,7 +1,7 @@
 # TASHO - A model predictive control toolchain for constraint-based task specification of robot motions
 
 ### Installing/Developing
-To install your application (ideally into a virtualenv) just run the setup.py script with the install parameter. It will install your application into the virtualenv’s site-packages folder and also download and install all dependencies:
+To install your application (ideally into a virtualenv) just run the setup.py script with the install parameter. It will install your application into the virtualenv site-packages folder and also download and install all dependencies:
 ```
 python setup.py install
 ```
