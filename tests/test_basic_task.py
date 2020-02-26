@@ -26,17 +26,17 @@ class TestTask(unittest.TestCase):
         disc_settings = {'discretization method': 'multiple shooting', 'horizon size': 5, 'order':2, 'integration':'rk'}
         tc.set_discretization_settings(disc_settings)
 
-        ocp = tc.ocp
-        ocp.set_value(p, 5)
-        sol = ocp.solve()
+        tc.ocp.set_value(p, 5)
+
+        sol = tc.solve_ocp()
         t, x_val= sol.sample(x, grid='control')
 
         self.assertAlmostEqual( x_val[-1], 2.236067977499, 10, "Final position test failed")
         self.assertEqual( t[-1], 5, "Final time test failed")
 
         ## Test parameter change
-        ocp.set_value(p, 0.9)
-        sol = ocp.solve()
+        tc.ocp.set_value(p, 0.9)
+        sol = tc.solve_ocp()
         t, x_val= sol.sample(x, grid='control')
         self.assertAlmostEqual( x_val[-1], 0.9486832980505, 10, "Final position test failed")
         # self.assertEqual( t[-1], 5, "Final time test failed")

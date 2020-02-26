@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 #Constructs a simple OCP to verify that the basic functions of task_prototype_rockit is in order
 
 if __name__ == '__main__':
-    
+
     tc = tp.task_context(5)
 
     x = tc.create_expression('x', 'state', (1, 1))

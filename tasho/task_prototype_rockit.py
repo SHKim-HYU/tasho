@@ -170,7 +170,7 @@ class task_context:
 
 		print("Not implemented")
 
-if __name__ == '__main__':
-	ocp = Ocp(T = 5)
-	param = ocp.parameter(5, 5)
-	print(param.size())
+# if __name__ == '__main__':
+# 	ocp = Ocp(T = 5)
+# 	param = ocp.parameter(5, 5)
+# 	print(param.size())
