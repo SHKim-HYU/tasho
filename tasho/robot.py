@@ -1,4 +1,4 @@
-from numpy import sin, cos, tan
+# from numpy import sin, cos, tan
 from casadi import vertcat, sumsqr, Function
 from math import inf
 from numbers import Real
