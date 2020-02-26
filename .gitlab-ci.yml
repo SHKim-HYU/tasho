@@ -90,7 +90,7 @@ testing:unittests:
   stage: testing
   <<: *template
   script:
-    - nosetests --with-coverage --cover-html --cover-package=tasho
+    - nosetests ./tests --with-coverage --cover-html --cover-package=tasho
   artifacts:
     paths:
       - cover
