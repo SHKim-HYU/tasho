@@ -74,11 +74,11 @@ stages:
 
 # shorthand for testing
 .test_template: &template
-  image: asteinh/ocpx-base
+  image: alejandroastudillo/tasho-base
   tags:
     - docker
   before_script:
-    - source activate ocpx
+    - source activate tasho-base
     - mkdir -p .pip
     - pip --cache-dir=.pip install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose
     - python setup.py install
