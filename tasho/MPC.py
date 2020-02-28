@@ -2,3 +2,6 @@
 #Provides options for code-generation for deployment on the robot
 #Could also optionally create a rosnode that communicates with world_simulator for verifying the MPC in simulations
 
+
+class MPC_handler:
+    def __init__(self, tc):
