@@ -12,8 +12,8 @@
     "joints": {
         "Actuator1": {
             "joint_types": "JointModelRZ",
-            "joint_pos_ub": "3.1400000000000001",
-            "joint_pos_lb": "-3.1400000000000001",
+            "joint_pos_ub": "inf",
+            "joint_pos_lb": "-inf",
             "joint_torque_limit": "39",
             "joint_vel_limit": "0.87270000000000003"
         },
@@ -26,8 +26,8 @@
         },
         "Actuator3": {
             "joint_types": "JointModelRZ",
-            "joint_pos_ub": "3.1400000000000001",
-            "joint_pos_lb": "-3.1400000000000001",
+            "joint_pos_ub": "inf",
+            "joint_pos_lb": "-inf",
             "joint_torque_limit": "39",
             "joint_vel_limit": "0.87270000000000003"
         },
@@ -40,8 +40,8 @@
         },
         "Actuator5": {
             "joint_types": "JointModelRZ",
-            "joint_pos_ub": "3.1400000000000001",
-            "joint_pos_lb": "-3.1400000000000001",
+            "joint_pos_ub": "inf",
+            "joint_pos_lb": "-inf",
             "joint_torque_limit": "9",
             "joint_vel_limit": "0.87270000000000003"
         },
@@ -54,8 +54,8 @@
         },
         "Actuator7": {
             "joint_types": "JointModelRZ",
-            "joint_pos_ub": "3.1400000000000001",
-            "joint_pos_lb": "-3.1400000000000001",
+            "joint_pos_ub": "inf",
+            "joint_pos_lb": "-inf",
             "joint_torque_limit": "9",
             "joint_vel_limit": "0.87270000000000003"
         }
