@@ -5,3 +5,7 @@
 
 class MPC_handler:
     def __init__(self, tc):
+
+# TODO: set a method to let the user define the inputs and outputs of the function get from opti.to_function
+# TODO: This should also account for monitors
+# TODO: Set offline solution for initialization ( mpc.set_offline_solution(solver, options, ?))
