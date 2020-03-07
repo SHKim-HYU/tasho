@@ -67,6 +67,10 @@ class task_context:
 
 		print("Not yet implemented")
 
+	def torque_resolved(self):
+
+		print("Not implemented")
+
 	def add_regularization(self, expression, gain):
 
 		print("Not yet implemented")
@@ -92,7 +96,8 @@ class task_context:
 					if 'norm' not in final_con or final_con['norm'] == 'L2':
 						ocp.add_objective(cs.sumsqr(final_con['expression'] - final_con['reference'])*final_con['gain'])
 
-
+		if not 'path_constraints' in task_spec:
+			return
 		for path_con in task_spec['path_constraints']:
 
 			if not 'inequality' in path_con and not 'lub' in path_con:
@@ -139,7 +144,7 @@ class task_context:
 	def set_ocp_solver(self, solver, options={}):
 
 		ocp = self.ocp
-		ocp.solver('ipopt',options)
+		ocp.solver(solver, options)
 
 	def set_discretization_settings(self, settings):
 
