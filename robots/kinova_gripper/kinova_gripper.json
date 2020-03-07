@@ -1,17 +1,17 @@
 {
-    "name": "JACO3_URDF_V11",
-    "n_dof": "7",
-    "n_joints": "8",
-    "n_q": "7",
-    "n_frames": "19",
+    "name": "GEN3_URDF_V12",
+    "n_dof": "11",
+    "n_joints": "12",
+    "n_q": "15",
+    "n_frames": "29",
     "gravity": {
         "x": "0",
         "y": "0",
-        "z": "-9.8100000000000005"
+        "z": "0"
     },
     "joints": {
         "Actuator1": {
-            "joint_types": "JointModelRZ",
+            "joint_types": "JointModelRUBZ",
             "joint_pos_ub": "inf",
             "joint_pos_lb": "-inf",
             "joint_torque_limit": "39",
@@ -25,7 +25,7 @@
             "joint_vel_limit": "0.87270000000000003"
         },
         "Actuator3": {
-            "joint_types": "JointModelRZ",
+            "joint_types": "JointModelRUBZ",
             "joint_pos_ub": "inf",
             "joint_pos_lb": "-inf",
             "joint_torque_limit": "39",
@@ -39,7 +39,7 @@
             "joint_vel_limit": "0.87270000000000003"
         },
         "Actuator5": {
-            "joint_types": "JointModelRZ",
+            "joint_types": "JointModelRUBZ",
             "joint_pos_ub": "inf",
             "joint_pos_lb": "-inf",
             "joint_torque_limit": "9",
@@ -53,11 +53,39 @@
             "joint_vel_limit": "0.87270000000000003"
         },
         "Actuator7": {
-            "joint_types": "JointModelRZ",
+            "joint_types": "JointModelRUBZ",
             "joint_pos_ub": "inf",
             "joint_pos_lb": "-inf",
             "joint_torque_limit": "9",
             "joint_vel_limit": "0.87270000000000003"
+        },
+        "LEFT_BOTTOM": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "1.01",
+            "joint_pos_lb": "-1.01",
+            "joint_torque_limit": "1000",
+            "joint_vel_limit": "1000"
+        },
+        "LEFT_TIP": {
+            "joint_types": "JointModelRevoluteUnaligned",
+            "joint_pos_ub": "2.23",
+            "joint_pos_lb": "-2.23",
+            "joint_torque_limit": "1000",
+            "joint_vel_limit": "1000"
+        },
+        "RIGHT_BOTTOM": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "1.01",
+            "joint_pos_lb": "-1.01",
+            "joint_torque_limit": "1000",
+            "joint_vel_limit": "1000"
+        },
+        "RIGHT_TIP": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "1.01",
+            "joint_pos_lb": "-1.01",
+            "joint_torque_limit": "1000",
+            "joint_vel_limit": "1000"
         }
     }
 }
