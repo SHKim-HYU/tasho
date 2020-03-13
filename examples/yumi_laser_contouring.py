@@ -1,8 +1,23 @@
 import sys
 from tasho import task_prototype_rockit as tp
 from tasho import robot as rob
+import casadi as cs
+from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
+import numpy as np
 import matplotlib.pyplot as plt
+
+def inv_T_matrix(T):
+
+	T_inv = cs.horzcat(cs.horzcat(T[0:3, 0:3].T, cs.mtimes(-T[0:3, 0:3].T, T[0:3,3])).T, [0, 0, 0, 1]).T
+
+	return T_inv
+
+def circle_path(s, centre, radius, rot_mat = np.eye(3)):
+
+	T_goal = cs.vertcat(centre[0] + radius*(cos(s)-1), centre[1] + radius*sin(s), centre[2])
+	
+	return T_goal
 
 if __name__ == '__main__':
 
@@ -31,8 +46,13 @@ if __name__ == '__main__':
 	q_dot = tc.create_expression('q_dot', 'state', (robot.ndof, 1)) #joint velocities
 	q_ddot = tc.create_expression('q_ddot', 'control', (robot.ndof, 1))
 
+	s = tc.create_expression('s', 'state', (1, 1)) #Progress variable for the contour tracing task
+	s_dot = tc.create_expression('s_dot', 'control', (1, 1)) 
+
 	tc.set_dynamics(q, q_dot)
 	tc.set_dynamics(q_dot, q_ddot)
+	tc.set_dynamics(s, s_dot)
+
 
 	pos_limits = {'lub':True, 'hard': True, 'expression':q, 'upper_limits':robot.joint_ub, 'lower_limits':robot.joint_lb}
 	vel_limits = {'lub':True, 'hard': True, 'expression':q_dot, 'upper_limits':robot.joint_vel_ub, 'lower_limits':robot.joint_vel_lb}
@@ -43,3 +63,56 @@ if __name__ == '__main__':
 	#parameters of the ocp
 	q0 = tc.create_expression('q0', 'parameter', (robot.ndof, 1))
 	q_dot0 = tc.create_expression('q_dot0', 'parameter', (robot.ndof, 1))
+
+	#adding the initial constraints on joint position and velocity
+	joint_init_con = {'expression':q, 'reference':q0}
+	joint_vel_init_con = {'expression':q_dot, 'reference':q_dot0}
+	s_init_con = {'expression':s, 'reference':0}
+	s_dot_init_con = {'expression':s_dot, 'reference':0}
+	init_constraints = {'initial_constraints':[joint_init_con, joint_vel_init_con, s_init_con, s_dot_init_con]}
+	tc.add_task_constraint(init_constraints)
+
+	#computing the forward kinematics of the robot tree
+	fk_vals = robot.fk(q)
+
+	fk_left_ee = fk_vals[7]
+	fk_right_ee = fk_vals[17]
+
+	#computing the point of projection of laser on the plane
+	fk_relative = cs.mtimes(inv_T_matrix(fk_right_ee), fk_left_ee)
+	Ns = np.array([0, 0, 1], ndmin=2).T
+	sc = -0.3
+	Nl = fk_relative[0:3,2]
+	P = fk_relative[0:3,3]
+	a = (-sc - cs.mtimes(Ns.T, P))/cs.mtimes(Ns.T, Nl)
+	Ps = P + a*Nl
+
+	# #representing the contour profile as a function of the progress variable
+	centre = [0.0, 0.0, 0.0]
+	radius = 0.1
+	p_des = circle_path(s, centre, radius)
+
+	contour_error = {'equality':True, 'hard': False, 'expression':Ps, 'reference':p_des, 'gain':10}
+	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':1}
+	s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0, 'gain':1}
+	task_objective = {'path_constraints':[vel_regularization, s_dot_regularization]}
+	#task_objective = {'path_constraints':[contour_error, vel_regularization, s_dot_regularization]}
+	tc.add_task_constraint(task_objective)
+
+	#adding the final constraints
+	final_vel = {'hard':True, 'expression':q_dot, 'reference':0}
+	final_s = {'hard':True, 'expression':s, 'reference':2*pi}
+	final_constraints = {'final_constraints':[final_vel, final_s]}
+	tc.add_task_constraint(final_constraints)
+	q0_contour = [-1.35488912e+00, -8.72846052e-01, 2.18411843e+00,  6.78786296e-01,
+  2.08696971e+00, -9.76390128e-01, -1.71721329e+00,  1.65969745e-03,
+  1.65969745e-03,  1.47829337e+00, -5.24943547e-01, -1.95134781e+00,
+  5.30517837e-01, -2.69960026e+00, -8.14070355e-01,  1.17172289e+00,
+  2.06459136e-03,  2.06462524e-03]
+
+	tc.set_ocp_solver('ipopt')
+	tc.ocp.set_value(q0, q0_contour)
+	tc.ocp.set_value(q_dot0, [0]*18)
+	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': 10, 'order':1, 'integration':'rk'}
+	tc.set_discretization_settings(disc_settings)
+	sol = tc.solve_ocp()

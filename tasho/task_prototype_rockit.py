@@ -90,7 +90,10 @@ class task_context:
 			for final_con in task_spec['final_constraints']:
 
 				if final_con['hard']:
-					ocp.subject_to(ocp.at_tf(final_con['expression']) == final_con['reference'])
+					if 'Frame' in final_con['type']:
+						print("not implemented")
+					else:
+						ocp.subject_to(ocp.at_tf(final_con['expression']) == final_con['reference'])
 
 				else:
 					if 'norm' not in final_con or final_con['norm'] == 'L2':
