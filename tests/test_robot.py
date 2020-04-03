@@ -61,9 +61,13 @@ class TestTask(unittest.TestCase):
         self.assertEqual(rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom")
 
         rob_yumi.set_from_json("yumi.json")
+        print(rob_yumi.joint_ub)
+        print(rob_yumi.joint_name)
 
         self.assertEqual(rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom (from json)")
 
+        self.assertEqual(rob_yumi.joint_name[1], "yumi_joint_2_l", "ABB Yumi - joint name doesn't correspond to the real one (from json)")
+        self.assertEqual(rob_yumi.joint_name[12], "yumi_joint_3_r", "ABB Yumi - joint name doesn't correspond to the real one (from json)")
 
 if __name__ == '__main__':
     unittest.main()

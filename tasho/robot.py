@@ -14,6 +14,7 @@ class Robot:
         self.id = Function.load('./robots/' + name + '/' + name + '_id.casadi')
         self.fk = Function.load('./robots/' + name + '/' + name + '_fk.casadi')
         self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
+        self.joint_name = None
         self.joint_ub = None
         self.joint_lb = None
         self.joint_vel_ub = None
@@ -179,6 +180,7 @@ class Robot:
         self.ndof = int(json_dict['n_dof'])
         self.gravity = vertcat(float(json_dict['gravity']['x']), float(json_dict['gravity']['y']), float(json_dict['gravity']['z']))
 
+        _joints_name   = list()
         _joints_pos_ub = vertcat()
         _joints_pos_lb = vertcat()
         _joints_vel_ub = vertcat()
@@ -194,6 +196,8 @@ class Robot:
         _all_joint_acc_limit = True
 
         for x in json_dict['joints']:
+            _joints_name.append(x)
+
             if ('joint_pos_ub' in json_dict['joints'][x]) and _all_joint_pos_ub:
                 _joints_pos_ub = vertcat(_joints_pos_ub,float(json_dict['joints'][x]['joint_pos_ub']))
             else:
@@ -217,6 +221,8 @@ class Robot:
                 _joints_acc_lb = vertcat(_joints_vel_ub,-float(json_dict['joints'][x]['joint_acc_limit']))
             else:
                 _all_joint_acc_limit = False
+
+        self.joint_name = _joints_name
         if _all_joint_pos_ub:
             self.joint_ub = _joints_pos_ub
         if _all_joint_pos_lb:
