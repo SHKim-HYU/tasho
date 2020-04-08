@@ -18,7 +18,6 @@ import numpy as np
 # @params options Dictionary to pass further miscellaneous options 
 def acceleration_resolved(tc, robot, options):
 
-	print("ERROR: Not implemented")
 	q = tc.create_expression('q', 'state', (robot.ndof, 1)) #joint positions over the trajectory
 	q_dot = tc.create_expression('q_dot', 'state', (robot.ndof, 1)) #joint velocities
 	q_ddot = tc.create_expression('q_ddot', 'control', (robot.ndof, 1))
