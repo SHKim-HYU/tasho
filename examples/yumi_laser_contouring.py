@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
 	print("Task specification and visualization of MPC control of laser contouring task")
 
-	visualizationBullet = True #toggle visualization with PyBullet option
+	visualizationBullet = False #toggle visualization with PyBullet option
 
 	horizon_size = 20
 	t_mpc = 0.1 #the MPC sampling time
