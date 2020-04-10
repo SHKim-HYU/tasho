@@ -37,10 +37,19 @@ class world_simulator:
 		self.objectIDs = cylinderID
 		return cylinderID
 
-	def add_robot(self, position, orientaion, robot_name = None, robot_urdf = None, fixedBase = True):
+	def add_robot(self, position, orientation, robot_name = None, robot_urdf = None, fixedBase = True):
 
 		if robot_name != None:
-			print("Not implemented")
+			if robot_name == 'yumi':
+				robotID = p.loadURDF("robots/yumi/yumi.urdf", position, orientation, useFixedBase=fixedBase)
+			elif robot_name == 'kinova':
+				print("not implemented")
+			elif robot_name == 'panda':
+				print("not implemented")
+			elif robot_name == 'iiwa7':
+				print("not implemented")
+			else:
+				print("[Error] No valid robot for the given robot name")
 		elif robot_urdf != None:
 			robotID = p.loadURDF(robot_urdf, position, orientation, useFixedBase=fixedBase)
 		else:
@@ -56,18 +65,42 @@ class world_simulator:
 		self.objectIDs.append(objectID)
 		return objectID
 
-	def readJointState(self):
+	def getJointInfoArray(self, robotID):
 
-		print("Not implemented")
+		num_joints = p.getNumJoints(robotID)
 
-	def setController(self, controller_type):
+		joint_info_array = []
+		for i in range(num_joints):
+			joint_info_array.append(p.getJointInfo(robotID, i))
+
+		return joint_info_array
+
+	def readJointState(self, robotID, joint_indices):
+
+		jointStates = p.getJointStates(robotID, joint_indices)
+
+		return jointStates
+
+
+	def resetJointState(self, robotID, joint_indices, new_joint_states):
+
+		for i in range(len(joint_indices)):
+			p.resetJointState(robotID, joint_indices[i], new_joint_states[i])
+
+		return True
+
+
+	def setController(self, robotID, controller_type, joint_indices, targetPositions = None, targetVelocities = None, targetForces = None):
 
 		if controller_type == 'velocity':
-			print("Not implemented")
+			if targetPositions != None:
+				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)
+			else:
+				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetVelocities = targetVelocities)
 		elif controller_type == 'position':
-			print("not implemented")
+			p.setJointMotorControlArray(robotID, joint_indices, p.POSITION_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)
 		elif controller_type == 'torque':
-			print("Not implemented")
+			p.setJointMotorControlArray(robotID, joint_indices, p.TORQUE_CONTROL, targetForces = targetForces)
 		else:
 			print("unknown controller type")
 
@@ -104,6 +137,12 @@ if __name__ == '__main__':
 
 	obj.add_cylinder(radius, height, weight, pose)
 
+	#adding yumi robot to the bullet environment
+	position = [-0.5, 0.0, 0.25]
+	yumiID = obj.add_robot(position, orientation, 'yumi')
+
+	jointInfo = obj.getJointInfoArray(yumiID)
+	print(jointInfo)
 	obj.run_simulation(480)
 
 	obj.end_simulation()
