@@ -29,7 +29,7 @@ if __name__ == '__main__':
 	visualizationBullet = False #toggle visualization with PyBullet option
 
 	horizon_size = 20
-	t_mpc = 0.1 #the MPC sampling time
+	t_mpc = 0.2 #the MPC sampling time
 	max_joint_vel = 30*3.14159/180
 	max_joint_acc = 30*3.14159/180
 
@@ -97,12 +97,14 @@ if __name__ == '__main__':
 	Ps = P + a*Nl
 
 	# #representing the contour profile as a function of the progress variable
-	centre = [0.0, 0.0, 0.0]
+	centre = [0.0, 0.0, -sc]
 	radius = 0.1
 	p_des = circle_path(s, centre, radius)
 
-	contour_error = {'equality':True, 'hard': False, 'expression':Ps, 'reference':p_des, 'gain':10}
-	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':1}
+	#contour_error = {'equality':True, 'hard': False, 'expression':Ps, 'reference':p_des, 'gain':10}
+	#contour_error = {'equality':True, 'hard': True, 'expression':Ps, 'reference':p_des, 'gain':10}
+	contour_error = {'lub':True, 'hard': True, 'expression':Ps - p_des, 'upper_limits':[0.002]*3, 'lower_limits':[-0.002]*3}
+	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
 	s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0, 'gain':0.01}
 	s_con = {'hard':True, 'inequality':True, 'expression':-s, 'upper_limits':0}
 	# task_objective = {'path_constraints':[vel_regularization, s_dot_regularization, s_con]}
@@ -147,6 +149,7 @@ if __name__ == '__main__':
 		sol = tc.ocp.opti.debug
 		# print(sol.value(tc.ocp._method.eval_at_control(tc.ocp, q, 0)))
 
+	print(sol.sample(Ps - p_des, grid="control"))
 
 	if visualizationBullet:
 
