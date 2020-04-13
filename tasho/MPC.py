@@ -30,14 +30,94 @@ class MPC:
     	else:
     		print("[ERROR] Unknown simulation type")
 
+    ## Configures the MPC from the current positions
+    def configMPC_fromcurrent(self, init_guess = None):
+
+    	#SOLVE the OCP in order to warm start the MPC
+
+    	tc = self.tc
+    	params_val = self._read_params_nrbullet()
+
+    	#set the parameter values
+    	for params_name in self.params_name:
+
+    		tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
+
+    	#set the initial guesses
+
+    	if init_guess != None:
+
+    		print("Not implemented")
+
+    	#For initial guesses, setting a robust solver (IPOPT)
+    	tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+
+    	#assuming that the discretization settings are already done!
+
+    	sol = tc.solve()
+    	sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+    	self.sol_ocp = [sol_states, sol_controls, sol_variables]
+
+    ## obtain the solution of the ocp
+    def _read_solveroutput(self, sol):
+
+    	sol_states = {}
+    	sol_controls = {}
+    	sol_variables = {}
+
+    	for state in tc.states:
+    		_, sol_state = sol.sample(state, grid = 'control')
+    		sol_states[state] = sol_state
+
+    	for control in tc.controls:
+    		_, sol_control = sol.sample(control, grid = 'control')
+    		sol_controls[control] = sol_control
+
+    	for variable in tc.variables:
+    		_, sol_variable = sol.sample(variable, grid = 'control')
+    		sol_variables[variable] = sol_variable
+
+    	return sol_states, sol_controls, sol_variables
+
+    #Continuous running of the MPC
     def runMPC(self):
 
-    	#First solving OCP for initialization for MPC hotstart
+    	sol_states = self.sol_ocp[0]
+    	sol_controls = self.sol_ocp[1]
+    	sol_variables = self.sol_ocp[2]
 
+    	tc = self.tc
 
     	#TODO: change by adding termination criteria
     	for mpc_iter in range(10): 
-    		print("Not implemented")
+    		
+    		if self.type == "bullet_notrealtime":
+
+    			#reading and setting the latest parameter values
+    			params_val = self._read_params_nrbullet()
+    			for params_name in self.params_names:
+    				tc.set_value(tc.parameters[params_name], params_val[params_name])
+
+    			#set the states, controls and variables as initial values
+    			print("Warm starting not implemented!!!!!!!!!!")
+
+    			if self.parameters['solver_name'] == 'ipopt':
+
+    				if 'lbfgs' in self.parameters['solver_params']:
+
+    					tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+
+    			sol = tc.solve()
+    			sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+
+
+    		elif self.type == "bullet_realtime":
+
+    			print("Not implemented")
+
+    		else:
+
+    			print("[ERROR] Unknown simulation type")
     
     # Internal function to read the values of the parameter variables from the bullet simulation environment
     # in non realtime case
@@ -82,7 +162,7 @@ class MPC:
     			print("[ERROR] Invalid type of parameter to be read from the simulation environment")
 
 
-
+    	return params_val
 
 
 # TODO: set a method to let the user define the inputs and outputs of the function get from opti.to_function
