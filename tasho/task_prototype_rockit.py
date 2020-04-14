@@ -91,8 +91,15 @@ class task_context:
 
 				if final_con['hard']:
 					if 'type' in final_con:
+						#When the expression is SE(3) expressed as a 4X4 homogeneous transformation matrix
 						if 'Frame' in final_con['type']:
-							print("not implemented")
+							expression = final_con['expression']
+							reference = final_con['reference']
+							#hard constraint on the translational componenet
+							ocp.subject_to(ocp.at_tf(expression[0:3, 3]) == reference[0:3, 3])
+							#hard constraint on the rotational component
+							rot_error = cs.mtimes(expression[0:3, 0:3], reference[0:3, 0:3])
+							ocp.subject_to(ocp.at_tf(cs.vertcat(rot_error[0,0], rot_error[1,1], rot_error[2,2])) == 1)
 					else:
 						ocp.subject_to(ocp.at_tf(final_con['expression']) == final_con['reference'])
 
