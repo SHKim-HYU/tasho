@@ -1,3 +1,4 @@
 # Directories
 __pycache__/
 tasho.egg-info/
+docs/build/
