@@ -26,7 +26,8 @@ setuptools.setup(
         'casadi>=3.4,<4.0',
         'numpy',
         'matplotlib',
-        'scipy'
+        'scipy',
+        'pybullet'
     ],
     classifiers=[
         "Development Status :: 1 - Planning",
