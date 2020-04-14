@@ -11,5 +11,3 @@
 
 ## Description
 **Tasho** stands for "TAsk Specification with receding HOrizon control".
-
-https://meco-software.pages.gitlab.kuleuven.be/tasho/
