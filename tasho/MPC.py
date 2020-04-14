@@ -110,6 +110,8 @@ class MPC:
     			sol = tc.solve()
     			sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
 
+    			##TODO: apply the control action to bullet environment
+
 
     		elif self.type == "bullet_realtime":
 

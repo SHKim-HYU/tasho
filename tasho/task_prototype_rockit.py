@@ -75,6 +75,13 @@ class task_context:
 
 		print("Not yet implemented")
 
+	## Turn on collision avoidance for robot links
+	def collision_avoidance_hyperplanes(self, toggle):
+		#USE def eval_at_control(self, stage, expr, k): where k is the step of multiple shooting
+		# can access using ocp._method.eval...
+		# then add this as constraint to opti
+		print("Not implemented")
+
 
 
 	def add_task_constraint(self, task_spec):

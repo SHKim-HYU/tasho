@@ -123,6 +123,10 @@ class world_simulator:
 			print("Ending simulation")
 			p.disconnect()
 
+	## Computes the separating hyperplane for each link of the given robot and the given set of joint poses
+	def compute_sh_bullet(self, robotID, q, distance = 0.1):
+
+		print("Not implemented")
 
 if __name__ == '__main__':
 	obj = world_simulator()
