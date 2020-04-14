@@ -95,11 +95,12 @@ testing:unittests:
     paths:
       - cover
 
-testing:examples:
-  stage: testing
-  <<: *template
-  script:
-    - find  examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
+# TODO: Remove examples
+# testing:examples:
+#   stage: testing
+#   <<: *template
+#   script:
+#     - find  examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
 
 pages:
   stage: publish
