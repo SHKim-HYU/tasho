@@ -61,6 +61,7 @@ if __name__ == '__main__':
 	if visualizationBullet:
 
 		from tasho import world_simulator
+		import pybullet as p
 
 		obj = world_simulator.world_simulator()
 
@@ -69,8 +70,9 @@ if __name__ == '__main__':
 
 		kukaID = obj.add_robot(position, orientation, 'iiwa7')
 		#Add a cylinder to the world
-		cylID = obj.add_cylinder(0.15, 0.5, 0.5, {'position':[0.5, 0.0, 0.25], 'orientation':[0.0, 0.0, 0.0, 1.0]})
-		print(obj.getJointInfoArray(kukaID))
+		#cylID = obj.add_cylinder(0.15, 0.5, 0.5, {'position':[0.5, 0.0, 0.25], 'orientation':[0.0, 0.0, 0.0, 1.0]})
+		cylID = p.loadURDF("cube_small.urdf", [0.5, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 3.0)
+		#print(obj.getJointInfoArray(kukaID))
 		no_samples = int(t_mpc/obj.physics_ts)
 
 		if no_samples != t_mpc/obj.physics_ts:
@@ -93,7 +95,17 @@ if __name__ == '__main__':
 			obj.run_simulation(no_samples)
 
 		obj.setController(kukaID, "velocity", joint_indices, targetVelocities = q_dot_sol[-1])
-		obj.run_simulation(1000)
+		
 
+		#create a constraint to attach the body to the robot (TODO: make this systematic and add to the world_simulator class)
+		#print(p.getNumBodies())
+		#get link state of EE
+		ee_state = p.getLinkState(kukaID, 6, computeForwardKinematics = True)
+		print(ee_state)
+		#get link state of the cylinder
+		#cyl_state = p.getLinkState(cylID, -1, computeForwardKinematics = True)
+		#print(cyl_state)
+		p.createConstraint(kukaID, 6, cylID, -1, p.JOINT_FIXED, [0., 0., 1.], [0., 0, 0.1], [0., 0., 0.1])
+		obj.run_simulation(1000)
 		obj.end_simulation()
 
