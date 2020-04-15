@@ -89,8 +89,8 @@ class MPC:
     	tc = self.tc
 
     	#TODO: change by adding termination criteria
-    	for mpc_iter in range(10): 
-    		
+    	for mpc_iter in range(10):
+
     		if self.type == "bullet_notrealtime":
 
     			#reading and setting the latest parameter values
@@ -107,6 +107,26 @@ class MPC:
 
     					tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
+                elif self.parameters['solver_name'] == 'sqpmethod':
+
+                    kkt_tol_pr = 1e-6
+                    kkt_tol_du = 1e-6
+                    min_step_size = 1e-16
+                    max_iter = 1
+                    max_iter_ls = 0
+                    qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : False, 'print_iter': False, 'print_header': False, 'dump_in': False} # "error_on_fail" : False
+                    solver_options = {'qpsol': 'qrqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True}
+                    tc.set_ocp_solver('sqpmethod', solver_options)
+
+                    #   {"qpsol": "qrqp","qpsol_options": qpsol_options,"print_header":False,"print_iteration":False,"print_time":False}
+                    #   {"qpsol": "qrqp","max_iter_ls":0,"qpsol_options": qpsol_options,"print_header":False,"print_iteration":False,"print_time":False}
+                    #   {"qpsol": "qrqp","convexify_strategy":"regularize","max_iter":500,"qpsol_options": qpsol_options,"print_header":False,"print_iteration":True,"print_time":False,"tol_du":1e-8,"min_step_size":1e-12}
+
+
+                else:
+                    # Set ipopt as default solver
+                    tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+
     			sol = tc.solve()
     			sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
 
@@ -120,7 +140,7 @@ class MPC:
     		else:
 
     			print("[ERROR] Unknown simulation type")
-    
+
     # Internal function to read the values of the parameter variables from the bullet simulation environment
     # in non realtime case
     def _read_params_nrbullet(self):
@@ -159,7 +179,7 @@ class MPC:
 
     			params_val[params_name] = param_val
 
-    		else: 
+    		else:
 
     			print("[ERROR] Invalid type of parameter to be read from the simulation environment")
 
