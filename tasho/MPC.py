@@ -109,18 +109,56 @@ class MPC:
 
                 elif self.parameters['solver_name'] == 'sqpmethod':
 
-                    kkt_tol_pr = 1e-6
-                    kkt_tol_du = 1e-6
-                    min_step_size = 1e-16
-                    max_iter = 1
-                    max_iter_ls = 0
-                    qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : False, 'print_iter': False, 'print_header': False, 'dump_in': False} # "error_on_fail" : False
-                    solver_options = {'qpsol': 'qrqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True}
-                    tc.set_ocp_solver('sqpmethod', solver_options)
+                    if 'qrqp' in self.parameters['solver_params']:
+                        kkt_tol_pr = 1e-6
+                        kkt_tol_du = 1e-6
+                        min_step_size = 1e-16
+                        max_iter = 1000
+                        max_iter_ls = 0
+                        qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : False, 'print_iter': False, 'print_header': False, 'dump_in': False} # "error_on_fail" : False
+                        solver_options = {'qpsol': 'qrqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
+                        tc.set_ocp_solver('sqpmethod', solver_options)
 
-                    #   {"qpsol": "qrqp","qpsol_options": qpsol_options,"print_header":False,"print_iteration":False,"print_time":False}
-                    #   {"qpsol": "qrqp","max_iter_ls":0,"qpsol_options": qpsol_options,"print_header":False,"print_iteration":False,"print_time":False}
-                    #   {"qpsol": "qrqp","convexify_strategy":"regularize","max_iter":500,"qpsol_options": qpsol_options,"print_header":False,"print_iteration":True,"print_time":False,"tol_du":1e-8,"min_step_size":1e-12}
+                    elif 'osqp' in self.parameters['solver_params']:
+                        kkt_tol_pr = 1e-6
+                        kkt_tol_du = 1e-6
+                        min_step_size = 1e-16
+                        max_iter = 1000
+                        max_iter_ls = 0
+                        eps_abs = 1e-5
+                        eps_rel = 1e-5
+                        qpsol_options = {'osqp': {'alpha': 1, 'eps_abs': eps_abs, 'eps_rel': eps_rel, 'verbose':0}, 'dump_in': False}
+                        solver_options = {'qpsol': 'osqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
+                        tc.set_ocp_solver('sqpmethod', solver_options)
+
+                    elif 'qpoases' in self.parameters['solver_params']:
+                        kkt_tol_pr = 1e-6
+                        kkt_tol_du = 1e-6
+                        min_step_size = 1e-16
+                        max_iter = 1000
+                        max_iter_ls = 0
+                        qpoases_tol = 1e-6
+                        qpsol_options = {'printLevel': 'none', 'enableEqualities': True, 'initialStatusBounds' : 'inactive', 'terminationTolerance': qpoases_tol}
+                        solver_options = {'qpsol': 'qpoases', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
+                        tc.set_ocp_solver('sqpmethod', solver_options)
+
+                    elif 'ipopt' in self.parameters['solver_params']:
+                        kkt_tol_pr = 1e-6
+                        kkt_tol_du = 1e-6
+                        min_step_size = 1e-16
+                        max_iter = 1000
+                        max_iter_ls = 0
+
+                        ipopt_tol = 1e-6
+                        tiny_step_tol = 1e-16
+                        mu_init = 1e-3
+                        linear_solver = 'ma27'
+
+                        ipopt_options = {'tol': ipopt_tol, 'tiny_step_tol': tiny_step_tol, 'fixed_variable_treatment': 'make_constraint', 'hessian_constant': 'yes', 'jac_c_constant': 'yes', 'jac_d_constant': 'yes', 'accept_every_trial_step': 'yes', 'mu_init': mu_init, 'print_level': 0, 'linear_solver': linear_solver}
+                        nlpsol_options = {'ipopt': ipopt_options, 'print_time': False}
+                        qpsol_options = {'nlpsol': 'ipopt', 'nlpsol_options': nlpsol_options, 'print_time': False, 'verbose': False}
+                        solver_options = {'qpsol': 'nlpsol', 'qpsol_options': qpsol_options, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
+                        tc.set_ocp_solver('sqpmethod', solver_options)
 
 
                 else:
