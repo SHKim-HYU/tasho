@@ -97,11 +97,11 @@ testing:unittests:
       - cover
 
 # TODO: Remove examples
-# testing:examples:
-#   stage: testing
-#   <<: *template
-#   script:
-#     - find  examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
+testing:examples:
+  stage: testing
+  <<: *template
+  script:
+    - find  examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
 
 docs:sphinx:
   stage: docs
