@@ -122,6 +122,19 @@ class world_simulator:
 			p.stepSimulation()
 			time.sleep(self.physics_ts)
 
+	def run_continouous_simulation(self):
+		run_sim = True
+		q_key = ord('q')
+		while (run_sim):
+			keys = p.getKeyboardEvents()
+			for k, v in keys.items():
+				if (k == q_key and (v & p.KEY_WAS_TRIGGERED)):
+					run_sim = False
+					print("Pressed Q. Exit")
+
+			p.stepSimulation()
+			time.sleep(self.physics_ts)
+
 	## end_simulation()
 	# Ends the simulation, disconnects the bullet environment.
 	def end_simulation(self):
