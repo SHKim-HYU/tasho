@@ -9,6 +9,7 @@ from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
 import numpy as np
 import matplotlib.pyplot as plt
+import time
 
 if __name__ == '__main__':
 
@@ -105,7 +106,32 @@ if __name__ == '__main__':
 		#get link state of the cylinder
 		#cyl_state = p.getLinkState(cylID, -1, computeForwardKinematics = True)
 		#print(cyl_state)
-		p.createConstraint(kukaID, 6, cylID, -1, p.JOINT_FIXED, [0., 0., 1.], [0., 0, 0.1], [0., 0., 0.1])
+		#p.createConstraint(kukaID, 6, cylID, -1, p.JOINT_FIXED, [0., 0., 1.], [0., 0, 0.1], [0., 0., 0.1])
+
+		#testing the collision detection times of pybullet
+		boxIDs = []
+		boxIDs.append(cylID)
+
+		cylID2 = p.loadURDF("cube_small.urdf", [0.6, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID3 = p.loadURDF("cube_small.urdf", [0.4, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID4 = p.loadURDF("cube_small.urdf", [0.6, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID5 = p.loadURDF("cube_small.urdf", [0.6, 0.1, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID6 = p.loadURDF("cube_small.urdf", [0.6, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID7 = p.loadURDF("cube_small.urdf", [0.4, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID8 = p.loadURDF("cube_small.urdf", [0.6, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID9 = p.loadURDF("cube_small.urdf", [0.6, 0.1, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID10 = p.loadURDF("cube_small.urdf", [0.6, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID11 = p.loadURDF("cube_small.urdf", [0.4, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID12 = p.loadURDF("cube_small.urdf", [0.6, 0, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		cylID13 = p.loadURDF("cube_small.urdf", [0.6, 0.1, 0.25], [0.0, 0.0, 0.0, 1.0], globalScaling = 2.0)
+		obj.run_simulation(100)
+		boxIDs = [cylID, cylID2, cylID3, cylID4, cylID5, cylID6, cylID7, cylID8, cylID9, cylID10, cylID11, cylID12, cylID13]
+		tic = time.time()
+		for i in range(1000):
+			for cyl_id in boxIDs:
+				coll_shape = p.getClosestPoints(kukaID, cyl_id, 10.0)
+		print(time.time() - tic)
+
 		obj.run_simulation(1000)
 		obj.end_simulation()
 
