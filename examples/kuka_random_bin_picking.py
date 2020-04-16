@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
 	print("Random bin picking with KUKA Iiwa")
 
-	visualizationBullet = True
+	visualizationBullet = False
 	horizon_size = 10
 	t_mpc = 0.5
 	max_joint_acc = 30*3.14159/180
@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
 		#correspondence between joint numbers in bullet and OCP determined after reading joint info of YUMI
 		#from the world simulator
-		joint_indices = [0, 1, 2, 3, 4, 5, 6] 
+		joint_indices = [0, 1, 2, 3, 4, 5, 6]
 
 		#begin the visualization of applying OCP solution in open loop
 		ts, q_dot_sol = sol.sample(q_dot, grid="control")
@@ -96,7 +96,7 @@ if __name__ == '__main__':
 			obj.run_simulation(no_samples)
 
 		obj.setController(kukaID, "velocity", joint_indices, targetVelocities = q_dot_sol[-1])
-		
+
 
 		#create a constraint to attach the body to the robot (TODO: make this systematic and add to the world_simulator class)
 		#print(p.getNumBodies())
@@ -134,4 +134,3 @@ if __name__ == '__main__':
 
 		obj.run_simulation(1000)
 		obj.end_simulation()
-

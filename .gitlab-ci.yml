@@ -70,6 +70,7 @@
 
 stages:
   - testing
+  - docs
   - publish
 
 # shorthand for testing
@@ -96,11 +97,27 @@ testing:unittests:
       - cover
 
 # TODO: Remove examples
-# testing:examples:
-#   stage: testing
-#   <<: *template
-#   script:
-#     - find  examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
+testing:examples:
+  stage: testing
+  <<: *template
+  script:
+    - find  examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
+
+docs:sphinx:
+  stage: docs
+  <<: *template
+  dependencies:
+    - testing:unittests
+  script:
+    - cd docs && mkdir -p apidoc
+    - sphinx-apidoc -f -o ./apidoc/ ../tasho/
+    - make html
+  artifacts:
+    paths:
+      - docs/build
+  only:
+    - master
+
 
 pages:
   stage: publish
@@ -108,9 +125,11 @@ pages:
     - pages
   dependencies:
     - testing:unittests
+    - docs:sphinx
   script:
     - mkdir public
     - cp -R ./cover ./public/coverage
+    - cp -R ./docs/build/html/* ./public/
   artifacts:
     paths:
       - public
