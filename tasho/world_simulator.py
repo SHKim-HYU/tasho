@@ -43,7 +43,7 @@ class world_simulator:
 			if robot_name == 'yumi':
 				robotID = p.loadURDF("robots/yumi/yumi.urdf", position, orientation, useFixedBase=fixedBase)
 			elif robot_name == 'kinova':
-				print("not implemented")
+				robotID = p.loadURDF("robots/kinova/kortex_description/urdf/JACO3_URDF_V11.urdf", position, orientation, useFixedBase=fixedBase)
 			elif robot_name == 'panda':
 				print("not implemented")
 			elif robot_name == 'iiwa7':
@@ -106,7 +106,7 @@ class world_simulator:
 
 	## run_simulation(N = 4)
 	# Function to run the simulation in the bullet world. By default, simulates upto ~16.6 ms
-	# @params N The number of timesteps of the physics time step (1/240 by default in bullet) per function call 
+	# @params N The number of timesteps of the physics time step (1/240 by default in bullet) per function call
 	def run_simulation(self, N = 4):
 
 		for i in range(N):
@@ -150,5 +150,3 @@ if __name__ == '__main__':
 	obj.run_simulation(480)
 
 	obj.end_simulation()
-
-
