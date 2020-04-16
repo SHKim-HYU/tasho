@@ -27,6 +27,7 @@ if __name__ == '__main__':
 	print("Task specification and visualization of MPC control of laser contouring task")
 
 	visualizationBullet = False #toggle visualization with PyBullet option
+	bullet_mpc_nr = True
 
 	horizon_size = 20
 	t_mpc = 0.2 #the MPC sampling time
@@ -185,3 +186,44 @@ if __name__ == '__main__':
 		obj.setController(yumiID, "velocity", joint_indices, targetVelocities = q_dot_sol[0])
 		obj.run_simulation(1000)
 		obj.end_simulation()
+
+	elif bullet_mpc_nr:
+
+		from tasho import world_simulator
+		from tasho import MPC
+
+		bullet_world = world_simulator.world_simulator()
+
+		position = [0., 0., 0.]
+		orientation = [0., 0., 0., 1.]
+
+		yumiID = bullet_world.add_robot(position, orientation, 'yumi')
+		no_samples = int(t_mpc / bullet_world.physics_ts)
+
+		if no_samples != t_mpc / bullet_world.physics_ts:
+			print("[ERROR] MPC sampling time not integer multiple of physics sampling time")
+
+		joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
+
+		#set all joint velocities to zero
+		bullet_world.setController(yumiID, "velocity", joint_indices, targetVelocities = [0]*18)
+		bullet_world.run_simulation(100)
+		#configuring the parameters of the MPC
+		mpc_params = {'world':bullet_world}
+		q0_params_info = {'type':'joint_position', 'joint_indices':joint_indices, 'robotID':yumiID}
+		q_dot0_params_info = {'type':'joint_velocity', 'joint_indices':joint_indices, 'robotID':yumiID}
+		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info}
+		mpc_params['disc_settings'] = disc_settings
+		mpc_params['solver_name'] = 'ipopt'
+		# set the joint positions in the simulator
+		bullet_world.resetJointState(yumiID, joint_indices, q0_contour)
+		sim_type = "bullet_notrealtime"
+		mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
+
+		#run the ocp with IPOPT to get a good initial guess for the MPC
+		mpc_obj.configMPC_fromcurrent()
+
+		#run the MPC
+		mpc_obj.runMPC()
+		bullet_world.run_simulation(200)
+		bullet_world.end_simulation()

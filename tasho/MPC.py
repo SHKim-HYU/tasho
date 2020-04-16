@@ -17,7 +17,7 @@ class MPC:
         self.tc = tc
         self.type = sim_type
         self.parameters = parameters
-        self.params_names = tc.parmaters.keys()
+        self.params_names = tc.parameters.keys()
 
         if sim_type == "bullet_notrealtime":
 
@@ -39,7 +39,7 @@ class MPC:
         params_val = self._read_params_nrbullet()
 
         #set the parameter values
-        for params_name in self.params_name:
+        for params_name in self.params_names:
 
             tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
 
@@ -53,8 +53,11 @@ class MPC:
         tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
         #assuming that the discretization settings are already done!
+        print(tc.ocp._method.M)
+        tc.set_discretization_settings(self.parameters['disc_settings'])
 
-        sol = tc.solve()
+        sol = tc.solve_ocp()
+        print(tc.ocp._method.N)
         sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
         self.sol_ocp = [sol_states, sol_controls, sol_variables]
 
@@ -64,17 +67,18 @@ class MPC:
         sol_states = {}
         sol_controls = {}
         sol_variables = {}
+        tc = self.tc
 
         for state in tc.states:
-            _, sol_state = sol.sample(state, grid = 'control')
+            _, sol_state = sol.sample(tc.states[state], grid = 'control')
             sol_states[state] = sol_state
 
         for control in tc.controls:
-            _, sol_control = sol.sample(control, grid = 'control')
+            _, sol_control = sol.sample(tc.controls[control], grid = 'control')
             sol_controls[control] = sol_control
 
         for variable in tc.variables:
-            _, sol_variable = sol.sample(variable, grid = 'control')
+            _, sol_variable = sol.sample(tc.variables[variable], grid = 'control')
             sol_variables[variable] = sol_variable
 
         return sol_states, sol_controls, sol_variables
@@ -88,15 +92,15 @@ class MPC:
 
             sol_states = sol_ocp[0]
             for state in tc.states:
-                tc.ocp.set_intial(state, sol_states[state])
+                tc.ocp.set_initial(tc.states[state], sol_states[state])
 
             sol_controls = sol_ocp[1]
             for control in tc.controls:
-                tc.ocp.set_intial(control, sol_controls[control])
+                tc.ocp.set_initial(tc.controls[control], sol_controls[control])
 
             sol_variables = sol_ocp[2]
             for variable in tc.variables:
-                tc.ocp.set_intial(variable, sol_variables[variable])
+                tc.ocp.set_initial(tc.variables[variable], sol_variables[variable])
 
         #warm starting by shiting the solution by 1 step
         elif options == 'shift':
@@ -122,7 +126,7 @@ class MPC:
                 #reading and setting the latest parameter values
                 params_val = self._read_params_nrbullet()
                 for params_name in self.params_names:
-                    tc.set_value(tc.parameters[params_name], params_val[params_name])
+                    tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
 
                 #set the states, controls and variables as initial values
                 self._warm_start([sol_states, sol_controls, sol_variables])
@@ -242,10 +246,12 @@ class MPC:
 
         for params_name in self.params_names:
 
-            param_info = parameters['params'][params_names]
+            param_val = []
+            param_info = parameters['params'][params_name]
+
             if param_info['type'] == 'joint_position':
 
-                param_val = []
+                
                 jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
                 for jointInfo in jointsInfo:
                     param_val.append(jointInfo[0])
@@ -254,7 +260,6 @@ class MPC:
 
             elif param_info['type'] == 'joint_velocity':
 
-                param_info = parameters['params'][params_names]
                 jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
                 for jointInfo in jointsInfo:
                     param_val.append(jointInfo[1])
@@ -264,7 +269,6 @@ class MPC:
 
             elif param_info['type'] == 'joint_torque':
 
-                param_info = parameters['params'][params_names]
                 jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
                 for jointInfo in jointsInfo:
                     param_val.append(jointInfo[3])
