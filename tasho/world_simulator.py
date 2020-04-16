@@ -21,6 +21,12 @@ class world_simulator:
 		self.robotIDs = []
 		self.objectIDs = []
 
+		# Add button for
+		p.addUserDebugParameter("Disconnect",1,0,1)
+
+		# Set default camera position
+		p.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=30, cameraPitch=-30, cameraTargetPosition=[0,0,0.5])
+
 	## add_cylinder(radius, height, weight, pose)
 	# Function to add a uniform cylinder. Closely follows the interface of pybullet
 	def add_cylinder(self, radius, height, weight, pose):
@@ -57,6 +63,8 @@ class world_simulator:
 			return
 
 		self.robotIDs.append(robotID)
+		# p.setVRCameraState(robotID)
+
 		return robotID
 
 	def add_object_urdf(self, position, orientaion, object_urdf, fixedBase = False):
