@@ -5,107 +5,133 @@
 
 
 class MPC:
-	## MPC(tc, type)
-	# @params tc task context defined using the task protype function
-	# @params type Specifies the type of MPC interaction. 'bullet_notrealtime' - Here
-	# the bullet environment is simulated onyl after the MPC output is computed. So no computation time issues.
-	# 'bullet_realtime' - The MPC computation and bullet simulation happens at the same time and they communicate through
-	# @params parameters Extra details for the MPC. Such as the mapping between the parameter variables and the data from bullet
+    ## MPC(tc, type)
+    # @params tc task context defined using the task protype function
+    # @params type Specifies the type of MPC interaction. 'bullet_notrealtime' - Here
+    # the bullet environment is simulated onyl after the MPC output is computed. So no computation time issues.
+    # 'bullet_realtime' - The MPC computation and bullet simulation happens at the same time and they communicate through
+    # @params parameters Extra details for the MPC. Such as the mapping between the parameter variables and the data from bullet
 
     def __init__(self, tc, sim_type, parameters):
 
-    	self.tc = tc
-    	self.type = sim_type
-    	self.parameters = parameters
-    	self.params_names = tc.parmaters.keys()
+        self.tc = tc
+        self.type = sim_type
+        self.parameters = parameters
+        self.params_names = tc.parmaters.keys()
 
-    	if sim_type == "bullet_notrealtime":
+        if sim_type == "bullet_notrealtime":
 
-    		self.world = parameters['world'] #object of world_simulator class
+            self.world = parameters['world'] #object of world_simulator class
 
-    	elif sim_type == "bullet_realtime":
+        elif sim_type == "bullet_realtime":
 
-    		print("Not implemented")
+            print("Not implemented")
 
-    	else:
-    		print("[ERROR] Unknown simulation type")
+        else:
+            print("[ERROR] Unknown simulation type")
 
     ## Configures the MPC from the current positions
     def configMPC_fromcurrent(self, init_guess = None):
 
-    	#SOLVE the OCP in order to warm start the MPC
+        #SOLVE the OCP in order to warm start the MPC
 
-    	tc = self.tc
-    	params_val = self._read_params_nrbullet()
+        tc = self.tc
+        params_val = self._read_params_nrbullet()
 
-    	#set the parameter values
-    	for params_name in self.params_name:
+        #set the parameter values
+        for params_name in self.params_name:
 
-    		tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
+            tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
 
-    	#set the initial guesses
+        #set the initial guesses
 
-    	if init_guess != None:
+        if init_guess != None:
 
-    		print("Not implemented")
+            print("Not implemented")
 
-    	#For initial guesses, setting a robust solver (IPOPT)
-    	tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+        #For initial guesses, setting a robust solver (IPOPT)
+        tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
-    	#assuming that the discretization settings are already done!
+        #assuming that the discretization settings are already done!
 
-    	sol = tc.solve()
-    	sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
-    	self.sol_ocp = [sol_states, sol_controls, sol_variables]
+        sol = tc.solve()
+        sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+        self.sol_ocp = [sol_states, sol_controls, sol_variables]
 
     ## obtain the solution of the ocp
     def _read_solveroutput(self, sol):
 
-    	sol_states = {}
-    	sol_controls = {}
-    	sol_variables = {}
+        sol_states = {}
+        sol_controls = {}
+        sol_variables = {}
 
-    	for state in tc.states:
-    		_, sol_state = sol.sample(state, grid = 'control')
-    		sol_states[state] = sol_state
+        for state in tc.states:
+            _, sol_state = sol.sample(state, grid = 'control')
+            sol_states[state] = sol_state
 
-    	for control in tc.controls:
-    		_, sol_control = sol.sample(control, grid = 'control')
-    		sol_controls[control] = sol_control
+        for control in tc.controls:
+            _, sol_control = sol.sample(control, grid = 'control')
+            sol_controls[control] = sol_control
 
-    	for variable in tc.variables:
-    		_, sol_variable = sol.sample(variable, grid = 'control')
-    		sol_variables[variable] = sol_variable
+        for variable in tc.variables:
+            _, sol_variable = sol.sample(variable, grid = 'control')
+            sol_variables[variable] = sol_variable
 
-    	return sol_states, sol_controls, sol_variables
+        return sol_states, sol_controls, sol_variables
+
+    ## Function to provide the initial guess for warm starting the states, controls and variables in tc
+    def _warm_start(self, sol_ocp, options = None):
+
+        tc = self.tc
+        #warm starting by using the same solution from the previous MPC iterate
+        if options == None or options == 'reuse':
+
+            sol_states = sol_ocp[0]
+            for state in tc.states:
+                tc.ocp.set_intial(state, sol_states[state])
+
+            sol_controls = sol_ocp[1]
+            for control in tc.controls:
+                tc.ocp.set_intial(control, sol_controls[control])
+
+            sol_variables = sol_ocp[2]
+            for variable in tc.variables:
+                tc.ocp.set_intial(variable, sol_variables[variable])
+
+        #warm starting by shiting the solution by 1 step
+        elif options == 'shift':
+
+            print("Not implemented")
+
+
 
     #Continuous running of the MPC
     def runMPC(self):
 
-    	sol_states = self.sol_ocp[0]
-    	sol_controls = self.sol_ocp[1]
-    	sol_variables = self.sol_ocp[2]
+        sol_states = self.sol_ocp[0]
+        sol_controls = self.sol_ocp[1]
+        sol_variables = self.sol_ocp[2]
 
-    	tc = self.tc
+        tc = self.tc
 
-    	#TODO: change by adding termination criteria
-    	for mpc_iter in range(10):
+        #TODO: change by adding termination criteria
+        for mpc_iter in range(10):
 
-    		if self.type == "bullet_notrealtime":
+            if self.type == "bullet_notrealtime":
 
-    			#reading and setting the latest parameter values
-    			params_val = self._read_params_nrbullet()
-    			for params_name in self.params_names:
-    				tc.set_value(tc.parameters[params_name], params_val[params_name])
+                #reading and setting the latest parameter values
+                params_val = self._read_params_nrbullet()
+                for params_name in self.params_names:
+                    tc.set_value(tc.parameters[params_name], params_val[params_name])
 
-    			#set the states, controls and variables as initial values
-    			print("Warm starting not implemented!!!!!!!!!!")
+                #set the states, controls and variables as initial values
+                self._warm_start([sol_states, sol_controls, sol_variables])
 
-    			if self.parameters['solver_name'] == 'ipopt':
+                if self.parameters['solver_name'] == 'ipopt':
 
-    				if 'lbfgs' in self.parameters['solver_params']:
+                    if 'lbfgs' in self.parameters['solver_params']:
 
-    					tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+                        tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
                 elif self.parameters['solver_name'] == 'sqpmethod':
 
@@ -163,66 +189,94 @@ class MPC:
 
                 else:
                     # Set ipopt as default solver
+                    print("Using IPOPT with LBFGS as the default solver")
                     tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
-    			sol = tc.solve()
-    			sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+                sol = tc.solve()
+                sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+                sol_mpc = [sol_states, sol_controls, sol_variables]
+                # Apply the control action to bullet environment
+                self._apply_control_nrbullet(sol_mpc)
 
-    			##TODO: apply the control action to bullet environment
+            elif self.type == "bullet_realtime":
 
+                print("Not implemented")
 
-    		elif self.type == "bullet_realtime":
+            else:
 
-    			print("Not implemented")
+                print("[ERROR] Unknown simulation type")
 
-    		else:
+    # Internal function to apply the output of the MPC to the non-realtime bullet environment
+    def _apply_control_nrbullet(self, sol_mpc):
 
-    			print("[ERROR] Unknown simulation type")
+        if self.parameters['control_type'] == 'joint_velocity':
+            control_info = self.parameters['control_info']
+
+            joint_indices = control_info['joint_indices']
+            if control_info['discretization'] =='constant_acceleration':
+                #Computing the average of the first two velocities to apply as input
+                #assuming constant acceleration input
+                control_action = 0.5*(sol_mpc[0]['q_dot'][0] + sol_mpc[0]['q_dot'][0])
+
+            self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetVelocities = control_action)
+
+        elif self.parameters['control_type'] == 'joint_torque':
+
+            print("Not implemented")
+
+        elif self.parameters['control_type'] == 'joint_position':
+
+            print("Not implemented")
+
+        else:
+
+            raise Exception('[Error] Unknown control type for bullet environment initialized')
+
 
     # Internal function to read the values of the parameter variables from the bullet simulation environment
     # in non realtime case
     def _read_params_nrbullet(self):
 
-    	params_val = {}
-    	parameters = self.parameters
+        params_val = {}
+        parameters = self.parameters
 
-    	for params_name in self.params_names:
+        for params_name in self.params_names:
 
-    		param_info = parameters['params'][params_names]
-    		if param_info['type'] == 'joint_position':
+            param_info = parameters['params'][params_names]
+            if param_info['type'] == 'joint_position':
 
-    			param_val = []
-    			jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
-    			for jointInfo in jointsInfo:
-    				param_val.append(jointInfo[0])
+                param_val = []
+                jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
+                for jointInfo in jointsInfo:
+                    param_val.append(jointInfo[0])
 
-    			params_val[params_name] = param_val
+                params_val[params_name] = param_val
 
-    		elif param_info['type'] == 'joint_velocity':
+            elif param_info['type'] == 'joint_velocity':
 
-    			param_info = parameters['params'][params_names]
-    			jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
-    			for jointInfo in jointsInfo:
-    				param_val.append(jointInfo[1])
+                param_info = parameters['params'][params_names]
+                jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
+                for jointInfo in jointsInfo:
+                    param_val.append(jointInfo[1])
 
-    			params_val[params_name] = param_val
-
-
-    		elif param_info['type'] == 'joint_torque':
-
-    			param_info = parameters['params'][params_names]
-    			jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
-    			for jointInfo in jointsInfo:
-    				param_val.append(jointInfo[3])
-
-    			params_val[params_name] = param_val
-
-    		else:
-
-    			print("[ERROR] Invalid type of parameter to be read from the simulation environment")
+                params_val[params_name] = param_val
 
 
-    	return params_val
+            elif param_info['type'] == 'joint_torque':
+
+                param_info = parameters['params'][params_names]
+                jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
+                for jointInfo in jointsInfo:
+                    param_val.append(jointInfo[3])
+
+                params_val[params_name] = param_val
+
+            else:
+
+                print("[ERROR] Invalid type of parameter to be read from the simulation environment")
+
+
+        return params_val
 
 
 # TODO: set a method to let the user define the inputs and outputs of the function get from opti.to_function
@@ -231,4 +285,4 @@ class MPC:
 
 if __name__ == '__main__':
 
-	print("No syntax errors")
+    print("No syntax errors")
