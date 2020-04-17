@@ -1,3 +1,6 @@
+
+"""Robot module for defining system to be used."""
+
 # from numpy import sin, cos, tan
 from casadi import vertcat, sumsqr, Function
 from math import inf
@@ -7,7 +10,29 @@ import json
 
 
 class Robot:
+    """Docstring for class Robot.
+
+    This should be a description of the Robot class.
+    It's common for programmers to give a code example inside of their
+    docstring::
+
+        from tasho import Robot
+        robot = Robot('kinova')
+        robot.set_from_json('kinova.json')
+
+    Here is a link to :py:meth:`set_from_json`.
+    Here is a link to :py:meth:`__init__`.
+    """
+
+
     def __init__(self, name="kinova"):
+        """Start the Foo.
+
+        :param name: Robots name to load functions.
+        :type name: string
+
+        """
+
         self.name = name
         self.current_state = None
         self.fd = Function.load('./robots/' + name + '/' + name + '_fd.casadi')

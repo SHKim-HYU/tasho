@@ -1,11 +1,9 @@
-.. tasho documentation master file, created by
-   sphinx-quickstart on Tue Apr 14 23:06:50 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
 Welcome to Tasho's documentation!
 =================================
+|build-status| |coverage| |license|
 
+**Tasho** stands for "TAsk Specification with receding HOrizon control".
 
 Simple header
 =================================
@@ -19,17 +17,22 @@ Guide
 ^^^^^
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+  :caption: Getting started
+  :maxdepth: 2
 
-   contributing
-   license
-   help
+  intro/license
+  intro/help
 
-Coverage
-========
+.. toctree::
+  :caption: Development
 
-* `Report <https://meco-software.pages.mech.kuleuven.be/tasho/coverage/index.html>`_
+  development/contributing
+
+.. toctree::
+  :caption: Class reference
+
+  class_ref/classes
+
 
 Indices and tables
 ==================
@@ -37,3 +40,15 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+.. |build-status| image:: https://gitlab.mech.kuleuven.be/meco-software/tasho/badges/master/pipeline.svg
+    :alt: Build status
+    :target: https://gitlab.mech.kuleuven.be/meco-software/tasho/commits/master
+
+.. |license| image:: https://img.shields.io/badge/license-LGPL%20v3-success.svg
+    :alt: License
+    :target: license.html
+
+.. |coverage| image:: https://gitlab.mech.kuleuven.be/meco-software/tasho/badges/master/coverage.svg
+    :alt: Test coverage
+    :target: https://meco-software.pages.mech.kuleuven.be/tasho/coverage/index.html
