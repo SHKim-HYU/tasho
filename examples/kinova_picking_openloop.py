@@ -12,7 +12,7 @@ if __name__ == '__main__':
 
 	print("Random bin picking with Kinova Gen3")
 
-	visualizationBullet = True
+	visualizationBullet = False
 	horizon_size = 10
 	t_mpc = 0.5
 	max_joint_acc = 30*3.14159/180
