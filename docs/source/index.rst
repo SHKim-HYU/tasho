@@ -20,6 +20,7 @@ Guide
   :caption: Getting started
   :maxdepth: 2
 
+  intro/install
   intro/license
   intro/help
 

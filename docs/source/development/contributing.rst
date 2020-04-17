@@ -1,7 +1,7 @@
 
-************
-Contributing
-************
+*********************
+Contributing to Tasho
+*********************
 
 If you want to contribute to the project and make it better, your help is very welcome.
 
@@ -13,7 +13,7 @@ If you want to contribute to the project and make it better, your help is very w
 Developer installation
 =======================
 
-To install the toolchain (ideally into a virtualenv) just run the setup.py script with the install parameter. It will install your application into the virtualenv site-packages folder and also download and install all dependencies:
+To install the toolchain (ideally into a virtualenv) just run the setup.py script with the install parameter. It will install Tasho into the virtualenv site-packages folder and also download and install all dependencies:
 
    .. code:: bash
 
