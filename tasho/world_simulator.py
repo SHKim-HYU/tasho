@@ -25,7 +25,7 @@ class world_simulator:
 		p.addUserDebugParameter("Disconnect",1,0,1)
 
 		# Set default camera position
-		p.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=30, cameraPitch=-30, cameraTargetPosition=[0,0,0.5])
+		p.resetDebugVisualizerCamera( cameraDistance=1.5, cameraYaw=55, cameraPitch=-10, cameraTargetPosition=[0,0,0.5])
 
 	## add_cylinder(radius, height, weight, pose)
 	# Function to add a uniform cylinder. Closely follows the interface of pybullet
@@ -124,13 +124,14 @@ class world_simulator:
 
 	def run_continouous_simulation(self):
 		run_sim = True
-		q_key = ord('q')
+		# q_key = ord('q')
+		enter_key = p.B3G_RETURN
 		while (run_sim):
 			keys = p.getKeyboardEvents()
 			for k, v in keys.items():
-				if (k == q_key and (v & p.KEY_WAS_TRIGGERED)):
+				if (k == enter_key and (v & p.KEY_WAS_TRIGGERED)):
 					run_sim = False
-					print("Pressed Q. Exit")
+					print("Pressed Enter. Exit")
 
 			p.stepSimulation()
 			time.sleep(self.physics_ts)
