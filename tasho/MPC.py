@@ -92,11 +92,11 @@ class MPC:
 
             sol_states = sol_ocp[0]
             for state in tc.states:
-                tc.ocp.set_initial(tc.states[state], sol_states[state])
+                tc.ocp.set_initial(tc.states[state], sol_states[state].T)
 
             sol_controls = sol_ocp[1]
             for control in tc.controls:
-                tc.ocp.set_initial(tc.controls[control], sol_controls[control])
+                tc.ocp.set_initial(tc.controls[control], sol_controls[control].T)
 
             sol_variables = sol_ocp[2]
             for variable in tc.variables:
@@ -140,20 +140,20 @@ class MPC:
                 elif self.parameters['solver_name'] == 'sqpmethod':
 
                     if 'qrqp' in self.parameters['solver_params']:
-                        kkt_tol_pr = 1e-6
-                        kkt_tol_du = 1e-6
-                        min_step_size = 1e-16
-                        max_iter = 1000
+                        kkt_tol_pr = 1e-3
+                        kkt_tol_du = 1e-1
+                        min_step_size = 1e-6
+                        max_iter = 10
                         max_iter_ls = 0
-                        qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : False, 'print_iter': False, 'print_header': False, 'dump_in': False} # "error_on_fail" : False
+                        qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : True, 'print_iter': True, 'print_header': True, 'dump_in': False} # "error_on_fail" : False
                         solver_options = {'qpsol': 'qrqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
                         tc.set_ocp_solver('sqpmethod', solver_options)
 
                     elif 'osqp' in self.parameters['solver_params']:
-                        kkt_tol_pr = 1e-6
-                        kkt_tol_du = 1e-6
-                        min_step_size = 1e-16
-                        max_iter = 1000
+                        kkt_tol_pr = 1e-3
+                        kkt_tol_du = 1e-1
+                        min_step_size = 1e-6
+                        max_iter = 5
                         max_iter_ls = 0
                         eps_abs = 1e-5
                         eps_rel = 1e-5
@@ -173,16 +173,17 @@ class MPC:
                         tc.set_ocp_solver('sqpmethod', solver_options)
 
                     elif 'ipopt' in self.parameters['solver_params']:
-                        kkt_tol_pr = 1e-6
-                        kkt_tol_du = 1e-6
-                        min_step_size = 1e-16
-                        max_iter = 1000
+                        kkt_tol_pr = 1e-3
+                        kkt_tol_du = 1e-3
+                        min_step_size = 1e-6
+                        max_iter = 5
                         max_iter_ls = 0
 
-                        ipopt_tol = 1e-6
-                        tiny_step_tol = 1e-16
+                        ipopt_tol = 1e-3
+                        tiny_step_tol = 1e-6
                         mu_init = 1e-3
-                        linear_solver = 'ma27'
+                        # linear_solver = 'ma27'
+                        linear_solver = 'mumps'
 
                         ipopt_options = {'tol': ipopt_tol, 'tiny_step_tol': tiny_step_tol, 'fixed_variable_treatment': 'make_constraint', 'hessian_constant': 'yes', 'jac_c_constant': 'yes', 'jac_d_constant': 'yes', 'accept_every_trial_step': 'yes', 'mu_init': mu_init, 'print_level': 0, 'linear_solver': linear_solver}
                         nlpsol_options = {'ipopt': ipopt_options, 'print_time': False}
@@ -196,7 +197,7 @@ class MPC:
                     print("Using IPOPT with LBFGS as the default solver")
                     tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
-                sol = tc.solve()
+                sol = tc.solve_ocp()
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
                 sol_mpc = [sol_states, sol_controls, sol_variables]
                 # Apply the control action to bullet environment
@@ -220,10 +221,11 @@ class MPC:
             if control_info['discretization'] =='constant_acceleration':
                 #Computing the average of the first two velocities to apply as input
                 #assuming constant acceleration input
-                control_action = 0.5*(sol_mpc[0]['q_dot'][0] + sol_mpc[0]['q_dot'][0])
+                control_action = 0.5*(sol_mpc[0]['q_dot'][0] + sol_mpc[0]['q_dot'][1])
 
             self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetVelocities = control_action)
-
+            print("This ran")
+            print(control_action)
         elif self.parameters['control_type'] == 'joint_torque':
 
             print("Not implemented")
@@ -236,6 +238,8 @@ class MPC:
 
             raise Exception('[Error] Unknown control type for bullet environment initialized')
 
+        #Run the simulator
+        self.world.run_simulation(control_info['no_samples'])
 
     # Internal function to read the values of the parameter variables from the bullet simulation environment
     # in non realtime case

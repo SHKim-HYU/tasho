@@ -214,7 +214,12 @@ if __name__ == '__main__':
 		q_dot0_params_info = {'type':'joint_velocity', 'joint_indices':joint_indices, 'robotID':yumiID}
 		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info}
 		mpc_params['disc_settings'] = disc_settings
-		mpc_params['solver_name'] = 'ipopt'
+		# mpc_params['solver_name'] = 'ipopt'
+		# mpc_params['solver_params'] = {'lbfgs':True}
+		mpc_params['solver_name'] = 'sqpmethod'
+		mpc_params['solver_params'] = {'ipopt':True}
+		mpc_params['control_type'] = 'joint_velocity'
+		mpc_params['control_info'] = {'robotID':yumiID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 		# set the joint positions in the simulator
 		bullet_world.resetJointState(yumiID, joint_indices, q0_contour)
 		sim_type = "bullet_notrealtime"
