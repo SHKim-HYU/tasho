@@ -22,6 +22,7 @@ Guide
    :maxdepth: 2
    :caption: Contents:
 
+   contributing
    license
    help
 
