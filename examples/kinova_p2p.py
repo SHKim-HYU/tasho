@@ -37,6 +37,7 @@ if __name__ == '__main__':
 	#adding penality terms on joint velocity and position
 	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':1}
 	acc_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':1}
+
 	task_objective = {'path_constraints':[vel_regularization, acc_regularization]}
 	tc.add_task_constraint(task_objective)
 
