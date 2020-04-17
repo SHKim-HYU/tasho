@@ -101,8 +101,7 @@ testing:examples:
   stage: testing
   <<: *template
   script:
-    - find examples -name "*.py" -not -path "*/wip/*" -not -name "yumi_laser_contouring.py" | xargs -n 1 python
-    # - find  examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
+    - find examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
 
 
 
