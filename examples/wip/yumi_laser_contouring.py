@@ -29,8 +29,8 @@ if __name__ == '__main__':
 	visualizationBullet = False #toggle visualization with PyBullet option
 	bullet_mpc_nr = True
 
-	horizon_size = 20
-	t_mpc = 0.2 #the MPC sampling time
+	horizon_size = 10
+	t_mpc = 0.3 #the MPC sampling time
 	max_joint_vel = 30*3.14159/180
 	max_joint_acc = 30*3.14159/180
 
