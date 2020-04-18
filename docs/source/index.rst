@@ -10,8 +10,11 @@ Simple header
 
 Here is some text ...::
 
-    print 'hello'
-    >> hello
+    from tasho import Robot
+    robot = Robot('kinova')
+    robot.set_from_json('kinova.json')
+    print 'robot.n_dof'
+    >> 7
 
 Guide
 ^^^^^
