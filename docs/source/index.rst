@@ -22,7 +22,7 @@ Guide
 
   intro/install
   intro/license
-  intro/help
+  intro/contact
 
 .. toctree::
   :caption: Development
