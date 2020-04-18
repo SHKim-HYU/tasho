@@ -54,11 +54,13 @@ if __name__ == '__main__':
 	q_ddot = tc.create_expression('q_ddot', 'control', (robot.ndof, 1))
 
 	s = tc.create_expression('s', 'state', (1, 1)) #Progress variable for the contour tracing task
-	s_dot = tc.create_expression('s_dot', 'control', (1, 1)) 
+	s_dot = tc.create_expression('s_dot', 'state', (1, 1)) 
+	s_ddot = tc.create_expression('s_ddot', 'control', (1, 1)) 
 
 	tc.set_dynamics(q, q_dot)
 	tc.set_dynamics(q_dot, q_ddot)
 	tc.set_dynamics(s, s_dot)
+	tc.set_dynamics(s_dot, s_ddot)
 
 
 	#TODO: change to using limtis from robot object!
@@ -72,12 +74,14 @@ if __name__ == '__main__':
 	#parameters of the ocp
 	q0 = tc.create_expression('q0', 'parameter', (robot.ndof, 1))
 	q_dot0 = tc.create_expression('q_dot0', 'parameter', (robot.ndof, 1))
+	s0 = tc.create_expression('s0', 'parameter', (1, 1))
+	s_dot0 = tc.create_expression('s_dot0', 'parameter', (1, 1))
 
 	#adding the initial constraints on joint position and velocity
 	joint_init_con = {'expression':q, 'reference':q0}
 	joint_vel_init_con = {'expression':q_dot, 'reference':q_dot0}
-	s_init_con = {'expression':s, 'reference':0}
-	s_dot_init_con = {'expression':s_dot, 'reference':0}
+	s_init_con = {'expression':s, 'reference':s0}
+	s_dot_init_con = {'expression':s_dot, 'reference':s_dot0}
 	init_constraints = {'initial_constraints':[joint_init_con, joint_vel_init_con, s_init_con, s_dot_init_con]}
 	# init_constraints = {'initial_constraints':[joint_init_con]}
 	tc.add_task_constraint(init_constraints)
@@ -106,10 +110,12 @@ if __name__ == '__main__':
 	#contour_error = {'equality':True, 'hard': True, 'expression':Ps, 'reference':p_des, 'gain':10}
 	contour_error = {'lub':True, 'hard': True, 'expression':Ps - p_des, 'upper_limits':[0.002]*3, 'lower_limits':[-0.002]*3}
 	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
-	s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0, 'gain':0.01}
+	s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0, 'gain':0.1}
+	s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':1}
 	s_con = {'hard':True, 'inequality':True, 'expression':-s, 'upper_limits':0}
+	s_dotcon = {'hard':True, 'inequality':True, 'expression':-s_dot, 'upper_limits':0}
 	# task_objective = {'path_constraints':[vel_regularization, s_dot_regularization, s_con]}
-	task_objective = {'path_constraints':[contour_error, vel_regularization, s_dot_regularization, s_con]}
+	task_objective = {'path_constraints':[contour_error, vel_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 	
 
 	#Add path constraints on the depth and the angle of the laser interception
@@ -139,6 +145,8 @@ if __name__ == '__main__':
 	# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'tol':1e-3}})
 	tc.ocp.set_value(q0, q0_contour)
 	tc.ocp.set_value(q_dot0, [0]*18)
+	tc.ocp.set_value(s0, 0)
+	tc.ocp.set_value(s_dot0, 0)
 	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
 	tc.set_discretization_settings(disc_settings)
 	try:
@@ -151,6 +159,7 @@ if __name__ == '__main__':
 		# print(sol.value(tc.ocp._method.eval_at_control(tc.ocp, q, 0)))
 
 	print(sol.sample(Ps - p_des, grid="control"))
+	print(sol.sample(s_ddot, grid="control"))
 
 	if visualizationBullet:
 
@@ -212,12 +221,14 @@ if __name__ == '__main__':
 		mpc_params = {'world':bullet_world}
 		q0_params_info = {'type':'joint_position', 'joint_indices':joint_indices, 'robotID':yumiID}
 		q_dot0_params_info = {'type':'joint_velocity', 'joint_indices':joint_indices, 'robotID':yumiID}
-		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info}
+		s0_params_info = {'type':'progress_variable', 'state':True}
+		s_dot0_params_info = {'type':'progress_variable', 'state':True}
+		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info}
 		mpc_params['disc_settings'] = disc_settings
 		# mpc_params['solver_name'] = 'ipopt'
 		# mpc_params['solver_params'] = {'lbfgs':True}
 		mpc_params['solver_name'] = 'sqpmethod'
-		mpc_params['solver_params'] = {'ipopt':True}
+		mpc_params['solver_params'] = {'osqp':True}
 		mpc_params['control_type'] = 'joint_velocity'
 		mpc_params['control_info'] = {'robotID':yumiID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 		# set the joint positions in the simulator

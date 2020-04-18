@@ -3,6 +3,9 @@
 #Could also optionally create a rosnode that communicates with world_simulator for verifying the MPC in simulations
 #Monitor the variables to raise events
 
+import casadi as cs
+import numpy as np
+
 
 class MPC:
     ## MPC(tc, type)
@@ -36,6 +39,7 @@ class MPC:
         #SOLVE the OCP in order to warm start the MPC
 
         tc = self.tc
+        self.mpc_ran = False
         params_val = self._read_params_nrbullet()
 
         #set the parameter values
@@ -60,6 +64,9 @@ class MPC:
         print(tc.ocp._method.N)
         sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
         self.sol_ocp = [sol_states, sol_controls, sol_variables]
+
+        print(sol_controls['s_ddot'])
+        
 
     ## obtain the solution of the ocp
     def _read_solveroutput(self, sol):
@@ -87,8 +94,7 @@ class MPC:
     def _warm_start(self, sol_ocp, options = None):
 
         tc = self.tc
-        #warm starting by using the same solution from the previous MPC iterate
-        if options == None or options == 'reuse':
+        if self.mpc_ran == False or  options == 'reuse':
 
             sol_states = sol_ocp[0]
             for state in tc.states:
@@ -102,10 +108,33 @@ class MPC:
             for variable in tc.variables:
                 tc.ocp.set_initial(tc.variables[variable], sol_variables[variable])
 
-        #warm starting by shiting the solution by 1 step
-        elif options == 'shift':
+        else:
 
-            print("Not implemented")
+            sol_states = sol_ocp[0]
+            for state in tc.states:
+                # print(state)
+                # print(sol_states[state][1:].shape)
+                # print(sol_states[state][-1:].shape)
+                tc.ocp.set_initial(tc.states[state], cs.vertcat(sol_states[state][1:], sol_states[state][-1:]).T)
+                # tc.ocp.set_initial(tc.states[state], sol_states[state].T)
+
+            sol_controls = sol_ocp[1]
+            for control in tc.controls:
+                # tc.ocp.set_initial(tc.controls[control], sol_controls[control].T)
+                # print(control)
+                # print(sol_controls[control][1:-1].shape)
+                zeros_np = np.zeros(sol_controls[control][-1:].shape) 
+                # print(zeros_np.shape)
+                tc.ocp.set_initial(tc.controls[control], cs.vertcat(sol_controls[control][1:-1], zeros_np).T)
+
+            sol_variables = sol_ocp[2]
+            for variable in tc.variables:
+                tc.ocp.set_initial(tc.variables[variable], sol_variables[variable])
+
+        #warm starting by shiting the solution by 1 step
+        # elif options == 'shift':
+
+        #     print("Not implemented")
 
 
 
@@ -135,48 +164,48 @@ class MPC:
 
                     if 'lbfgs' in self.parameters['solver_params']:
 
-                        tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+                        tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3, 'print_level':0}})
 
                 elif self.parameters['solver_name'] == 'sqpmethod':
 
                     if 'qrqp' in self.parameters['solver_params']:
                         kkt_tol_pr = 1e-3
                         kkt_tol_du = 1e-1
-                        min_step_size = 1e-6
-                        max_iter = 10
-                        max_iter_ls = 0
-                        qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : True, 'print_iter': True, 'print_header': True, 'dump_in': False} # "error_on_fail" : False
+                        min_step_size = 1e-4
+                        max_iter = 1
+                        max_iter_ls = 2
+                        qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : False, 'print_iter': False, 'print_header': False, 'dump_in': False, "error_on_fail" : False}
                         solver_options = {'qpsol': 'qrqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
                         tc.set_ocp_solver('sqpmethod', solver_options)
 
                     elif 'osqp' in self.parameters['solver_params']:
                         kkt_tol_pr = 1e-3
                         kkt_tol_du = 1e-1
-                        min_step_size = 1e-6
+                        min_step_size = 1e-4
                         max_iter = 5
-                        max_iter_ls = 0
+                        max_iter_ls = 2
                         eps_abs = 1e-5
                         eps_rel = 1e-5
-                        qpsol_options = {'osqp': {'alpha': 1, 'eps_abs': eps_abs, 'eps_rel': eps_rel, 'verbose':0}, 'dump_in': False}
+                        qpsol_options = {'osqp': {'alpha': 1, 'eps_abs': eps_abs, 'eps_rel': eps_rel, 'verbose':0}, 'dump_in': False, 'error_on_fail':False}
                         solver_options = {'qpsol': 'osqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
                         tc.set_ocp_solver('sqpmethod', solver_options)
 
                     elif 'qpoases' in self.parameters['solver_params']:
-                        kkt_tol_pr = 1e-6
-                        kkt_tol_du = 1e-6
-                        min_step_size = 1e-16
-                        max_iter = 1000
+                        kkt_tol_pr = 1e-3
+                        kkt_tol_du = 1e-1
+                        min_step_size = 1e-4
+                        max_iter = 10
                         max_iter_ls = 0
-                        qpoases_tol = 1e-6
+                        qpoases_tol = 1e-4
                         qpsol_options = {'printLevel': 'none', 'enableEqualities': True, 'initialStatusBounds' : 'inactive', 'terminationTolerance': qpoases_tol}
                         solver_options = {'qpsol': 'qpoases', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
                         tc.set_ocp_solver('sqpmethod', solver_options)
 
                     elif 'ipopt' in self.parameters['solver_params']:
                         kkt_tol_pr = 1e-3
-                        kkt_tol_du = 1e-3
+                        kkt_tol_du = 1e-1
                         min_step_size = 1e-6
-                        max_iter = 5
+                        max_iter = 1
                         max_iter_ls = 0
 
                         ipopt_tol = 1e-3
@@ -200,6 +229,8 @@ class MPC:
                 sol = tc.solve_ocp()
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
                 sol_mpc = [sol_states, sol_controls, sol_variables]
+                self.sol_mpc = sol_mpc
+                self.mpc_ran = True
                 # Apply the control action to bullet environment
                 self._apply_control_nrbullet(sol_mpc)
 
@@ -225,7 +256,8 @@ class MPC:
 
             self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetVelocities = control_action)
             print("This ran")
-            print(control_action)
+            print(sol_mpc[0]['s_dot'])
+            print(sol_mpc[0]['s'])
         elif self.parameters['control_type'] == 'joint_torque':
 
             print("Not implemented")
@@ -278,6 +310,20 @@ class MPC:
                     param_val.append(jointInfo[3])
 
                 params_val[params_name] = param_val
+
+            elif param_info['type'] == 'progress_variable':
+                if self.mpc_ran:
+                    if 'state' in param_info:
+
+                        params_val[params_name] = self.sol_mpc[0][params_name[0:-1]][1]
+
+                    elif 'control' in param_info:
+
+                        params_val[params_name] = self.sol_mpc[1][params_name[0:-1]][1]
+                else:
+
+                    params_val[params_name] = 0
+
 
             else:
 
