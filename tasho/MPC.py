@@ -91,9 +91,10 @@ class MPC:
         return sol_states, sol_controls, sol_variables
 
     ## Function to provide the initial guess for warm starting the states, controls and variables in tc
-    def _warm_start(self, sol_ocp, options = None):
+    def _warm_start(self, sol_ocp, options = 'reuse'):
 
         tc = self.tc
+        #reusing the solution from previous MPC iteration for warm starting
         if self.mpc_ran == False or  options == 'reuse':
 
             sol_states = sol_ocp[0]
@@ -108,7 +109,8 @@ class MPC:
             for variable in tc.variables:
                 tc.ocp.set_initial(tc.variables[variable], sol_variables[variable])
 
-        else:
+        #warm starting by shiting the solution by 1 step
+        elif options == 'shift':
 
             sol_states = sol_ocp[0]
             for state in tc.states:
@@ -125,16 +127,16 @@ class MPC:
                 # print(sol_controls[control][1:-1].shape)
                 zeros_np = np.zeros(sol_controls[control][-1:].shape) 
                 # print(zeros_np.shape)
-                tc.ocp.set_initial(tc.controls[control], cs.vertcat(sol_controls[control][1:-1], zeros_np).T)
+                tc.ocp.set_initial(tc.controls[control], cs.vertcat(sol_controls[control][1:-1], zeros_np, zeros_np).T)
 
             sol_variables = sol_ocp[2]
             for variable in tc.variables:
                 tc.ocp.set_initial(tc.variables[variable], sol_variables[variable])
 
-        #warm starting by shiting the solution by 1 step
-        # elif options == 'shift':
+        
+        else:
 
-        #     print("Not implemented")
+            raise Exception('Invalid MPC restart option ' + options)
 
 
 
@@ -148,7 +150,7 @@ class MPC:
         tc = self.tc
 
         #TODO: change by adding termination criteria
-        for mpc_iter in range(10):
+        for mpc_iter in range(20):
 
             if self.type == "bullet_notrealtime":
 
@@ -158,7 +160,7 @@ class MPC:
                     tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
 
                 #set the states, controls and variables as initial values
-                self._warm_start([sol_states, sol_controls, sol_variables])
+                self._warm_start([sol_states, sol_controls, sol_variables], options = 'shift')
 
                 if self.parameters['solver_name'] == 'ipopt':
 
@@ -205,7 +207,7 @@ class MPC:
                         kkt_tol_pr = 1e-3
                         kkt_tol_du = 1e-1
                         min_step_size = 1e-6
-                        max_iter = 1
+                        max_iter = 3
                         max_iter_ls = 0
 
                         ipopt_tol = 1e-3

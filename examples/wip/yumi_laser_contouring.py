@@ -26,8 +26,8 @@ if __name__ == '__main__':
 
 	print("Task specification and visualization of MPC control of laser contouring task")
 
-	visualizationBullet = False #toggle visualization with PyBullet option
-	bullet_mpc_nr = True
+	visualizationBullet = True #toggle visualization with PyBullet option
+	bullet_mpc_nr = False
 
 	horizon_size = 10
 	t_mpc = 0.3 #the MPC sampling time
@@ -108,21 +108,26 @@ if __name__ == '__main__':
 
 	#contour_error = {'equality':True, 'hard': False, 'expression':Ps, 'reference':p_des, 'gain':10}
 	#contour_error = {'equality':True, 'hard': True, 'expression':Ps, 'reference':p_des, 'gain':10}
-	contour_error = {'lub':True, 'hard': True, 'expression':Ps - p_des, 'upper_limits':[0.002]*3, 'lower_limits':[-0.002]*3}
+	contour_error = {'lub':True, 'hard': True, 'expression':Ps - p_des, 'upper_limits':[0.005]*3, 'lower_limits':[-0.005]*3}
 	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
-	s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0, 'gain':0.1}
-	s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':1}
-	s_con = {'hard':True, 'inequality':True, 'expression':-s, 'upper_limits':0}
-	s_dotcon = {'hard':True, 'inequality':True, 'expression':-s_dot, 'upper_limits':0}
+	if not bullet_mpc_nr:
+		s_regularization = {'hard': False, 'expression':s, 'reference':6.29, 'gain':0.0, 'norm':'L1'} #push towards contour tracing
+		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':3.0, 'gain':1.0, 'norm':'L2'}
+	else:
+		s_regularization = {'hard': False, 'expression':s, 'reference':6.29, 'gain':0.1, 'norm':'L1'} #push towards contour tracing
+		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.0, 'gain':0.0, 'norm':'L2'}
+	s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.1}
+	s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':6.28, 'lower_limits':0}
+	s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
 	# task_objective = {'path_constraints':[vel_regularization, s_dot_regularization, s_con]}
-	task_objective = {'path_constraints':[contour_error, vel_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
+	task_objective = {'path_constraints':[contour_error, vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 	
 
 	#Add path constraints on the depth and the angle of the laser interception
 	dot_prod_ee_workpiece = -cs.mtimes(Ns.T, Nl)
 	#constraint on the angle between laser pointer and workpiece normal
-	angle_limit = 10*3.14159/180
-	angle_constraint = {'hard':True, 'inequality':True, 'expression':-dot_prod_ee_workpiece, 'upper_limits':angle_limit}
+	angle_limit = cos(10*3.14159/180)
+	angle_constraint = {'hard':True, 'inequality':True, 'expression':-dot_prod_ee_workpiece, 'upper_limits':-angle_limit}
 	#constraint on the distance between laser pointer and the workpiece
 	distance_constraint = {'hard':True, 'lub':True, 'expression':a, 'upper_limits':0.02, 'lower_limits':0.0}
 	task_objective['path_constraints'].append(angle_constraint)
@@ -132,7 +137,7 @@ if __name__ == '__main__':
 
 	#adding the final constraints
 	final_vel = {'hard':True, 'expression':q_dot, 'reference':0}
-	final_s = {'hard':True, 'expression':s, 'reference':6.28}
+	final_s = {'hard':True, 'expression':s_dot, 'reference':0.0}
 	final_constraints = {'final_constraints':[final_vel, final_s]}
 	tc.add_task_constraint(final_constraints)
 	q0_contour = np.array([-1.35488912e+00, -8.72846052e-01, 2.18411843e+00,  6.78786296e-01,
@@ -159,7 +164,8 @@ if __name__ == '__main__':
 		# print(sol.value(tc.ocp._method.eval_at_control(tc.ocp, q, 0)))
 
 	print(sol.sample(Ps - p_des, grid="control"))
-	print(sol.sample(s_ddot, grid="control"))
+	print(sol.sample(-dot_prod_ee_workpiece, grid="control"))
+	print(sol.sample(s, grid="control"))
 
 	if visualizationBullet:
 
@@ -228,7 +234,7 @@ if __name__ == '__main__':
 		# mpc_params['solver_name'] = 'ipopt'
 		# mpc_params['solver_params'] = {'lbfgs':True}
 		mpc_params['solver_name'] = 'sqpmethod'
-		mpc_params['solver_params'] = {'osqp':True}
+		mpc_params['solver_params'] = {'ipopt':True}
 		mpc_params['control_type'] = 'joint_velocity'
 		mpc_params['control_info'] = {'robotID':yumiID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 		# set the joint positions in the simulator
