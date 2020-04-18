@@ -121,8 +121,11 @@ class task_context:
 			if not 'inequality' in path_con and not 'lub' in path_con:
 				if not path_con['hard']:
 					if 'norm' not in path_con or path_con['norm'] == 'L2':
+						# print('L2 norm added')
 						ocp.add_objective(ocp.integral(cs.sumsqr(path_con['expression'] - path_con['reference']))*path_con['gain'])
-
+					elif path_con['norm'] == 'L1':
+						# print("L1 norm added")
+						ocp.add_objective(ocp.integral( cs.fabs(path_con['reference'] - path_con['expression']))*path_con['gain'])
 				elif path_con['hard']:
 
 					ocp.subject_to(path_con['expression'] == path_con['reference'])
