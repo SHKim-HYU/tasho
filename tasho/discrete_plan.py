@@ -44,17 +44,82 @@ class DiscretePlan:
     def print_tasks(self):
         print(self.task_names)
 
-    def execute_plan(self):
-        solution_list = []
-        for tc in self.task_list:
+    def solve_task(self, task_name = None, q_init = None, qdot_init = None):
+        # TODO: Check if there's any better way to get ndof from tc
+
+        ndof = self.task_list[0].states["q"].size(1)
+
+        if task_name == None:
+            task_name = self.task_names[0]
+        if q_init == None:
+            q_init = [0]*ndof
+        if qdot_init == None:
+            qdot_init = [0]*ndof
+
+        if type(task_name) is str:
+        # if isinstance(task_name, str):
+            task_index =  self.task_names.index(task_name)
+            tc = self.task_list[task_index]
+
+            # Set parameter's values
+            tc.ocp.set_value(tc.parameters["q0"], q_init)
+            tc.ocp.set_value(tc.parameters["q_dot0"], qdot_init)
+
             sol = tc.solve_ocp()
-            solution_list.append(sol)
-            ts, q_sol = sol.sample(tc.states["q"], grid="control")
-            print(q_sol)
-            # print(tc.states)
+
+        elif type(task_name) is list:
+            sol = []
+            for tname in task_name:
+                task_index =  self.task_names.index(tname)
+                tc = self.task_list[task_index]
+
+                # Set parameter's values
+                tc.ocp.set_value(tc.parameters["q0"], q_init)
+                tc.ocp.set_value(tc.parameters["q_dot0"], qdot_init)
+
+                sol_tc = tc.solve_ocp()
+                sol.append(sol_tc)
+
+                ts, q_sol = sol_tc.sample(tc.states["q"], grid="control")
+                ts, qdot_sol = sol_tc.sample(tc.states["q_dot"], grid="control")
+                q_init = q_sol[-1,:]
+                qdot_init = qdot_sol[-1,:]
+
+        return sol
+
+
+    def execute_plan(self, q_init = None, qdot_init = None):
+        solution_list = []
+
+        # TODO: Check if there's any better way to get ndof from tc
+        ndof = self.task_list[0].states["q"].size(1)
+
+        if q_init == None:
+            q_init = [0]*ndof
+        if qdot_init == None:
+            qdot_init = [0]*ndof
+
+        for tc in self.task_list:
+            # Set parameter's values
+        	tc.ocp.set_value(tc.parameters["q0"], q_init)
+        	tc.ocp.set_value(tc.parameters["q_dot0"], qdot_init)
+
+        	sol = tc.solve_ocp()
+        	solution_list.append(sol)
+
+        	ts, q_sol = sol.sample(tc.states["q"], grid="control")
+        	ts, qdot_sol = sol.sample(tc.states["q_dot"], grid="control")
+        	q_init = q_sol[-1,:]
+        	qdot_init = qdot_sol[-1,:]
+
         return solution_list
 
-    def simulate_plan(self):
-        for tc in self.task_list:
-            sol = tc.solve_ocp()
+    def simulate_plan(self, simulator="bullet"):
         # TODO
+
+        if simulator=="bullet":
+
+            for tc in self.task_list:
+                print("")
+        else:
+            print("Not yet implemented")

@@ -65,67 +65,54 @@ if __name__ == '__main__':
 	q0_val = [0, -0.523598, 0, 2.51799, 0, -0.523598, -1.5708]
 	# q0_val = [0, 0.3491, 0, 2.0944, 0, 0.6981, -1.5708]
 
-
-	tc.ocp.set_value(q0, q0_val)
-	tc.ocp.set_value(q_dot0, [0]*7)
 	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
 	tc.set_discretization_settings(disc_settings)
 
-	plan.add_task(tc)
-	plan.add_task(tc)
-	# plan.add_task(tc,"p2p")
-	# plan.add_task(tc)
-	# plan.add_task(tc)
+    # --------------------------------------------------------------------------
+	# Picking the object up
+	# --------------------------------------------------------------------------
+
+	horizon_size_pickup = 16
+
+	tc_pickup = tp.task_context(horizon_size_pickup*t_mpc)
+
+	q_pickup, q_dot_pickup, q_ddot_pickup, q0_pickup, q_dot0_pickup = input_resolution.acceleration_resolved(tc_pickup, robot, {})
+
+	#computing the expression for the final frame
+	print(robot.fk)
+	fk_vals = robot.fk(q_pickup)[7]
+
+	T_goal_pickup = np.array([[1, 0, 0, 0], [0, -1, 0, -0.5], [0, 0, -1, 0.25], [0, 0, 0, 1]])
+	# T_goal_pickup = np.array([[0, 1, 0, 0], [1, 0, 0, -0.5], [0, 0, -1, 0.25], [0, 0, 0, 1]])
+	final_pos_pickup = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal_pickup}
+	final_vel_pickup = {'hard':True, 'expression':q_dot_pickup, 'reference':0}
+	final_constraints_pickup = {'final_constraints':[final_pos_pickup, final_vel_pickup]}
+	tc_pickup.add_task_constraint(final_constraints_pickup)
+
+	#adding penality terms on joint velocity and position
+	vel_regularization = {'hard': False, 'expression':q_dot_pickup, 'reference':0, 'gain':1}
+	acc_regularization = {'hard': False, 'expression':q_ddot_pickup, 'reference':0, 'gain':1}
+
+	task_objective_pickup = {'path_constraints':[vel_regularization, acc_regularization]}
+	tc_pickup.add_task_constraint(task_objective_pickup)
+
+	tc_pickup.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+	# q0_val_pickup = final_qsol_approx
+	# tc_pickup.ocp.set_value(q0_pickup, q0_val_pickup)
+	# tc_pickup.ocp.set_value(q_dot0_pickup, [0]*7)
+	disc_settings_pickup = {'discretization method': 'multiple shooting', 'horizon size': horizon_size_pickup, 'order':1, 'integration':'rk'}
+	tc_pickup.set_discretization_settings(disc_settings_pickup)
+
+	plan.add_task(tc, "approach")
+	plan.add_task(tc_pickup, "pickup")
 
 
 	plan.print_tasks()
 
-	sol_list = plan.execute_plan()
-	print(sol_list)
+	sol_list = plan.solve_task(["approach","pickup"])
 
-	plan.simulate_plan()
+	# sol = plan.solve_task("approach")
 
-	# sol = tc.solve_ocp()
+	# sol_list = plan.execute_plan()
 
-	# ts, q_sol = sol.sample(q, grid="control")
-	# print(q_sol)
-	# print(robot.fk(q_sol[-1,:])[7])
-	# final_qsol_approx = q_sol[-1,:]
-	# print(final_qsol_approx)
-
-	# # --------------------------------------------------------------------------
-	# # Pick the object up
-	# # --------------------------------------------------------------------------
-	# horizon_size_pickup = 16
-    #
-	# tc_pickup = tp.task_context(horizon_size_pickup*t_mpc)
-    #
-	# q_pickup, q_dot_pickup, q_ddot_pickup, q0_pickup, q_dot0_pickup = input_resolution.acceleration_resolved(tc_pickup, robot, {})
-    #
-	# #computing the expression for the final frame
-	# print(robot.fk)
-	# fk_vals = robot.fk(q_pickup)[7]
-    #
-	# T_goal_pickup = np.array([[1, 0, 0, 0], [0, -1, 0, -0.5], [0, 0, -1, 0.25], [0, 0, 0, 1]])
-	# # T_goal_pickup = np.array([[0, 1, 0, 0], [1, 0, 0, -0.5], [0, 0, -1, 0.25], [0, 0, 0, 1]])
-	# final_pos_pickup = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal_pickup}
-	# final_vel_pickup = {'hard':True, 'expression':q_dot_pickup, 'reference':0}
-	# final_constraints_pickup = {'final_constraints':[final_pos_pickup, final_vel_pickup]}
-	# tc_pickup.add_task_constraint(final_constraints_pickup)
-    #
-	# #adding penality terms on joint velocity and position
-	# vel_regularization = {'hard': False, 'expression':q_dot_pickup, 'reference':0, 'gain':1}
-	# acc_regularization = {'hard': False, 'expression':q_ddot_pickup, 'reference':0, 'gain':1}
-    #
-	# task_objective_pickup = {'path_constraints':[vel_regularization, acc_regularization]}
-	# tc_pickup.add_task_constraint(task_objective_pickup)
-    #
-	# tc_pickup.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
-	# q0_val_pickup = final_qsol_approx
-	# tc_pickup.ocp.set_value(q0_pickup, q0_val_pickup)
-	# tc_pickup.ocp.set_value(q_dot0_pickup, [0]*7)
-	# disc_settings_pickup = {'discretization method': 'multiple shooting', 'horizon size': horizon_size_pickup, 'order':1, 'integration':'rk'}
-	# tc_pickup.set_discretization_settings(disc_settings_pickup)
-	# sol_pickup = tc_pickup.solve_ocp()
-    #
-	# ts_pickup, q_sol_pickup = sol_pickup.sample(q_pickup, grid="control")
+	# plan.simulate_plan()
