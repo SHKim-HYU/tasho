@@ -53,11 +53,11 @@ class DiscretePlan:
 
         ndof = self.task_list[0].states["q"].size(1)
 
-        if task_name == None:
+        if task_name is None:
             task_name = self.task_names[0]
-        if q_init == None:
+        if q_init is None:
             q_init = [0]*ndof
-        if qdot_init == None:
+        if qdot_init is None:
             qdot_init = [0]*ndof
 
         if type(task_name) is str:
@@ -104,9 +104,9 @@ class DiscretePlan:
         # TODO: Check if there's any better way to get ndof from tc
         ndof = self.task_list[0].states["q"].size(1)
 
-        if q_init == None:
+        if q_init is None:
             q_init = [0]*ndof
-        if qdot_init == None:
+        if qdot_init is None:
             qdot_init = [0]*ndof
 
         for tc in self.task_list:
@@ -130,16 +130,14 @@ class DiscretePlan:
 
         # TODO: This data should be accessible from each tc
         t_mpc = 0.5
-        horizon_size = 10
-        horizon_size_pickup = 16
 
 
         # TODO: Check if there's any better way to get ndof from tc
         ndof = self.task_list[0].states["q"].size(1)
 
-        if q_init == None:
+        if q_init is None:
             q_init = [0]*ndof
-        if qdot_init == None:
+        if qdot_init is None:
             qdot_init = [0]*ndof
 
         if simulator=="bullet":
@@ -165,22 +163,50 @@ class DiscretePlan:
 
             obj.resetJointState(robotID, joint_indices, q_init)
             obj.setController(robotID, "velocity", joint_indices, targetVelocities = [0]*ndof)
-            obj.run_simulation(1000) # Here, the robot is just waiting to start the task
+            obj.run_simulation(250) # Here, the robot is just waiting to start the task
 
-            # Solve the task ocp's
-            sol_list = self.execute_plan(q_init = q_init, qdot_init = qdot_init)
+            # # Solve the task ocp's
+            # sol_list = self.execute_plan(q_init = q_init, qdot_init = qdot_init)
+            #
+            # for sol in sol_list:
+            #     tc = self.task_list[sol_list.index(sol)]
+            #     ts, q_sol = sol.sample(tc.states["q"], grid="control")
+            #     ts, qdot_sol = sol.sample(tc.states["q_dot"], grid="control")
+            #
+            #     horizon_size = int(qdot_sol.size/ndof - 1)
+            #
+            #     for i in range(horizon_size):
+            #     	q_vel_current = 0.5*(qdot_sol[i] + qdot_sol[i+1])
+            #     	obj.setController(robotID, "velocity", joint_indices, targetVelocities = q_vel_current)
+            #     	obj.run_simulation(no_samples)
 
-            for sol in sol_list:
-                tc = self.task_list[sol_list.index(sol)]
+            for tname in self.task_names:
+
+                # Solve the task ocp's
+                sol = self.solve_task(task_name = tname, q_init = q_init, qdot_init = qdot_init)
+
+                task_index =  self.task_names.index(tname)
+                tc = self.task_list[task_index]
                 ts, q_sol = sol.sample(tc.states["q"], grid="control")
                 ts, qdot_sol = sol.sample(tc.states["q_dot"], grid="control")
 
+                q_init = q_sol[-1,:]
+                qdot_init = qdot_sol[-1,:]
+
                 horizon_size = int(qdot_sol.size/ndof - 1)
+
+                print("**** Simulating task ****")
+
+                # TODO: Avoid this, don't know how yet
+                if tname == "pickup":
+                    p.createConstraint(robotID, 6, cylID, -1, p.JOINT_FIXED, [0., 0., 1.], [0., 0, 0.1], [0., 0., 0.1])
 
                 for i in range(horizon_size):
                 	q_vel_current = 0.5*(qdot_sol[i] + qdot_sol[i+1])
                 	obj.setController(robotID, "velocity", joint_indices, targetVelocities = q_vel_current)
                 	obj.run_simulation(no_samples)
+
+                print("**** End of task simulation ****")
 
             obj.setController(robotID, "velocity", joint_indices, targetVelocities = [0]*ndof)
             obj.run_simulation(1000)
