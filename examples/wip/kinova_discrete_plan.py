@@ -73,12 +73,17 @@ if __name__ == '__main__':
 
 	plan.add_task(tc)
 	plan.add_task(tc)
-	plan.add_task(tc,"p2p")
-	plan.add_task(tc)
-	plan.add_task(tc)
+	# plan.add_task(tc,"p2p")
+	# plan.add_task(tc)
+	# plan.add_task(tc)
 
 
 	plan.print_tasks()
+
+	sol_list = plan.execute_plan()
+	print(sol_list)
+
+	plan.simulate_plan()
 
 	# sol = tc.solve_ocp()
 
