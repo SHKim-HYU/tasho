@@ -6,7 +6,7 @@ AUTHORS = "Alejandro Astudillo, Ajay Sathya"
 MAINTAINER_EMAIL = "alejandro.astudillovigoya@kuleuven.be"
 DESCRIPTION = "TASHO - A model predictive control toolchain for constraint-based task specification of robot motions"
 KEYWORDS = "task specification optimal control robotics"
-URL = "https://gitlab.mech.kuleuven.be/meco-software/tasho"
+URL = "https://gitlab.kuleuven.be/meco-software/tasho"
 LICENSE = 'GNU LGPLv3'
 
 setuptools.setup(
