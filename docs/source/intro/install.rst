@@ -13,7 +13,6 @@ To install the toolchain just run the setup.py script with the install parameter
 
        python setup.py install
 
+.. note::
 
-.. todo::
-
-   Upload to PyPi to enable `pip install tasho-meco` once there is a stable version of Tasho
+   Once a stable version of Tasho is available, it will be uploaded to PyPi to enable installation via `pip install tasho-meco`
