@@ -36,10 +36,6 @@ class Robot:
 
         self.name = name
         self.current_state = None
-        self.fd = Function.load('./robots/' + name + '/' + name + '_fd.casadi')
-        self.id = Function.load('./robots/' + name + '/' + name + '_id.casadi')
-        self.fk = Function.load('./robots/' + name + '/' + name + '_fk.casadi')
-        self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
         self.joint_name = None
         self.joint_ub = None
         self.joint_lb = None
@@ -51,10 +47,18 @@ class Robot:
         self.torque_lb = None
         self.gravity = vertcat(0,0,-9.81)
 
+        self.load_from_json()
+        
+        self.fd = Function.load('./robots/' + name + '/' + name + '_fd.casadi')
+        self.id = Function.load('./robots/' + name + '/' + name + '_id.casadi')
+        self.fk = Function.load('./robots/' + name + '/' + name + '_fk.casadi')
+        self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
 
         self.states = []
         self.inputs = []
         self.parameters = []
+
+
 
     def set_joint_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
@@ -196,8 +200,10 @@ class Robot:
         self.joint_acc_ub = _ub
         self.joint_acc_lb = _lb
 
+    # TODO: Remove filename as argument
     def set_from_json(self, filename):
         with open('./robots/' + self.name + '/' + filename, 'r') as f:
+        # with open('./robots/' + self.name + '/' + self.name + '.json', 'r') as f:
             json_dict = json.load(f)
 
         self.ndof = int(json_dict['n_dof'])
@@ -266,6 +272,78 @@ class Robot:
         #     print(distro['name'])
         # for x in json_dict:
 	    #     # print("%s: %s" % (x, json_dict[x]))
+        #     print("%s: %s" % (x, json_dict[x]))
+
+    def load_from_json(self):
+        with open('./robots/' + self.name + '/' + self.name + '.json', 'r') as f:
+            json_dict = json.load(f)
+
+        self.ndof = int(json_dict['n_dof'])
+        self.gravity = vertcat(float(json_dict['gravity']['x']), float(json_dict['gravity']['y']), float(json_dict['gravity']['z']))
+
+        _joints_name   = list()
+        _joints_pos_ub = vertcat()
+        _joints_pos_lb = vertcat()
+        _joints_vel_ub = vertcat()
+        _joints_vel_lb = vertcat()
+        _joints_acc_ub = vertcat()
+        _joints_acc_lb = vertcat()
+        _joints_torque_ub = vertcat()
+        _joints_torque_lb = vertcat()
+        _all_joint_pos_ub = True
+        _all_joint_pos_lb = True
+        _all_joint_vel_limit = True
+        _all_joint_torque_limit = True
+        _all_joint_acc_limit = True
+
+        for x in json_dict['joints']:
+            _joints_name.append(x)
+
+            if ('joint_pos_ub' in json_dict['joints'][x]) and _all_joint_pos_ub:
+                _joints_pos_ub = vertcat(_joints_pos_ub,float(json_dict['joints'][x]['joint_pos_ub']))
+            else:
+                _all_joint_pos_ub = False
+            if ('joint_pos_lb' in json_dict['joints'][x]) and _all_joint_pos_lb:
+                _joints_pos_lb = vertcat(_joints_pos_lb,float(json_dict['joints'][x]['joint_pos_lb']))
+            else:
+                _all_joint_pos_lb = False
+            if ('joint_vel_limit' in json_dict['joints'][x]) and _all_joint_vel_limit:
+                _joints_vel_ub = vertcat(_joints_vel_ub,float(json_dict['joints'][x]['joint_vel_limit']))
+                _joints_vel_lb = vertcat(_joints_vel_lb,-float(json_dict['joints'][x]['joint_vel_limit']))
+            else:
+                _all_joint_vel_limit = False
+            if ('joint_torque_limit' in json_dict['joints'][x]) and _all_joint_torque_limit:
+                _joints_torque_ub = vertcat(_joints_torque_ub,float(json_dict['joints'][x]['joint_torque_limit']))
+                _joints_torque_lb = vertcat(_joints_torque_lb,-float(json_dict['joints'][x]['joint_torque_limit']))
+            else:
+                _all_joint_torque_limit = False
+            if ('joint_acc_limit' in json_dict['joints'][x]) and _all_joint_acc_limit:
+                _joints_acc_ub = vertcat(_joints_vel_ub,float(json_dict['joints'][x]['joint_acc_limit']))
+                _joints_acc_lb = vertcat(_joints_vel_ub,-float(json_dict['joints'][x]['joint_acc_limit']))
+            else:
+                _all_joint_acc_limit = False
+
+        self.joint_name = _joints_name
+        if _all_joint_pos_ub:
+            self.joint_ub = _joints_pos_ub
+        if _all_joint_pos_lb:
+            self.joint_lb = _joints_pos_lb
+        if _all_joint_vel_limit:
+            self.joint_vel_ub = _joints_vel_ub
+            self.joint_vel_lb = _joints_vel_lb
+        if _all_joint_torque_limit:
+            self.joint_torque_ub = _joints_torque_ub
+            self.joint_torque_lb = _joints_torque_lb
+        if _all_joint_acc_limit:
+            self.joint_acc_ub = _joints_acc_ub
+            self.joint_acc_lb = _joints_acc_lb
+
+        # TODO: Set ub or lb to infinity if they are not included in json
+
+        # for distro in json_dict:
+        #     print(distro['name'])
+        # for x in json_dict:
+        #     # print("%s: %s" % (x, json_dict[x]))
         #     print("%s: %s" % (x, json_dict[x]))
 
     def transcribe(self, task_context = None):
