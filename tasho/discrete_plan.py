@@ -155,9 +155,9 @@ class DiscretePlan:
             robotID = obj.add_robot(position, orientation, 'kinova')
             joint_indices = [0, 1, 2, 3, 4, 5, 6]
 
-            cylID = p.loadURDF("robots/objects/cube_small.urdf", [0.5, 0, 0.35], [0.0, 0.0, 0.0, 1.0], globalScaling = 1.0)
-            tbID = p.loadURDF("robots/objects/table.urdf", [0.5, 0, 0], p.getQuaternionFromEuler([0,0,1.5708]), globalScaling = 0.3)
-            tbID2 = p.loadURDF("robots/objects/table.urdf", [0, -0.5, 0], [0.0, 0.0, 0.0, 1.0], globalScaling = 0.3)
+            cylID = p.loadURDF("models/objects/cube_small.urdf", [0.5, 0, 0.35], [0.0, 0.0, 0.0, 1.0], globalScaling = 1.0)
+            tbID = p.loadURDF("models/objects/table.urdf", [0.5, 0, 0], p.getQuaternionFromEuler([0,0,1.5708]), globalScaling = 0.3)
+            tbID2 = p.loadURDF("models/objects/table.urdf", [0, -0.5, 0], [0.0, 0.0, 0.0, 1.0], globalScaling = 0.3)
 
             no_samples = int(t_mpc/obj.physics_ts)
 

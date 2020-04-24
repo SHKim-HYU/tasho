@@ -47,12 +47,14 @@ class Robot:
         self.torque_lb = None
         self.gravity = vertcat(0,0,-9.81)
 
+        # Remove when set_from_json is deprecated ------------------------------
+        # self.fd = Function.load('./robots/' + name + '/' + name + '_fd.casadi')
+        # self.id = Function.load('./robots/' + name + '/' + name + '_id.casadi')
+        # self.fk = Function.load('./robots/' + name + '/' + name + '_fk.casadi')
+        # self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
+        # End - Remove when set_from_json is deprecated ------------------------------
+
         self.load_from_json()
-        
-        self.fd = Function.load('./robots/' + name + '/' + name + '_fd.casadi')
-        self.id = Function.load('./robots/' + name + '/' + name + '_id.casadi')
-        self.fk = Function.load('./robots/' + name + '/' + name + '_fk.casadi')
-        self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
 
         self.states = []
         self.inputs = []
@@ -275,7 +277,7 @@ class Robot:
         #     print("%s: %s" % (x, json_dict[x]))
 
     def load_from_json(self):
-        with open('./robots/' + self.name + '/' + self.name + '.json', 'r') as f:
+        with open('./models/robots/' + self.name + '.json', 'r') as f:
             json_dict = json.load(f)
 
         self.ndof = int(json_dict['n_dof'])
@@ -337,8 +339,14 @@ class Robot:
         if _all_joint_acc_limit:
             self.joint_acc_ub = _joints_acc_ub
             self.joint_acc_lb = _joints_acc_lb
-
         # TODO: Set ub or lb to infinity if they are not included in json
+
+        self.fd = Function.load(str(json_dict['forward_dynamics_path']))
+        self.id = Function.load(str(json_dict['inverse_dynamics_path']))
+        self.fk = Function.load(str(json_dict['forward_kinematics_path']))
+
+        # TODO: Add URDF path to json
+        # self.urdf = Function.load(str(json_dict['urdf_path']))
 
         # for distro in json_dict:
         #     print(distro['name'])

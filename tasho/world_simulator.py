@@ -47,9 +47,9 @@ class world_simulator:
 
 		if robot_name != None:
 			if robot_name == 'yumi':
-				robotID = p.loadURDF("robots/yumi/yumi.urdf", position, orientation, useFixedBase=fixedBase)
+				robotID = p.loadURDF("models/robots/ABB/yumi/yumi.urdf", position, orientation, useFixedBase=fixedBase)
 			elif robot_name == 'kinova':
-				robotID = p.loadURDF("robots/kinova/kortex_description/urdf/JACO3_URDF_V11.urdf", position, orientation, useFixedBase=fixedBase)
+				robotID = p.loadURDF("models/robots/Kinova/Gen3/kortex_description/urdf/JACO3_URDF_V11.urdf", position, orientation, useFixedBase=fixedBase)
 			elif robot_name == 'panda':
 				print("not implemented")
 			elif robot_name == 'iiwa7':
