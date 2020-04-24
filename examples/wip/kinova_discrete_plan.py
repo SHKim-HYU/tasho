@@ -1,19 +1,18 @@
-import sys
+
+from tasho import robot as rob
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution
-from tasho import robot as rob
+from tasho import discrete_plan as dp
+
 import casadi as cs
 from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
 import numpy as np
-import matplotlib.pyplot as plt
-from tasho import discrete_plan as dp
 
 if __name__ == '__main__':
 
     print("Random bin picking with Kinova Gen3")
 
-    visualizationBullet = True
     horizon_size = 10
     t_mpc = 0.5
     max_joint_acc = 30*3.14159/180

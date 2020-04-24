@@ -5,16 +5,9 @@ Welcome to Tasho's documentation!
 
 **Tasho** stands for "TAsk Specification with receding HOrizon control".
 
-Simple header
-=================================
+A model predictive control toolchain for constraint-based task specification of robot motions
+=============================================================================================
 
-Here is some text ...::
-
-    from tasho import Robot
-    robot = Robot('kinova')
-    robot.set_from_json('kinova.json')
-    print 'robot.n_dof'
-    >> 7
 
 Guide
 ^^^^^
@@ -24,6 +17,7 @@ Guide
   :maxdepth: 2
 
   intro/install
+  intro/examples
   intro/license
   intro/contact
 
