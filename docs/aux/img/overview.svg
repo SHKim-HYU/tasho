@@ -221,11 +221,11 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.175"
-     inkscape:cx="2256.7078"
-     inkscape:cy="-409.80176"
+     inkscape:zoom="0.49497475"
+     inkscape:cx="1014.7869"
+     inkscape:cy="526.30312"
      inkscape:document-units="mm"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="g953"
      showgrid="false"
      inkscape:window-width="1873"
      inkscape:window-height="1056"
@@ -245,7 +245,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -258,16 +258,17 @@
        id="g953"
        transform="translate(41.075197,394.85826)">
       <path
-         sodipodi:nodetypes="cccccccccc"
+         sodipodi:nodetypes="cccccccccccccc"
          inkscape:connector-curvature="0"
          id="path937"
-         d="m -17.10525,-285.64758 v 178.53606 H 275.82214 V -284.5785 H 83.38809 v -22.99442 c -0.08819,-5.24163 -2.35652,-6.92638 -7.603864,-6.93974 h -86.475007 c -3.913266,0.51253 -6.177132,1.65482 -6.437937,6.01336 l 0.02346,22.85172"
-         style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+         d="m -17.10525,-285.64758 v 172.1617 c 0.03302,4.62956 0.277666,6.5414 6.043173,6.37436 H 267.63322 c 8.42981,7.1e-4 8.1221,-1.593 8.18892,-8.84661 v -160.06881 c 0,-7.9663 -4.90197,-8.55156 -9.17563,-8.55156 H 91.643538 c -6.189122,-0.0252 -8.160956,-5.76414 -8.255448,-8.26838 v -14.72604 c -0.08819,-5.24163 -2.35652,-6.92638 -7.603864,-6.93974 h -86.475007 c -3.913266,0.51253 -6.177132,1.65482 -6.437937,6.01336 l 0.02346,22.85172"
+         style="fill:none;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
       <path
          inkscape:connector-curvature="0"
          id="path939"
-         d="M 83.388088,-284.5785 H -17.10525"
-         style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+         d="M 92.648505,-284.5785 H -17.10525"
+         style="fill:none;stroke:#000000;stroke-width:2.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         sodipodi:nodetypes="cc" />
       <text
          id="text874"
          y="-293.19559"
@@ -460,7 +461,7 @@
              height="64.649765"
              x="218.19295"
              y="561.66577" /></flowRegion><flowPara
-           id="flowPara4460"></flowPara></flowRoot>      <g
+           id="flowPara4460" /></flowRoot>      <g
          id="g4470-2"
          transform="translate(37.952273,18.719603)">
         <rect
