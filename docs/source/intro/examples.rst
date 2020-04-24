@@ -8,10 +8,6 @@ Examples
             <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></iframe>
         </div>
 
-
-.. image:: ../../aux/img/overview.svg
-
-
 Picking example
 ===============
 

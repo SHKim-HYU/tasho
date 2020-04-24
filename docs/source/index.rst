@@ -8,9 +8,10 @@ Welcome to Tasho's documentation!
 A model predictive control toolchain for constraint-based task specification of robot motions
 =============================================================================================
 
+.. image:: ../aux/img/overview.svg
 
-Guide
-^^^^^
+Table of contents
+=================
 
 .. toctree::
   :caption: Getting started
