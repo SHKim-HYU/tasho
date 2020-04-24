@@ -7,6 +7,7 @@ from math import inf
 from numbers import Real
 import matplotlib.pyplot as plt
 import json
+from tasho import task_prototype_rockit
 
 
 class Robot:
@@ -262,13 +263,6 @@ class Robot:
             self.joint_acc_ub = _joints_acc_ub
             self.joint_acc_lb = _joints_acc_lb
 
-        # print(self.joint_ub)
-        # print(self.joint_lb)
-        # print(self.joint_vel_lb)
-        # print(self.joint_torque_ub)
-        # print(self.joint_torque_lb)
-        # print(self.joint_acc_ub)
-
         # TODO: Set ub or lb to infinity if they are not included in json
 
         # for distro in json_dict:
@@ -276,6 +270,10 @@ class Robot:
         # for x in json_dict:
 	    #     # print("%s: %s" % (x, json_dict[x]))
         #     print("%s: %s" % (x, json_dict[x]))
+
+    def transcribe(self, task_context = None):
+        print("TODO: Depending on dynamics resolution")
+
 
     @property
     def get_initial_conditions(self):
