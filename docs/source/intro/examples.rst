@@ -9,6 +9,9 @@ Examples
         </div>
 
 
+.. image:: ../../aux/overview.png
+
+
 Picking example
 ===============
 
