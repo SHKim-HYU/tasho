@@ -47,13 +47,6 @@ class Robot:
         self.torque_lb = None
         self.gravity = vertcat(0,0,-9.81)
 
-        # Remove when set_from_json is deprecated ------------------------------
-        # self.fd = Function.load('./robots/' + name + '/' + name + '_fd.casadi')
-        # self.id = Function.load('./robots/' + name + '/' + name + '_id.casadi')
-        # self.fk = Function.load('./robots/' + name + '/' + name + '_fk.casadi')
-        # self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
-        # End - Remove when set_from_json is deprecated ------------------------------
-
         self.load_from_json()
 
         self.states = []
@@ -267,6 +260,13 @@ class Robot:
         if _all_joint_acc_limit:
             self.joint_acc_ub = _joints_acc_ub
             self.joint_acc_lb = _joints_acc_lb
+
+        # Remove when set_from_json is deprecated ------------------------------
+        self.fd = Function.load('./robots/' + self.name + '/' + self.name + '_fd.casadi')
+        self.id = Function.load('./robots/' + self.name + '/' + self.name + '_id.casadi')
+        self.fk = Function.load('./robots/' + self.name + '/' + self.name + '_fk.casadi')
+        self.ndof = self.fk.size1_in(0) # TODO: Improve procedure to determine degrees of freedom
+        # End - Remove when set_from_json is deprecated ------------------------------
 
         # TODO: Set ub or lb to infinity if they are not included in json
 
