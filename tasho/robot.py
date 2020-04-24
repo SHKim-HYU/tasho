@@ -27,7 +27,7 @@ class Robot:
 
 
     def __init__(self, name="kinova"):
-        """Start the Foo.
+        """Start the Robot.
 
         :param name: Robots name to load functions.
         :type name: string
@@ -51,13 +51,10 @@ class Robot:
         self.torque_lb = None
         self.gravity = vertcat(0,0,-9.81)
 
-    def sim_system_dyn(self, ocp):
-        # Get discretised dynamics as CasADi function to simulate the system
-        sim_system_dyn = ocp._method.discrete_system(ocp)
-        return sim_system_dyn
 
-    def set_state(self, current_x):
-        self.current_state = current_x
+        self.states = []
+        self.inputs = []
+        self.parameters = []
 
     def set_joint_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
@@ -273,6 +270,63 @@ class Robot:
 
     def transcribe(self, task_context = None):
         print("TODO: Depending on dynamics resolution")
+
+    def sim_system_dyn(self, ocp):
+        # Get discretised dynamics as CasADi function to simulate the system
+        sim_system_dyn = ocp._method.discrete_system(ocp)
+        return sim_system_dyn
+
+    def set_state(self, current_x):
+        self.current_state = current_x
+
+    def set_input_resolution(self, task_context, input_resolution = "acceleration"):
+
+        if input_resolution == "velocity":
+
+            print("ERROR: Not implemented and probably not recommended")
+
+        elif input_resolution == "acceleration":
+
+            q = task_context.create_expression('q', 'state', (self.ndof, 1)) #joint positions over the trajectory
+            q_dot = task_context.create_expression('q_dot', 'state', (self.ndof, 1)) #joint velocities
+            q_ddot = task_context.create_expression('q_ddot', 'control', (self.ndof, 1))
+
+            #expressions for initial joint position and joint velocity
+            q0 = task_context.create_expression('q0', 'parameter', (self.ndof, 1))
+            q_dot0 = task_context.create_expression('q_dot0', 'parameter', (self.ndof, 1))
+
+            task_context.set_dynamics(q, q_dot)
+            task_context.set_dynamics(q_dot, q_ddot)
+
+            #add joint position, velocity and acceleration limits
+            pos_limits = {'lub':True, 'hard': True, 'expression':q, 'upper_limits':self.joint_ub, 'lower_limits':self.joint_lb}
+            vel_limits = {'lub':True, 'hard': True, 'expression':q_dot, 'upper_limits':self.joint_vel_ub, 'lower_limits':self.joint_vel_lb}
+            acc_limits = {'lub':True, 'hard': True, 'expression':q_ddot, 'upper_limits':self.joint_acc_ub, 'lower_limits':self.joint_acc_lb}
+            joint_constraints = {'path_constraints':[pos_limits, vel_limits, acc_limits]}
+            task_context.add_task_constraint(joint_constraints)
+
+            #adding the initial constraints on joint position and velocity
+            joint_init_con = {'expression':q, 'reference':q0}
+            joint_vel_init_con = {'expression':q_dot, 'reference':q_dot0}
+            init_constraints = {'initial_constraints':[joint_init_con, joint_vel_init_con]}
+            task_context.add_task_constraint(init_constraints)
+
+            self.states.append(q)
+            self.states.append(q_dot)
+
+            self.inputs.append(q_ddot)
+
+            self.parameters.append(q0)
+            self.parameters.append(q_dot0)
+
+
+        elif input_resolution == "torque":
+
+            print("ERROR: Not implemented")
+
+        else:
+
+            print("ERROR: Only available options for input_resolution are: \"velocity\", \"acceleration\" or \"torque\".")
 
 
     @property
