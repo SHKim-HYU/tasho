@@ -46,7 +46,7 @@ Indices and tables
 
 .. |license| image:: https://img.shields.io/badge/license-LGPL%20v3-success.svg
     :alt: License
-    :target: license.html
+    :target: intro/license.html
 
 .. |coverage| image:: https://gitlab.mech.kuleuven.be/meco-software/tasho/badges/master/coverage.svg
     :alt: Test coverage
