@@ -9,7 +9,7 @@ Examples
         </div>
 
 
-.. image:: ../../aux/overview.png
+.. image:: ../../aux/img/overview.svg
 
 
 Picking example
