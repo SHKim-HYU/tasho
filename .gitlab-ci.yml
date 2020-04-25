@@ -4,6 +4,9 @@ stages:
   - docs
   - publish
 
+variables:
+  DOCKER_DRIVER: overlay
+
 # shorthand for testing
 .test_template: &template
   image: alejandroastudillo/tasho-base
