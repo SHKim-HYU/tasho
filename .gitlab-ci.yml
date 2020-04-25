@@ -4,7 +4,7 @@ stages:
   - docs
   - publish
 
-# shorthand for testing - sphinx-gallery sphinx_rtd_theme coverage nose
+# shorthand for testing
 .test_template: &template
   image: alejandroastudillo/tasho-base
   tags:
@@ -12,7 +12,7 @@ stages:
   before_script:
     - source activate tasho-base
     - mkdir -p .pip
-    - pip --cache-dir=.pip install casadi rockit-meco pybullet
+    - pip --cache-dir=.pip install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet
     - python setup.py install
   cache:
     paths:
@@ -33,7 +33,6 @@ testing:examples:
   script:
     - find examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
     # - find examples -name "*.py" | xargs -n 1 xvfb-run python
-
 docs:sphinx:
   stage: docs
   <<: *template
