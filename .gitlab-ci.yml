@@ -4,9 +4,6 @@ stages:
   - docs
   - publish
 
-variables:
-  DOCKER_DRIVER: overlay2
-
 # shorthand for testing
 .test_template: &template
   image: alejandroastudillo/tasho-base
@@ -35,7 +32,7 @@ testing:examples:
   <<: *template
   script:
     - find examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
-    # - find examples -name "*.py" | xargs -n 1 xvfb-run python
+
 docs:sphinx:
   stage: docs
   <<: *template
