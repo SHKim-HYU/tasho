@@ -13,7 +13,7 @@ stages:
     - source activate tasho-base
     - mkdir -p .pip
     - pip --cache-dir=.pip install casadi rockit-meco pybullet
-    -
+    - python setup.py install
   cache:
     paths:
       - .pip
