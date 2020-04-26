@@ -14,10 +14,13 @@ def acceleration_resolved(tc, robot, options):
 
 	""" Function returns the expressions for acceleration-resolved control
 	with appropriate position, velocity and acceleration constraints added
-	to the task context
-	:param name: tc The task context
-	:param name: robot The object of the robot in question
-	:param name: options Dictionary to pass further miscellaneous options 
+	to the task context.
+
+	:param tc: The task context
+
+	:param robot: robot The object of the robot in question
+
+	:param options: Dictionary to pass further miscellaneous options 
 	"""
 
 	q = tc.create_expression('q', 'state', (robot.ndof, 1)) #joint positions over the trajectory
