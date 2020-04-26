@@ -11,8 +11,8 @@ stages:
     - docker
   before_script:
     - source activate tasho-base
-    - mkdir -p .pip
-    - pip --cache-dir=.pip install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet
+    - rm -rf .pip
+    - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet
     - python setup.py install
   cache:
     paths:
