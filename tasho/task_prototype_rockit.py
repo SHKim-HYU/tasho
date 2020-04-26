@@ -33,7 +33,11 @@ class task_context:
 		:param name: name of the symbolic variable
 		:type name: string
 
-		:param type: type of the symbolic variable. 'state' - a variable that stands for a set of states that evolve over time as the states comprising the dynamical system of the OCP. 'control' - For representing the control actions of the dynamical system of the OCP. 'parameter' - Parameters of the dynamical system. Useful for representing quantities that might change over MPC iterations. eg: the initial conditions of the OCP. 'variable' - A decision variable of the OCP that is not a state or the control action of the dynamical system.
+		:param type: type of the symbolic variable. \n
+			'state' - a variable that stands for a set of states that evolve over time as the states comprising the dynamical system of the OCP. \n
+			'control' - For representing the control actions of the dynamical system of the OCP. \n
+			'parameter' - Parameters of the dynamical system. Useful for representing quantities that might change over MPC iterations. eg: the initial conditions of the OCP. \n
+			'variable' - A decision variable of the OCP that is not a state or the control action of the dynamical system.
 		:type type: string
 
 		:param shape: 2-dimensional tuple that denotes the dimensions of the expression.
@@ -75,6 +79,17 @@ class task_context:
 
 
 	def set_dynamics(self, state, state_der):
+
+		""" Set dynamics of state variables of the OCP.
+
+		:param state: expression of the state.
+		:type state: state expression
+
+		:param state_der: The derivative of state expression.
+		:type state_der: const or another expression variable.
+
+		"""
+
 
 		ocp = self.ocp
 		ocp.set_der(state, state_der)
@@ -180,6 +195,16 @@ class task_context:
 
 	def set_ocp_solver(self, solver, options={}):
 
+		""" Choose the numerical solver for solving the OCP and set the options.
+
+		:param solver: name of the solver. 'ipopt', 'sqpmethod'.
+		:type solver: string
+
+		:param options: Dictionary of options for the solver
+		:type options: dictionary
+
+		"""
+
 		ocp = self.ocp
 		ocp.solver(solver, options)
 
@@ -187,7 +212,11 @@ class task_context:
 
 		""" Set the discretization method of the OCP
 
-		:param settings: A dictionary for setting the discretization method of the OCP with the fields and options given below. 'horizon_size'- (int)The number of samples in the OCP. 'discretization method'(string)- 'multiple_shooting' or 'single_shooting'. 'order' (integer)- The order of integration. Minumum one. 'integration' (string)- The numerical integration algorithm. 'rk' - Runge-Kutta4 method.
+		:param settings: A dictionary for setting the discretization method of the OCP with the fields and options given below. \n
+			'horizon_size' - (int)The number of samples in the OCP. \n
+			'discretization method'(string)- 'multiple_shooting' or 'single_shooting'. \n
+			'order' (integer)- The order of integration. Minumum one. \n
+			'integration' (string)- The numerical integration algorithm. 'rk' - Runge-Kutta4 method.
 		:type settings: dictionary
 
 		"""
