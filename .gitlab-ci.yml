@@ -4,15 +4,15 @@ stages:
   - docs
   - publish
 
-# shorthand for testing - sphinx-gallery sphinx_rtd_theme coverage nose
+# shorthand for testing
 .test_template: &template
-  image: alejandroastudillo/tasho-base-gui
+  image: alejandroastudillo/tasho-base
   tags:
     - docker
   before_script:
     - source activate tasho-base
     - mkdir -p .pip
-    - pip --cache-dir=.pip install casadi rockit-meco pybullet
+    - pip --cache-dir=.pip install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet
     - python setup.py install
   cache:
     paths:

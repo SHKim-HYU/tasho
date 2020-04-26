@@ -9,7 +9,6 @@ import casadi as cs
 from casadi import pi, cos, sin
 import numpy as np
 
-
 def acceleration_resolved(tc, robot, options):
 
 	""" Function returns the expressions for acceleration-resolved control
