@@ -9,14 +9,15 @@ import casadi as cs
 from casadi import pi, cos, sin
 import numpy as np
 
-## acceleration_resolved(tc, robot, options):
-# Function returns the expressions for acceleration-resolved control
-# with appropriate position, velocity and acceleration constraints added
-# to the task context
-# @params tc The task context
-# @params robot The object of the robot in question
-# @params options Dictionary to pass further miscellaneous options 
 def acceleration_resolved(tc, robot, options):
+
+	""" Function returns the expressions for acceleration-resolved control
+	with appropriate position, velocity and acceleration constraints added
+	to the task context
+	:param name: tc The task context
+	:param name: robot The object of the robot in question
+	:param name: options Dictionary to pass further miscellaneous options 
+	"""
 
 	q = tc.create_expression('q', 'state', (robot.ndof, 1)) #joint positions over the trajectory
 	q_dot = tc.create_expression('q_dot', 'state', (robot.ndof, 1)) #joint velocities
