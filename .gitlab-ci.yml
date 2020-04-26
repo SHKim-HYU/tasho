@@ -15,6 +15,7 @@ stages:
     - rm -r /tmp/*
     - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet
     - python setup.py install
+    - rm -r /tmp/*
   cache:
     paths:
       - .pip
