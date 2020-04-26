@@ -4,13 +4,18 @@
 from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting
 import casadi as cs
 
-## Class for task context
-# The class stores all expressions and constraints relevant to an OCP
-class task_context:
 
-	## Class constructor
-	# Initializes and sets the field variables of the class
+class task_context:
+	""" Class for task context
+	The class stores all expressions and constraints relevant to an OCP
+	"""
+
 	def __init__(self, time):
+		""" Class constructor - initializes and sets the field variables of the class
+
+		:param time: The length of the time horizon of the OCP.
+
+		"""
 		ocp = Ocp(T = time)
 		self.ocp = ocp
 		self.states = {}
@@ -21,9 +26,20 @@ class task_context:
 		self.monitors = {}
 		self.opti = ocp.opti
 
-	## create_state
-	# creates a state variable whose dynamics is known
 	def create_expression(self, name, type, shape):
+
+		""" Creates a symbolic expression for variables in OCP.
+
+		:param name: name of the symbolic variable
+		:type name: string
+
+		:param type: type of the symbolic variable. 'state' - a variable that stands for a set of states that evolve over time as the states comprising the dynamical system of the OCP. 'control' - For representing the control actions of the dynamical system of the OCP. 'parameter' - Parameters of the dynamical system. Useful for representing quantities that might change over MPC iterations. eg: the initial conditions of the OCP. 'variable' - A decision variable of the OCP that is not a state or the control action of the dynamical system.
+		:type type: string
+
+		:param shape: 2-dimensional tuple that denotes the dimensions of the expression.
+		:type shape: tuple of int.
+
+		"""
 
 		ocp = self.ocp
 
@@ -169,6 +185,13 @@ class task_context:
 
 	def set_discretization_settings(self, settings):
 
+		""" Set the discretization method of the OCP
+
+		:param settings: A dictionary for setting the discretization method of the OCP with the fields and options given below. 'horizon_size'- (int)The number of samples in the OCP. 'discretization method'(string)- 'multiple_shooting' or 'single_shooting'. 'order' (integer)- The order of integration. Minumum one. 'integration' (string)- The numerical integration algorithm. 'rk' - Runge-Kutta4 method.
+		:type settings: dictionary
+
+		"""
+
 		ocp = self.ocp
 		disc_method = settings['discretization method']
 		N = settings['horizon size']
@@ -186,6 +209,9 @@ class task_context:
 			print("ERROR: discretization with " + settings['discretization_method'] + " is not defined")
 
 	def solve_ocp(self):
+
+		""" solves the ocp and returns the rockit solution object 
+		"""
 
 		ocp = self.ocp
 		sol = ocp.solve()
