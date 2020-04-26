@@ -1,4 +1,3 @@
-
 stages:
   - testing
   - docs
@@ -12,10 +11,9 @@ stages:
   before_script:
     - source activate tasho-base
     - rm -rf .pip
-    - rm -r /tmp/*
     - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet
     - python setup.py install
-    - rm -r /tmp/*
+    - rm -rfv /tmp/*
   cache:
     paths:
       - .pip
