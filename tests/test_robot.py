@@ -47,7 +47,7 @@ class TestTask(unittest.TestCase):
         arr_expected = np.array([[1, 0, 0, 6.1995e-05],[0,  1,  0, -2.48444537e-02],[0, 0, 1, 1.18738514],[0, 0, 0, 1]])
         self.assertTrue(np.linalg.norm(arr_fromrobot - arr_expected) < 1e-8, "Kinova Gen3 - forward kinematics assert failed")
 
-        rob_kinova.set_from_json("kinova.json")
+        # rob_kinova.set_from_json("kinova.json")
 
         self.assertEqual(rob_kinova.ndof, 7, "Kinova Gen3 - should have 7 degrees of freedom (from json)")
 
@@ -60,7 +60,7 @@ class TestTask(unittest.TestCase):
 
         self.assertEqual(rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom")
 
-        rob_yumi.set_from_json("yumi.json")
+        # rob_yumi.set_from_json("yumi.json")
         print(rob_yumi.joint_ub)
         print(rob_yumi.joint_name)
 
