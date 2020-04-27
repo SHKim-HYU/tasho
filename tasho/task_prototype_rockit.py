@@ -168,6 +168,8 @@ class task_context:
 				else:
 					con_violation = cs.f_max(path_con['expression'] - path_con['upper_limits'], 0)
 					if 'norm' not in path_con or path_con['norm'] == 'L2':
+						ocp.add_objective(ocp.integral(con_violation**2)*path_con['gain'])
+					elif path_con['norm'] == 'L1':
 						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
 
 			elif 'lub' in path_con:
