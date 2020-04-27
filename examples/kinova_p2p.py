@@ -19,9 +19,9 @@ if __name__ == '__main__':
 	max_joint_acc = 30*3.14159/180
 
 	robot = rob.Robot('kinova')
-	robot.set_from_json('kinova.json')
+	# robot.set_from_json('kinova.json')
 	robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
-	
+
 	tc = tp.task_context(horizon_size*t_mpc)
 
 	q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
@@ -51,4 +51,3 @@ if __name__ == '__main__':
 	ts, q_sol = sol.sample(q, grid="control")
 	print(q_sol)
 	print(robot.fk(q_sol[-1,:])[7])
-
