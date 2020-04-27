@@ -19,7 +19,7 @@ def inv_T_matrix(T):
 def circle_path(s, centre, radius, rot_mat = np.eye(3)):
 
 	T_goal = cs.vertcat(centre[0] + radius*(cos(s)-1), centre[1] + radius*sin(s), centre[2])
-	
+
 	return T_goal
 
 if __name__ == '__main__':
@@ -37,7 +37,7 @@ if __name__ == '__main__':
 	#TODO: remove below line after pinocchio starts to provide the robot joint limits
 	rob_settings = {'n_dof' : 18, 'no_links' : 20, 'q_min' : np.array([-2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, 0, 0, -2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, 0, 0]).T, 'q_max' : np.array([2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025, 2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025]).T }
 	robot = rob.Robot('yumi')
-	robot.set_from_json('yumi.json')
+	# robot.set_from_json('yumi.json')
 	print(robot.joint_name)
 	## Customise robot limits
 	# robot.set_joint_limits(lb = rob_settings['q_min'], ub = rob_settings['q_max'])
@@ -54,8 +54,8 @@ if __name__ == '__main__':
 	q_ddot = tc.create_expression('q_ddot', 'control', (robot.ndof, 1))
 
 	s = tc.create_expression('s', 'state', (1, 1)) #Progress variable for the contour tracing task
-	s_dot = tc.create_expression('s_dot', 'state', (1, 1)) 
-	s_ddot = tc.create_expression('s_ddot', 'control', (1, 1)) 
+	s_dot = tc.create_expression('s_dot', 'state', (1, 1))
+	s_ddot = tc.create_expression('s_ddot', 'control', (1, 1))
 
 	tc.set_dynamics(q, q_dot)
 	tc.set_dynamics(q_dot, q_ddot)
@@ -121,7 +121,7 @@ if __name__ == '__main__':
 	s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
 	# task_objective = {'path_constraints':[vel_regularization, s_dot_regularization, s_con]}
 	task_objective = {'path_constraints':[contour_error, vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
-	
+
 
 	#Add path constraints on the depth and the angle of the laser interception
 	dot_prod_ee_workpiece = -cs.mtimes(Ns.T, Nl)
@@ -184,7 +184,7 @@ if __name__ == '__main__':
 
 		#correspondence between joint numbers in bullet and OCP determined after reading joint info of YUMI
 		#from the world simulator
-		joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
+		joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 		#begin the visualization of applying OCP solution in open loop
 		ts, q_dot_sol = sol.sample(q_dot, grid="control")
@@ -218,7 +218,7 @@ if __name__ == '__main__':
 		if no_samples != t_mpc / bullet_world.physics_ts:
 			print("[ERROR] MPC sampling time not integer multiple of physics sampling time")
 
-		joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9] 
+		joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 		#set all joint velocities to zero
 		bullet_world.setController(yumiID, "velocity", joint_indices, targetVelocities = [0]*18)
