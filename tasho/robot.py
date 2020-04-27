@@ -19,7 +19,6 @@ class Robot:
 
         from tasho import Robot
         robot = Robot('kinova')
-        robot.set_from_json('kinova.json')
 
     Here is a link to :py:meth:`set_from_json`.
     Here is a link to :py:meth:`__init__`.
@@ -197,7 +196,7 @@ class Robot:
 
     # TODO: Remove filename as argument
     def set_from_json(self, filename):
-        with open('./robots/' + self.name + '/' + filename, 'r') as f:
+        with open('./models/robots/' + filename, 'r') as f:
         # with open('./robots/' + self.name + '/' + self.name + '.json', 'r') as f:
             json_dict = json.load(f)
 
