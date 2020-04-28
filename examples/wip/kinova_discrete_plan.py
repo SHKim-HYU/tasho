@@ -22,7 +22,7 @@ if __name__ == '__main__':
     plan = dp.DiscretePlan()
 
     robot = rob.Robot('kinova')
-    # robot.set_from_json('kinova.json')
+    
     robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
     print(robot.joint_name)
     print(robot.joint_ub)

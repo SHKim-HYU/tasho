@@ -18,7 +18,6 @@ if __name__ == '__main__':
 	max_joint_acc = 30*3.14159/180
 
 	robot = rob.Robot('kinova')
-	robot.set_from_json('kinova.json')
 	robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
 	print(robot.joint_name)
 	print(robot.joint_ub)

@@ -37,7 +37,7 @@ if __name__ == '__main__':
 	#TODO: remove below line after pinocchio starts to provide the robot joint limits
 	rob_settings = {'n_dof' : 18, 'no_links' : 20, 'q_min' : np.array([-2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, 0, 0, -2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, 0, 0]).T, 'q_max' : np.array([2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025, 2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025]).T }
 	robot = rob.Robot('yumi')
-	# robot.set_from_json('yumi.json')
+	
 	print(robot.joint_name)
 	## Customise robot limits
 	# robot.set_joint_limits(lb = rob_settings['q_min'], ub = rob_settings['q_max'])
