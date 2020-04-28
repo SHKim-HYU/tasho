@@ -1,10 +1,10 @@
 import unittest
 from tasho import robot as rb
-from tasho import task_prototype_rockit as tp
+from tasho import task as tp
 import numpy as np
 from math import inf
 
-class TestTask(unittest.TestCase):
+class TestRobot(unittest.TestCase):
 
     def test_robotloader(self):
         # Kinova Gen3
@@ -57,6 +57,7 @@ class TestTask(unittest.TestCase):
     def test_robotinputresolution(self):
         # ABB Yumi
         rob_yumi = rb.Robot(name="yumi")
+        rob_yumi.set_robot_input_resolution("acceleration")
 
         self.assertEqual(rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom")
 
@@ -66,14 +67,15 @@ class TestTask(unittest.TestCase):
         max_joint_acc = 30*3.14159/180
         rob_yumi.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
 
-        tc = tp.task_context(5)
+        tc = tp.TaskContext(time = 5)
+        tc.add_robot(rob_yumi)
 
-        rob_yumi.set_input_resolution(tc, "acceleration")
+        # rob_yumi.set_input_resolution(tc, "acceleration")
 
         self.assertEqual(int(len(tc.states)), 2, "Size of system states is not correct")
-        self.assertEqual(int(len(rob_yumi.parameters)), 2, "Size of system parameters is not correct")
-        self.assertEqual(int(len(rob_yumi.inputs)), 1, "Size of system inputs is not correct")
-        self.assertEqual(list(rob_yumi.parameters)[0], "q0", "Name of first parameter is not correct")
+        self.assertEqual(int(len(tc.parameters)), 2, "Size of system parameters is not correct")
+        self.assertEqual(int(len(tc.controls)), 1, "Size of system inputs is not correct")
+        self.assertEqual(list(tc.parameters)[0], "q0", "Name of first parameter is not correct")
 
         # print(list(rob_yumi.parameters)[0])
 if __name__ == '__main__':
