@@ -22,7 +22,7 @@ if __name__ == '__main__':
     plan = dp.DiscretePlan()
 
     robot = rob.Robot('kinova')
-    
+
     robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
     print(robot.joint_name)
     print(robot.joint_ub)
@@ -33,7 +33,13 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
     tc = tp.task_context(horizon_size*t_mpc)
 
-    q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
+    # q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
+    q, q_dot, q_ddot, q0, q_dot0 = robot.set_input_resolution(tc,"acceleration")
+    # q = robot.states["q"]
+    # q_dot = robot.states["q_dot"]
+    # q_ddot = robot.inputs["q_ddot"]
+    # q0 = robot.parameters["q0"]
+    # q_dot0 = robot.parameters["q_dot0"]
 
     #computing the expression for the final frame
     print(robot.fk)

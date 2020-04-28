@@ -283,7 +283,20 @@ class Robot:
     def set_state(self, current_x):
         self.current_state = current_x
 
-    def set_input_resolution(self, task_context, input_resolution = "acceleration"):
+    def set_input_resolution(self, task_context, input_resolution = "acceleration", options=None):
+
+        """ Function returns the expressions for acceleration-, velocity-, or position-resolved control
+    	with appropriate position, velocity and acceleration constraints added to the task context.
+
+    	:param tc: The task context
+    	:param input_resolution: robot The object of the robot in question
+        :param options: Dictionary to pass further miscellaneous options
+
+        :type tc: task
+        :type input_resolution: string
+        :type options: dictionary
+
+    	"""
 
         if input_resolution == "velocity":
 
@@ -319,6 +332,7 @@ class Robot:
             self.parameters = task_context.parameters
             self.inputs = task_context.controls
 
+            return q, q_dot, q_ddot, q0, q_dot0
 
         elif input_resolution == "torque":
 
