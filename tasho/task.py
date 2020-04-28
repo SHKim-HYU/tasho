@@ -1,13 +1,6 @@
-"""Problem module to define specific problems involving tasks."""
+"""Task module to define task context."""
 
-from tasho import task_prototype_rockit as tp
-from tasho import input_resolution
-from tasho import robot as rob
-import casadi as cs
-from casadi import pi, cos, sin
-from rockit import MultipleShooting, Ocp, FreeTime
 import numpy as np
-
 from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting
 import casadi as cs
 
@@ -20,13 +13,17 @@ class TaskContext:
 	The class stores all expressions and constraints relevant to an OCP
 	"""
 
-	def __init__(self, time, horizon = 10):
+	def __init__(self, time = None, horizon = 10):
 		""" Class constructor - initializes and sets the field variables of the class
 
 		:param time: The length of the time horizon of the OCP.
 
 		"""
-		ocp = Ocp(T = time)
+		if time is None:
+			ocp = Ocp(T=FreeTime(10))
+		else:
+			ocp = Ocp(T = time)
+
 		self.ocp = ocp
 		self.states = {}
 		self.controls = {}
@@ -268,7 +265,7 @@ class TaskContext:
 
 	def add_robot(self, robot):
 	    self.robots[robot.name] = robot
-	    # robot.transcribe(self)
+	    robot.transcribe(self)
 
 	    # self.sim_system_dyn = robot.sim_system_dyn(self.task_context)
 
@@ -326,9 +323,13 @@ class Point2Point(TaskContext):
 	    problem = Point2Point()
 
 	"""
-	def __init__(self, time, horizon = 10, goal = None):
+	def __init__(self, time = None, horizon = 10, goal = None):
 		# First call __init__ from TaskContext
-		super().__init__(time, horizon)
+		if time is None:
+			super().__init__(horizon = horizon)
+		else:
+			super().__init__(time = time, horizon = horizon)
+
 
 		if goal is not None:
 			if ((isinstance(goal, list) and int(len(goal)) == 3) or
