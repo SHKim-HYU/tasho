@@ -1,5 +1,6 @@
 import unittest
 from tasho import robot as rb
+from tasho import task_prototype_rockit as tp
 import numpy as np
 from math import inf
 
@@ -66,7 +67,18 @@ class TestTask(unittest.TestCase):
         self.assertEqual(rob_yumi.joint_name[1], "yumi_joint_2_l", "ABB Yumi - joint name doesn't correspond to the real one (from json)")
         self.assertEqual(rob_yumi.joint_name[12], "yumi_joint_3_r", "ABB Yumi - joint name doesn't correspond to the real one (from json)")
 
+        max_joint_acc = 30*3.14159/180
+        rob_yumi.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
 
+        tc = tp.task_context(5)
 
+        rob_yumi.set_input_resolution(tc, "acceleration")
+
+        self.assertEqual(int(len(tc.states)), 2, "Size of system states is not correct")
+        self.assertEqual(int(len(rob_yumi.parameters)), 2, "Size of system parameters is not correct")
+        self.assertEqual(int(len(rob_yumi.inputs)), 1, "Size of system inputs is not correct")
+        self.assertEqual(list(rob_yumi.parameters)[0], "q0", "Name of first parameter is not correct")
+
+        # print(list(rob_yumi.parameters)[0])
 if __name__ == '__main__':
     unittest.main()

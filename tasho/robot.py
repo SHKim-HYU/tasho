@@ -315,13 +315,9 @@ class Robot:
             init_constraints = {'initial_constraints':[joint_init_con, joint_vel_init_con]}
             task_context.add_task_constraint(init_constraints)
 
-            self.states.append(q)
-            self.states.append(q_dot)
-
-            self.inputs.append(q_ddot)
-
-            self.parameters.append(q0)
-            self.parameters.append(q_dot0)
+            self.states = task_context.states
+            self.parameters = task_context.parameters
+            self.inputs = task_context.controls
 
 
         elif input_resolution == "torque":
