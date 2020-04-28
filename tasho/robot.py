@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import json
 from tasho import task_prototype_rockit
 
+#TODO: If input resolution has already been set for a previous task, you don't need to set it again
+
 
 class Robot:
     """Docstring for class Robot.
