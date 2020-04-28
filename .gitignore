@@ -2,3 +2,6 @@
 __pycache__/
 tasho.egg-info/
 docs/build/
+
+# Editor settings
+.vscode/
