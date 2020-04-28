@@ -54,15 +54,11 @@ class TestTask(unittest.TestCase):
         rob_kinova.set_state(x0)
         self.assertEqual(rob_kinova.get_initial_conditions, x0, "Kinova Gen3 - initial conditions / set state assert failed")
 
+    def test_robotinputresolution(self):
         # ABB Yumi
         rob_yumi = rb.Robot(name="yumi")
 
         self.assertEqual(rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom")
-
-        print(rob_yumi.joint_ub)
-        print(rob_yumi.joint_name)
-
-        self.assertEqual(rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom (from json)")
 
         self.assertEqual(rob_yumi.joint_name[1], "yumi_joint_2_l", "ABB Yumi - joint name doesn't correspond to the real one (from json)")
         self.assertEqual(rob_yumi.joint_name[12], "yumi_joint_3_r", "ABB Yumi - joint name doesn't correspond to the real one (from json)")
