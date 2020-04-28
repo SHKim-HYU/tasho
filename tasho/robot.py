@@ -54,7 +54,16 @@ class Robot:
         self.inputs = []
         self.parameters = []
 
+        self.input_resolution = "acceleration"
 
+    def set_name(self, name):
+        """Allows to rename a robot. Useful for multi-robot implementations.
+
+        :param name: Robots name to be set.
+        :type name: string
+
+        """
+        self.name = name
 
     def set_joint_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
@@ -274,9 +283,6 @@ class Robot:
         #     # print("%s: %s" % (x, json_dict[x]))
         #     print("%s: %s" % (x, json_dict[x]))
 
-    def transcribe(self, task_context = None):
-        print("TODO: Depending on dynamics resolution")
-
     def sim_system_dyn(self, ocp):
         # Get discretised dynamics as CasADi function to simulate the system
         sim_system_dyn = ocp._method.discrete_system(ocp)
@@ -284,6 +290,15 @@ class Robot:
 
     def set_state(self, current_x):
         self.current_state = current_x
+
+    def set_robot_input_resolution(self, input_resolution = "acceleration"):
+        self.input_resolution = input_resolution
+
+    def transcribe(self, task_context):
+
+        # Set robot's input resolution for task
+        task_context.set_input_resolution(self)
+
 
     def set_input_resolution(self, task_context, input_resolution = "acceleration", options=None):
 
@@ -299,6 +314,8 @@ class Robot:
         :type options: dictionary
 
     	"""
+
+        self.input_resolution = input_resolution
 
         if input_resolution == "velocity":
 

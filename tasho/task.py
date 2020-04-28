@@ -11,13 +11,16 @@ import numpy as np
 from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting
 import casadi as cs
 
+from collections import namedtuple
+
+_OCPvars = namedtuple("OCPvars", ['q', 'q_dot', 'q_ddot', 'q0', 'q_dot0'])
 
 class TaskContext:
 	""" Class for Task context
 	The class stores all expressions and constraints relevant to an OCP
 	"""
 
-	def __init__(self, time):
+	def __init__(self, time, horizon = 10):
 		""" Class constructor - initializes and sets the field variables of the class
 
 		:param time: The length of the time horizon of the OCP.
@@ -34,6 +37,8 @@ class TaskContext:
 		self.opti = ocp.opti
 
 		self.robots = {}
+		self.OCPvars = None
+		self.horizon = horizon
 
 	def create_expression(self, name, type, shape):
 
@@ -259,35 +264,57 @@ class TaskContext:
 
 
 	def add_monitors(self, task_mon):
-
 		print("Not implemented")
 
 	def add_robot(self, robot):
 	    self.robots[robot.name] = robot
-	    # robot.transcribe(self.task_context)
+	    # robot.transcribe(self)
+
 	    # self.sim_system_dyn = robot.sim_system_dyn(self.task_context)
 
-# class Problem:
-#     """Docstring for class Problem.
-#
-#     This should be a description of the Problem class.
-#     It's common for programmers to give a code example inside of their
-#     docstring::
-#
-#         from tasho import Problem
-#         problem = Problem()
-#
-#     Here is a link to :py:meth:`__init__`.
-#     """
-#     def __init__(self, name = "problem", T_goal = None, p_goal = None, R_goal = None):
-#         self.name = name
-#         self.task_context = None
-#
-#         self.T_init = 10.0
-#         # self.ocp = Ocp(T=FreeTime(self.T_init))
-#
+	def set_input_resolution(self, robot):
 
+		if robot.input_resolution == "velocity":
 
+			print("ERROR: Not implemented and probably not recommended")
+
+		elif robot.input_resolution == "acceleration":
+
+			q = self.create_expression('q', 'state', (robot.ndof, 1)) #joint positions over the trajectory
+			q_dot = self.create_expression('q_dot', 'state', (robot.ndof, 1)) #joint velocities
+			q_ddot = self.create_expression('q_ddot', 'control', (robot.ndof, 1))
+
+			#expressions for initial joint position and joint velocity
+			q0 = self.create_expression('q0', 'parameter', (robot.ndof, 1))
+			q_dot0 = self.create_expression('q_dot0', 'parameter', (robot.ndof, 1))
+
+			self.set_dynamics(q, q_dot)
+			self.set_dynamics(q_dot, q_ddot)
+
+			#add joint position, velocity and acceleration limits
+			pos_limits = {'lub':True, 'hard': True, 'expression':q, 'upper_limits':robot.joint_ub, 'lower_limits':robot.joint_lb}
+			vel_limits = {'lub':True, 'hard': True, 'expression':q_dot, 'upper_limits':robot.joint_vel_ub, 'lower_limits':robot.joint_vel_lb}
+			acc_limits = {'lub':True, 'hard': True, 'expression':q_ddot, 'upper_limits':robot.joint_acc_ub, 'lower_limits':robot.joint_acc_lb}
+			joint_constraints = {'path_constraints':[pos_limits, vel_limits, acc_limits]}
+			self.add_task_constraint(joint_constraints)
+
+			#adding the initial constraints on joint position and velocity
+			joint_init_con = {'expression':q, 'reference':q0}
+			joint_vel_init_con = {'expression':q_dot, 'reference':q_dot0}
+			init_constraints = {'initial_constraints':[joint_init_con, joint_vel_init_con]}
+			self.add_task_constraint(init_constraints)
+
+			self.OCPvars = _OCPvars(q, q_dot, q_ddot, q0, q_dot0)
+
+		elif input_resolution == "torque":
+
+		    print("ERROR: Not implemented")
+
+		else:
+
+		    print("ERROR: Only available options for input_resolution are: \"velocity\", \"acceleration\" or \"torque\".")
+
+		# return _robot.set_input_resolution(task_context = self, input_resolution = input_resolution)
 
 class Point2Point(TaskContext):
 	"""Docstring for class Point2Point.
@@ -299,14 +326,67 @@ class Point2Point(TaskContext):
 	    problem = Point2Point()
 
 	"""
-	def __init__(self, time, T_goal = None, p_goal = None, R_goal = None):
+	def __init__(self, time, horizon = 10, goal = None):
 		# First call __init__ from TaskContext
-		super().__init__(time)
+		super().__init__(time, horizon)
 
-		if T_goal is not None:
-			print("T")
-		elif p_goal is not None:
-			print("p")
+		if goal is not None:
+			if ((isinstance(goal, list) and int(len(goal)) == 3) or
+				(isinstance(goal, np.ndarray) and goal.shape == (3, 1))):
+				print("Goal position")
+			elif (isinstance(goal, np.ndarray) and goal.shape == (4, 4)):
+				print("Goal transformation matrix")
 
-			if R_goal is not None:
-				print("R")
+		self.goal = goal
+
+	def add_robot(self, robot):
+		self.robots[robot.name] = robot
+		robot.transcribe(self)
+
+		# TODO: Rethink how much should be included in robot.transcribe method, since this should work for multiple robots
+		# Maybe using task.transcribe instead of robot.transcribe is an option
+
+		goal = self.goal
+
+		# Based on Jeroen's example
+		SOLVER = "ipopt"
+		SOLVER_SETTINGS = {
+		    "ipopt": {
+		        "max_iter": 1000,
+		        "hessian_approximation": "limited-memory",
+		        "limited_memory_max_history": 5,
+		        "tol": 1e-3,
+		    }
+		}
+		DISC_SETTINGS = {
+		    "discretization method": "multiple shooting",
+		    "horizon size": self.horizon,
+		    "order": 1,
+		    "integration": "rk",
+		}
+
+		# Set the problem up
+		q, q_dot, q_ddot, q0, q_dot0 = self.OCPvars
+
+		# Set expression for End-effector's transformation matrix
+		for _key in self.robots:
+			_robot = self.robots[_key]
+		fk_fun = _robot.fk(q)[7]
+
+		# Define pose constraints
+		finalposition_con = {"hard": True, "type": "Frame", "expression": fk_fun, "reference": goal}
+		finalvelocity_con = {"hard": True, "expression": q_dot, "reference": 0}
+		final_constraints = {"final_constraints": [finalposition_con, finalvelocity_con]}
+
+		# Define path constraints
+		vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':1}
+		acc_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':1}
+		path_soft_constraints = {'path_constraints':[vel_regularization, acc_regularization]}
+
+		# Add constraints to task
+		self.add_task_constraint(final_constraints)
+		self.add_task_constraint(path_soft_constraints)
+
+		# Set settings
+		self.set_ocp_solver(SOLVER, SOLVER_SETTINGS)
+		self.set_discretization_settings(DISC_SETTINGS)
