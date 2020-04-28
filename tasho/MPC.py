@@ -20,7 +20,11 @@ class MPC:
         self.tc = tc
         self.type = sim_type
         self.parameters = parameters
-        self.params_names = tc.parameters.keys() #So the order in which the parameters are read and assigned is fixed
+        #Create a list of the MPC states, variables, controls and parameters in a fixed order
+        self.params_names = tc.parameters.keys() 
+        self.state_names = tc.states.keys()
+        self.controls_names = tc.controls.keys()
+        self.variables_names = tc.variables.keys()
 
         if sim_type == "bullet_notrealtime":
 
@@ -65,6 +69,7 @@ class MPC:
         sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
         self.sol_ocp = [sol_states, sol_controls, sol_variables]
 
+        #configure the solver for the MPC iterations
         if self.parameters['solver_name'] == 'ipopt':
 
             if 'lbfgs' in self.parameters['solver_params']:
