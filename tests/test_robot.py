@@ -1,9 +1,10 @@
 import unittest
 from tasho import robot as rb
+from tasho import task as tp
 import numpy as np
 from math import inf
 
-class TestTask(unittest.TestCase):
+class TestRobot(unittest.TestCase):
 
     def test_robotloader(self):
         # Kinova Gen3
@@ -47,27 +48,35 @@ class TestTask(unittest.TestCase):
         arr_expected = np.array([[1, 0, 0, 6.1995e-05],[0,  1,  0, -2.48444537e-02],[0, 0, 1, 1.18738514],[0, 0, 0, 1]])
         self.assertTrue(np.linalg.norm(arr_fromrobot - arr_expected) < 1e-8, "Kinova Gen3 - forward kinematics assert failed")
 
-        # rob_kinova.set_from_json("kinova.json")
-
         self.assertEqual(rob_kinova.ndof, 7, "Kinova Gen3 - should have 7 degrees of freedom (from json)")
 
         x0 = [0,1.5,0,-1.3,1,3.14159]
         rob_kinova.set_state(x0)
         self.assertEqual(rob_kinova.get_initial_conditions, x0, "Kinova Gen3 - initial conditions / set state assert failed")
 
+    def test_robotinputresolution(self):
         # ABB Yumi
         rob_yumi = rb.Robot(name="yumi")
+        rob_yumi.set_robot_input_resolution("acceleration")
 
         self.assertEqual(rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom")
-
-        # rob_yumi.set_from_json("yumi.json")
-        print(rob_yumi.joint_ub)
-        print(rob_yumi.joint_name)
-
-        self.assertEqual(rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom (from json)")
 
         self.assertEqual(rob_yumi.joint_name[1], "yumi_joint_2_l", "ABB Yumi - joint name doesn't correspond to the real one (from json)")
         self.assertEqual(rob_yumi.joint_name[12], "yumi_joint_3_r", "ABB Yumi - joint name doesn't correspond to the real one (from json)")
 
+        max_joint_acc = 30*3.14159/180
+        rob_yumi.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
+
+        tc = tp.TaskContext(time = 5)
+        tc.add_robot(rob_yumi)
+
+        # rob_yumi.set_input_resolution(tc, "acceleration")
+
+        self.assertEqual(int(len(tc.states)), 2, "Size of system states is not correct")
+        self.assertEqual(int(len(tc.parameters)), 2, "Size of system parameters is not correct")
+        self.assertEqual(int(len(tc.controls)), 1, "Size of system inputs is not correct")
+        self.assertEqual(list(tc.parameters)[0], "q0", "Name of first parameter is not correct")
+
+        # print(list(rob_yumi.parameters)[0])
 if __name__ == '__main__':
     unittest.main()

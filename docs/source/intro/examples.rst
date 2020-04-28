@@ -36,7 +36,6 @@ Two tasks: *Move towards the object*, *Pick it and place it somewhere else*::
       # Setting a robot
       # -------------------------------------
         robot = rob.Robot('kinova')
-        robot.set_from_json('kinova.json')
         robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
 
       # -------------------------------------
