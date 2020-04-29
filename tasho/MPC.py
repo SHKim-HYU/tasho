@@ -28,6 +28,7 @@ class MPC:
 
         #casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
         self._mpc_fun = None
+        self._opti_xplam = [] #list of all the decision variables, parameters and lagrange multipliers
         #casadi function to take list of variables and convert to opti.x and opti.p form
         self._list_to_optip_fun = None
         self._statecontrolvariablelist_to_optix_fun = None
@@ -146,7 +147,7 @@ class MPC:
             print("Using IPOPT with LBFGS as the default solver")
             tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
-        #self._create_mpc_fun_casadi()
+        self._create_mpc_fun_casadi()
         #print(sol_controls['s_ddot'])
         
     #internal function to create the MPC function using casadi's opti.to_function capability
@@ -188,7 +189,7 @@ class MPC:
         #opti = tc.ocp.opti
         #self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
         self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', opti_xplam, opti_xplam)
-
+        self._opti_xplam = opti_xplam
     ## obtain the solution of the ocp
     def _read_solveroutput(self, sol):
 
@@ -214,15 +215,17 @@ class MPC:
         else:
             i = 0
             for state in self.states_names:
-                sol_states[state] = sol[i]
+                print("Shape of state " + state + " is = ")
+                print(sol[i].shape)
+                sol_states[state] = np.array(sol[i].T)
                 i += 1
 
             for control in tc.controls:
-                sol_controls[control] = sol[i]
+                sol_controls[control] = np.array(sol[i].T)
                 i += 1
 
             for variable in tc.variables:
-                sol_variables[variable] = sol[i]
+                sol_variables[variable] = np.array(sol[i].T)
                 i += 1
 
 
@@ -276,6 +279,53 @@ class MPC:
 
             raise Exception('Invalid MPC restart option ' + options)
 
+    ## Function to provide the initial guess for warm starting the states, controls and variables in tc
+    # in a format that conforms to the inputs of _mpc_fun when .casadi or codegen is available
+    def _warm_start_casfun(self, sol_ocp, sol, options = 'reuse'):
+        #TODO: refactor this to completely do away with sol_ocp
+        tc = self.tc
+        i = 0
+        #reusing the solution from previous MPC iteration for warm starting
+        if self.mpc_ran == False or  options == 'reuse':
+
+            sol_states = sol_ocp[0]
+            for state in tc.states:
+                sol[i] = sol_states[state].T
+                i += 1
+
+            sol_controls = sol_ocp[1]
+            for control in tc.controls:
+                sol[i] = sol_controls[control][0:-1].T
+                i += 1
+
+            sol_variables = sol_ocp[2]
+            for variable in tc.variables:
+                sol[i] = sol_variables[variable].T
+                i += 1
+
+        #warm starting by shiting the solution by 1 step
+        elif options == 'shift':
+
+            sol_states = sol_ocp[0]
+            for state in tc.states:
+                sol[i] = cs.vertcat(sol_states[state][1:], sol_states[state][-1:]).T
+                i += 1
+
+            sol_controls = sol_ocp[1]
+            for control in tc.controls:
+                zeros_np = np.zeros(sol_controls[control][-1:].shape) 
+                sol[i] = cs.vertcat(sol_controls[control][1:], zeros_np).T
+                i += 1
+
+            sol_variables = sol_ocp[2]
+            for variable in tc.variables:
+                sol[i] = sol_variables[variable]
+                i += 1
+        
+        else:
+
+            raise Exception('Invalid MPC restart option ' + options)
+
 
 
     #Continuous running of the MPC
@@ -286,7 +336,8 @@ class MPC:
         sol_variables = self.sol_ocp[2]
 
         tc = self.tc
-
+        sol = [0]*len(self._opti_xplam)
+        par_start_element = len(self.states_names) + len(self.controls_names) + len(self.variables_names)
         #TODO: change by adding termination criteria
         for mpc_iter in range(20):
 
@@ -302,14 +353,19 @@ class MPC:
                     #set the states, controls and variables as initial values
                     self._warm_start([sol_states, sol_controls, sol_variables], options = 'shift')
                     sol = tc.solve_ocp()
-                    sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
-                    sol_mpc = [sol_states, sol_controls, sol_variables]
-                    self.sol_mpc = sol_mpc
+                    
 
                 else:
+                    self._warm_start_casfun([sol_states, sol_controls, sol_variables], sol, options = 'shift')
+                    i = par_start_element
+                    for params_name in self.params_names:
+                        sol[i] = params_val[params_name]
+                        i += 1
+                    sol = list(self._mpc_fun(*sol))
 
-                    print("Not implemented")
-
+                sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+                sol_mpc = [sol_states, sol_controls, sol_variables]
+                self.sol_mpc = sol_mpc
                 self.mpc_ran = True
                 # Apply the control action to bullet environment
                 self._apply_control_nrbullet(sol_mpc)
@@ -332,8 +388,13 @@ class MPC:
             if control_info['discretization'] =='constant_acceleration':
                 #Computing the average of the first two velocities to apply as input
                 #assuming constant acceleration input
-                control_action = 0.5*(sol_mpc[0]['q_dot'][0] + sol_mpc[0]['q_dot'][1])
-
+                control_action = 0.5*(sol_mpc[0]['q_dot'][0,:] + sol_mpc[0]['q_dot'][1,:]).T
+                print("q_dot shape is ")
+                print(sol_mpc[0]['q_dot'].shape)
+                print("control action shape is ")
+                print(type(control_action))
+                print("joint indices length is")
+                print(len(joint_indices))
             self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetVelocities = control_action)
             print("This ran")
             print(sol_mpc[0]['s_dot'])
