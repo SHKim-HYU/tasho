@@ -1,6 +1,6 @@
 import unittest
 from tasho import robot as rb
-from tasho import task as tp
+from tasho import task_prototype_rockit as tp
 import numpy as np
 from math import inf
 
@@ -67,7 +67,7 @@ class TestRobot(unittest.TestCase):
         max_joint_acc = 30*3.14159/180
         rob_yumi.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
 
-        tc = tp.TaskContext(time = 5)
+        tc = tp.task_context(time = 5)
         tc.add_robot(rob_yumi)
 
         # rob_yumi.set_input_resolution(tc, "acceleration")
