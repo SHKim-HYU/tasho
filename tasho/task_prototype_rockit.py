@@ -5,18 +5,28 @@ from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting
 import casadi as cs
 
 
+# This may be replaced by some method get_ocp_variables, which calls self.states, self.controls, ...
+from collections import namedtuple
+_OCPvars = namedtuple("OCPvars", ['q', 'q_dot', 'q_ddot', 'q0', 'q_dot0'])
+
 class task_context:
 	""" Class for task context
 	The class stores all expressions and constraints relevant to an OCP
 	"""
 
-	def __init__(self, time):
+	def __init__(self, time = None, horizon = 10):
 		""" Class constructor - initializes and sets the field variables of the class
 
 		:param time: The length of the time horizon of the OCP.
 
 		"""
-		ocp = Ocp(T = time)
+
+		if time is None:
+			ocp = Ocp(T=FreeTime(10))
+		else:
+			ocp = Ocp(T = time)
+
+		# ocp = Ocp(T = time)
 		self.ocp = ocp
 		self.states = {}
 		self.controls = {}
@@ -25,6 +35,10 @@ class task_context:
 		self.constraints = {}
 		self.monitors = {}
 		self.opti = ocp.opti
+
+		self.robots = {}
+		self.OCPvars = None
+		self.horizon = horizon
 
 	def create_expression(self, name, type, shape):
 
@@ -241,7 +255,7 @@ class task_context:
 
 	def solve_ocp(self):
 
-		""" solves the ocp and returns the rockit solution object 
+		""" solves the ocp and returns the rockit solution object
 		"""
 
 		ocp = self.ocp
@@ -252,6 +266,57 @@ class task_context:
 	def add_monitors(self, task_mon):
 
 		print("Not implemented")
+
+
+	def add_robot(self, robot):
+		self.robots[robot.name] = robot
+		# robot.transcribe(self)
+		self.set_input_resolution(robot)
+
+		# self.sim_system_dyn = robot.sim_system_dyn(self.task_context)
+
+	def set_input_resolution(self, robot):
+
+		if robot.input_resolution == "velocity":
+
+			print("ERROR: Not implemented and probably not recommended")
+
+		elif robot.input_resolution == "acceleration":
+
+			q = self.create_expression('q', 'state', (robot.ndof, 1)) #joint positions over the trajectory
+			q_dot = self.create_expression('q_dot', 'state', (robot.ndof, 1)) #joint velocities
+			q_ddot = self.create_expression('q_ddot', 'control', (robot.ndof, 1))
+
+			#expressions for initial joint position and joint velocity
+			q0 = self.create_expression('q0', 'parameter', (robot.ndof, 1))
+			q_dot0 = self.create_expression('q_dot0', 'parameter', (robot.ndof, 1))
+
+			self.set_dynamics(q, q_dot)
+			self.set_dynamics(q_dot, q_ddot)
+
+			#add joint position, velocity and acceleration limits
+			pos_limits = {'lub':True, 'hard': True, 'expression':q, 'upper_limits':robot.joint_ub, 'lower_limits':robot.joint_lb}
+			vel_limits = {'lub':True, 'hard': True, 'expression':q_dot, 'upper_limits':robot.joint_vel_ub, 'lower_limits':robot.joint_vel_lb}
+			acc_limits = {'lub':True, 'hard': True, 'expression':q_ddot, 'upper_limits':robot.joint_acc_ub, 'lower_limits':robot.joint_acc_lb}
+			joint_constraints = {'path_constraints':[pos_limits, vel_limits, acc_limits]}
+			self.add_task_constraint(joint_constraints)
+
+			#adding the initial constraints on joint position and velocity
+			joint_init_con = {'expression':q, 'reference':q0}
+			joint_vel_init_con = {'expression':q_dot, 'reference':q_dot0}
+			init_constraints = {'initial_constraints':[joint_init_con, joint_vel_init_con]}
+			self.add_task_constraint(init_constraints)
+
+			self.OCPvars = _OCPvars(q, q_dot, q_ddot, q0, q_dot0)
+
+		elif input_resolution == "torque":
+
+			print("ERROR: Not implemented")
+
+		else:
+
+			print("ERROR: Only available options for input_resolution are: \"velocity\", \"acceleration\" or \"torque\".")
+
 
 # if __name__ == '__main__':
 # 	ocp = Ocp(T = 5)
