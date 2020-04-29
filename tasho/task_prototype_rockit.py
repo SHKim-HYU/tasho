@@ -102,7 +102,7 @@ class task_context:
 
 		print("Not implemented")
 
-	def add_regularization(self, expression, gain):
+	def add_regularization(self, expression, gain, reference = 0):
 
 		print("Not yet implemented")
 

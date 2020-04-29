@@ -22,9 +22,19 @@ class MPC:
         self.parameters = parameters
         #Create a list of the MPC states, variables, controls and parameters in a fixed order
         self.params_names = tc.parameters.keys() 
-        self.state_names = tc.states.keys()
+        self.states_names = tc.states.keys()
         self.controls_names = tc.controls.keys()
         self.variables_names = tc.variables.keys()
+
+        #casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
+        self._mpc_fun = None
+        #casadi function to take list of variables and convert to opti.x and opti.p form
+        self._list_to_optip_fun = None
+        self._statecontrolvariablelist_to_optix_fun = None
+        #casadi function to take opti.x and opti.p and convert to list of states, controls and variables
+        self._optip_to_paramlist = None
+        self._optix_to_statecontrolvariablelist = None
+
 
         if sim_type == "bullet_notrealtime":
 
@@ -136,9 +146,48 @@ class MPC:
             print("Using IPOPT with LBFGS as the default solver")
             tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
-
+        #self._create_mpc_fun_casadi()
         #print(sol_controls['s_ddot'])
         
+    #internal function to create the MPC function using casadi's opti.to_function capability
+    def _create_mpc_fun_casadi(self):
+
+        tc = self.tc
+        #create a list of ocp decision variables in the following order
+        #states, controls, variables, parameters, lagrange_multipliers
+        opti_xplam = []
+        for state in self.states_names:
+            _, temp = tc.ocp.sample(tc.states[state], grid = 'control')
+            opti_xplam.append(temp)
+
+        #obtain the opti variables related to control
+        for control in self.controls_names:
+            _, temp = tc.ocp.sample(tc.controls[control], grid = 'control')
+            temp2 = []
+            for i in range(temp.shape[1] - 1):
+                temp2.append(tc.ocp._method.eval_at_control(tc.ocp, tc.controls[control], i))
+            opti_xplam.append(cs.hcat(temp2))
+
+        #obtain the opti variables related for variables
+        for variable in self.variables_names:
+            temp = tc.ocp._method.eval_at_control(tc.ocp, tc.variables[variable], 0)
+            print(temp)
+            opti_xplam.append(temp)
+
+        for parameter in self.params_names:
+            temp = tc.ocp._method.eval_at_control(tc.ocp, tc.parameters[parameter], 0)#tc.ocp.sample(tc.parameters[parameter])
+            print(temp)
+            opti_xplam.append(temp)
+
+        #adding the lagrange multiplier terms as well
+        print(tc.ocp.opti.p)
+        print(opti_xplam[4])
+        opti_xplam.append(tc.ocp.opti.lam_g)
+
+        #setting the MPC function!
+        #opti = tc.ocp.opti
+        #self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
+        self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', opti_xplam, opti_xplam)
 
     ## obtain the solution of the ocp
     def _read_solveroutput(self, sol):
@@ -148,17 +197,34 @@ class MPC:
         sol_variables = {}
         tc = self.tc
 
-        for state in tc.states:
-            _, sol_state = sol.sample(tc.states[state], grid = 'control')
-            sol_states[state] = sol_state
+        if self._mpc_fun == None:
+            for state in tc.states:
+                _, sol_state = sol.sample(tc.states[state], grid = 'control')
+                sol_states[state] = sol_state
 
-        for control in tc.controls:
-            _, sol_control = sol.sample(tc.controls[control], grid = 'control')
-            sol_controls[control] = sol_control
+            for control in tc.controls:
+                _, sol_control = sol.sample(tc.controls[control], grid = 'control')
+                sol_controls[control] = sol_control
 
-        for variable in tc.variables:
-            _, sol_variable = sol.sample(tc.variables[variable], grid = 'control')
-            sol_variables[variable] = sol_variable
+            for variable in tc.variables:
+                _, sol_variable = sol.sample(tc.variables[variable], grid = 'control')
+                sol_variables[variable] = sol_variable
+
+        #when the solver directly gives the list of decision variables
+        else:
+            i = 0
+            for state in self.states_names:
+                sol_states[state] = sol[i]
+                i += 1
+
+            for control in tc.controls:
+                sol_controls[control] = sol[i]
+                i += 1
+
+            for variable in tc.variables:
+                sol_variables[variable] = sol[i]
+                i += 1
+
 
         return sol_states, sol_controls, sol_variables
 
@@ -228,16 +294,22 @@ class MPC:
 
                 #reading and setting the latest parameter values
                 params_val = self._read_params_nrbullet()
-                for params_name in self.params_names:
-                    tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
 
-                #set the states, controls and variables as initial values
-                self._warm_start([sol_states, sol_controls, sol_variables], options = 'shift')
+                #When the mpc_fun is not initialized as codegen or .casadi function
+                if self._mpc_fun == None:
+                    for params_name in self.params_names:
+                        tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
+                    #set the states, controls and variables as initial values
+                    self._warm_start([sol_states, sol_controls, sol_variables], options = 'shift')
+                    sol = tc.solve_ocp()
+                    sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+                    sol_mpc = [sol_states, sol_controls, sol_variables]
+                    self.sol_mpc = sol_mpc
 
-                sol = tc.solve_ocp()
-                sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
-                sol_mpc = [sol_states, sol_controls, sol_variables]
-                self.sol_mpc = sol_mpc
+                else:
+
+                    print("Not implemented")
+
                 self.mpc_ran = True
                 # Apply the control action to bullet environment
                 self._apply_control_nrbullet(sol_mpc)
