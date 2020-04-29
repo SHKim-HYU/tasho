@@ -2,6 +2,7 @@
 #returns a COP
 
 from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting
+import numpy as np
 import casadi as cs
 
 
@@ -275,22 +276,84 @@ class task_context:
 		self.monitors.append(task_monitor)
 
 	#Configure the monitors
-	def configure_monitors():
+	def configure_monitors(self):
 
 		""" Configures all the monitors in the task context. Should be run only after the
 		ocp solve is called atleast once. """
 
-		expr = task_monitor['expression']
-		if 'initial' in task_monitor:
-			print("Not implemented: but constraint added only at the initial value")
-		elif 'final' in task_monitor:
-			print("Not implemented: but constraint checked only at the terminal value of the ocp")
-		elif 'always' in task_monitor:
-			print("Not implemented: check if the expression is satisfied at all times of the OCP")
-		elif 'once' in task_monitor:
-			print("Not implemented: check if the expression is satisfied at any instant of the OCP")
+		for monitor in self.monitors:
+			self._configure_each_monitor(monitor)
+
+	#Internal function to configure each monitor
+	def _configure_each_monitor(self, monitor):
+
+		opti = tc.ocp.opti
+		expr = monitor['expression']
+		#enforcing that each monitor should be a scalar
+		if expr.shape(0) !=1 and expr.shape(1) > 1:
+			raise Exception("The monitor " + monitor["name"] + " is not a scalar")
+
+		#define the casadi function to compute the monitor value
+		expr_sampled = self.tc.ocp.sample(expr, grid='control') #the monitored expression over the ocp control grid
+		if 'initial' in monitor:
+			expr_fun = cs.Function('monitor_'+monitor["name"], [opti.x, opti.p, opti.lam_g], [expr_sampled[0]])
+		elif 'final' in monitor:
+			expr_fun = cs.Function('monitor_'+monitor["name"], [opti.x, opti.p, opti.lam_g], [expr_sampled[-1]])
+		elif 'always' or 'once' in monitor:
+			expr_fun = cs.Function('monitor_'+monitor["name"], [opti.x, opti.p, opti.lam_g], [expr_sampled])
 		else:
-			raise Exception("Invalid setting: the timing of the monitor not set")
+			raise Exception("Invalid setting: the timing of the monitor " + monitor["name"] + " not set")
+
+		#define the python subfunction that would compute the truth value of the monitor
+		#defining monitor function for lower condition on the expression
+		if "lower" in monitor:
+			if "initial" or "final":
+				def monitor_fun(opti_xplam, expr_fun = expr_fun, reference = monitor['reference']):
+					return expr_fun(*opti_xplam)[0] <= reference
+			elif "always":
+				def monitor_fun(opti_xplam, expr_fun = expr_fun, reference = monitor['reference']):
+					truth_value =  expr_fun(*opti_xplam)[0] <= reference
+					return sum(truth_value) == truth_value.shape[0]
+			else:
+				def monitor_fun(opti_xplam, expr_fun = expr_fun, reference = monitor['reference']):
+					truth_value =  expr_fun(*opti_xplam)[0] <= reference
+					return sum(truth_value) != 0
+
+		#defining monitor functions for greater condition on the expression
+		elif "greater" in monitor:
+			if "initial" or "final":
+				def monitor_fun(opti_xplam, expr_fun = expr_fun, reference = monitor['reference']):
+					return expr_fun(*opti_xplam)[0] >= reference
+			elif "always":
+				def monitor_fun(opti_xplam, expr_fun = expr_fun, reference = monitor['reference']):
+					truth_value =  expr_fun(*opti_xplam)[0] >= reference
+					return sum(truth_value) == truth_value.shape[0]
+			else:
+				def monitor_fun(opti_xplam, expr_fun = expr_fun, reference = monitor['reference']):
+					truth_value =  expr_fun(*opti_xplam)[0] >= reference
+					return sum(truth_value) != 0
+
+		#defining monitor functions for equal to condition on the expression
+		elif "equal" in monitor:
+			if "initial" or "final":
+				def monitor_fun(opti_xplam, expr_fun = expr_fun, reference = monitor['reference'], tolerance = monitor['tolerance']):
+					return np.fabs(expr_fun(*opti_xplam)[0] - reference) <= tolerance
+			elif "always":
+				def monitor_fun(opti_xplam, expr_fun = expr_fun, reference = monitor['reference'], tolerance = monitor['tolerance']):
+					truth_value =  np.fabs(expr_fun(*opti_xplam)[0] - reference) <= tolerance
+					return sum(truth_value) == truth_value.shape[0]
+			else:
+				def monitor_fun(opti_xplam, expr_fun = expr_fun, reference = monitor['reference'], tolerance = monitor['tolerance']):
+					truth_value =  np.fabs(expr_fun(*opti_xplam)[0] - reference) <= tolerance
+					return sum(truth_value) != 0
+
+		else:
+			raise Exception("No valid comparison operator provided to the monitor " + monitor["name"])
+
+		#Assign the monitor function to the dictionary element of the the task context that defines the monitor
+		monitor["monitor_fun"] = monitor_fun
+
+
 
 
 	def add_robot(self, robot):
@@ -304,7 +367,7 @@ class task_context:
 
 		if robot.input_resolution == "velocity":
 
-			print("ERROR: Not implemented and probably not recommended")
+			raise Exception("ERROR: Not implemented and probably not recommended")
 
 		elif robot.input_resolution == "acceleration":
 
@@ -336,11 +399,11 @@ class task_context:
 
 		elif input_resolution == "torque":
 
-			print("ERROR: Not implemented")
+			raise Exception("ERROR: Not implemented")
 
 		else:
 
-			print("ERROR: Only available options for input_resolution are: \"velocity\", \"acceleration\" or \"torque\".")
+			raise Exception("ERROR: Only available options for input_resolution are: \"velocity\", \"acceleration\" or \"torque\".")
 
 
 # if __name__ == '__main__':
