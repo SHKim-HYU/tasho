@@ -7,7 +7,6 @@ from math import inf
 from numbers import Real
 import matplotlib.pyplot as plt
 import json
-from tasho import task_prototype_rockit
 
 #TODO: If input resolution has already been set for a previous task, you don't need to set it again
 
@@ -294,10 +293,10 @@ class Robot:
     def set_robot_input_resolution(self, input_resolution = "acceleration"):
         self.input_resolution = input_resolution
 
-    def transcribe(self, task_context):
-
-        # Set robot's input resolution for task
-        task_context.set_input_resolution(self)
+    # def transcribe(self, task_context):
+    #
+    #     # Set robot's input resolution for task
+    #     task_context.set_input_resolution(self)
 
 
     # def set_input_resolution(self, task_context, input_resolution = "acceleration", options=None):

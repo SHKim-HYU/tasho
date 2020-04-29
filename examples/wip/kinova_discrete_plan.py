@@ -1,7 +1,8 @@
 
 from tasho import robot as rob
-from tasho import task as tp
 from tasho import discrete_plan as dp
+
+from tasho import problem_template as pt
 
 import casadi as cs
 from casadi import pi, cos, sin
@@ -34,7 +35,8 @@ if __name__ == '__main__':
     horizon_size = 10
     T_goal = np.array([[0, 1, 0, 0.5], [1, 0, 0, 0], [0, 0, -1, 0.25], [0, 0, 0, 1]])  # T_goal = np.array([[0.0, 0., -1., 0.5], [0., 1., 0., 0.], [1.0, 0., 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) # T_goal = np.array([[0., 0., -1., 0.5], [-1., 0., 0., 0.], [0., 1., 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) # T_goal = np.array([[0., 1., 0., 0.5], [1., 0., 0., 0.], [0., 0., -1.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) # T_goal = np.array([[0, 1, 0, 0], [1, 0, 0, -0.5], [0, 0, -1, 0.5], [0, 0, 0, 1]])
 
-    approach_task = tp.Point2Point(horizon_size*t_mpc, horizon_size, T_goal)
+    approach_task = pt.Point2Point(horizon_size*t_mpc, horizon = horizon_size, goal = T_goal)
+    # approach_task = tp.Point2Point(horizon = horizon_size, goal = T_goal)
     approach_task.add_robot(robot)
 
     # --------------------------------------------------------------------------
@@ -43,7 +45,8 @@ if __name__ == '__main__':
     horizon_size = 16
     T_goal = np.array([[1, 0, 0, 0], [0, -1, 0, -0.5], [0, 0, -1, 0.25], [0, 0, 0, 1]])
 
-    pickup_task = tp.Point2Point(horizon_size*t_mpc, horizon_size, T_goal)
+    pickup_task = pt.Point2Point(time = horizon_size*t_mpc, horizon = horizon_size, goal = T_goal)
+    # pickup_task = tp.Point2Point(horizon = horizon_size, goal = T_goal)
     pickup_task.add_robot(robot)
 
 
