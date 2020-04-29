@@ -262,10 +262,35 @@ class task_context:
 		sol = ocp.solve()
 		return sol
 
+	#Add monitors to the task context
+	def add_monitors(self, task_monitor):
 
-	def add_monitors(self, task_mon):
+		""" Adds the monitor to the task context. 
 
-		print("Not implemented")
+		:param task_monitor: A dictionary specifying the monitor
+		:type task_monitor: monitor dictionary
+
+		"""
+
+		self.monitors.append(task_monitor)
+
+	#Configure the monitors
+	def configure_monitors():
+
+		""" Configures all the monitors in the task context. Should be run only after the
+		ocp solve is called atleast once. """
+
+		expr = task_monitor['expression']
+		if 'initial' in task_monitor:
+			print("Not implemented: but constraint added only at the initial value")
+		elif 'final' in task_monitor:
+			print("Not implemented: but constraint checked only at the terminal value of the ocp")
+		elif 'always' in task_monitor:
+			print("Not implemented: check if the expression is satisfied at all times of the OCP")
+		elif 'once' in task_monitor:
+			print("Not implemented: check if the expression is satisfied at any instant of the OCP")
+		else:
+			raise Exception("Invalid setting: the timing of the monitor not set")
 
 
 	def add_robot(self, robot):
