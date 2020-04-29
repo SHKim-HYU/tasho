@@ -11,7 +11,7 @@ class DiscretePlan:
     It's common for programmers to give a code example inside of their
     docstring::
 
-        from tasho import DiscretePlan
+        from tasho import discrete_plan
         plan = DiscretePlan()
         plan.add_task(tc)
         sol_list = plan.execute_plan()
@@ -23,9 +23,6 @@ class DiscretePlan:
     def __init__(self):
         """Instantiate a Discrete Plan.
 
-        :param name: Robots name to load functions.
-        :type name: string
-
         """
         # self.name = name
         self.robot_list = None
@@ -34,6 +31,14 @@ class DiscretePlan:
         self.task_names = []
 
     def add_task(self, task, name = None):
+        """Add task context to the plan.
+
+        :param task: Task context to add.
+        :type task: task_context
+        :param name: Optional task name.
+        :type name: string
+
+        """
         self.task_list.append(task)
         if name == None:
 
@@ -46,6 +51,17 @@ class DiscretePlan:
         print(self.task_names)
 
     def solve_task(self, task_name = None, q_init = None, qdot_init = None):
+        """Solve specific task (or list of tasks) in plan.
+
+        :param task_name: (List of) task context to solve.
+        :type task_name: string or list of strings
+        :param q_init: Optional initial joint configuration.
+        :type q_init: list
+        :param qdot_init: Optional initial joint velocity.
+        :type q_init: list
+        :return: solution or solution list
+
+        """
         # TODO: Check if there's any better way to get ndof from tc
 
         # Check that the task list is not empty
@@ -96,6 +112,15 @@ class DiscretePlan:
 
 
     def execute_plan(self, q_init = None, qdot_init = None):
+        """Solve plan in order.
+
+        :param q_init: Optional initial joint configuration.
+        :type q_init: list
+        :param qdot_init: Optional initial joint velocity.
+        :type q_init: list
+        :return: solution list
+
+        """
         # Check that the task list is not empty
         assert (len(self.task_list) > 0),"Task list is empty"
 
@@ -125,6 +150,16 @@ class DiscretePlan:
         return solution_list
 
     def simulate_plan(self, simulator="bullet", q_init = None, qdot_init = None):
+        """Simulates plan execution by using a simulator.
+
+        :param simulator: Simulator to use.
+        :type simulator: string
+        :param q_init: Optional initial joint configuration.
+        :type q_init: list
+        :param qdot_init: Optional initial joint velocity.
+        :type q_init: list
+
+        """
         # Check that the task list is not empty
         assert (len(self.task_list) > 0),"Task list is empty"
 

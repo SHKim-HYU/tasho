@@ -65,5 +65,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
     # Simulate plan execution
     # --------------------------------------------------------------------------
+    robot_q0 = robot.get_initial_conditions[0:robot.ndof]
+    robot_qdot0 = robot.get_initial_conditions[robot.ndof:2*robot.ndof]
 
-    plan.simulate_plan(simulator = "bullet", q_init = q0_val)
+    plan.simulate_plan(simulator = "bullet", q_init = robot_q0, qdot_init = robot_qdot0)

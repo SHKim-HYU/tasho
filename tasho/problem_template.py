@@ -16,8 +16,8 @@ class Point2Point(tp.task_context):
     This class defines a point-to-point motion problem
     by setting its constraints, objective and ocp variables.::
 
-        from tasho import Problem
-        problem = Point2Point()
+        from tasho import problem_template as pt
+        problem = [t.Point2Point()
 
     """
     def __init__(self, time = None, horizon = 10, goal = None):
@@ -34,6 +34,8 @@ class Point2Point(tp.task_context):
         		print("Goal position")
         	elif (isinstance(goal, np.ndarray) and goal.shape == (4, 4)):
         		print("Goal transformation matrix")
+        else:
+            print("ERROR: Please set a goal (position or transformation matrix) for the Point2Point problem")
 
         self.goal = goal
 

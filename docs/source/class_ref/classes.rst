@@ -15,12 +15,21 @@ Robot
     :exclude-members: __dict__,__weakref__
 
 Task Prototype
-=====
+==============
 
 .. automodule:: tasho.task_prototype_rockit
-	:members:
-	:special-members:
+  :members:
+  :special-members:
+  :exclude-members: __dict__,__weakref__
 
 ..	automodule:: tasho.input_resolution
 	:members:
 	:special-members:
+
+Discrete Plan
+=============
+
+.. automodule:: tasho.discrete_plan
+    :members:
+    :special-members:
+    :exclude-members: __dict__,__weakref__
