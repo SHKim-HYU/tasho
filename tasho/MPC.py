@@ -182,7 +182,10 @@ class MPC:
 
         #adding the lagrange multiplier terms as well
         print(tc.ocp.opti.p)
+        print(opti_xplam[3])
         print(opti_xplam[4])
+        print(opti_xplam[5])
+        print(opti_xplam[6])
         opti_xplam.append(tc.ocp.opti.lam_g)
 
         #setting the MPC function!
