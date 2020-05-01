@@ -193,6 +193,8 @@ class MPC:
         #self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
         self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', opti_xplam, opti_xplam)
         self._opti_xplam = opti_xplam
+        opti = tc.ocp.opti
+        self._opti_xplam_to_optiform = cs.Function("opti_xplam_to_optiform", opti_xplam, [opti.x, opti.p, opti.lam_g])
     ## obtain the solution of the ocp
     def _read_solveroutput(self, sol):
 
@@ -342,7 +344,7 @@ class MPC:
         sol = [0]*len(self._opti_xplam)
         par_start_element = len(self.states_names) + len(self.controls_names) + len(self.variables_names)
         #TODO: change by adding termination criteria
-        for mpc_iter in range(20):
+        for mpc_iter in range(100):
 
             if self.type == "bullet_notrealtime":
 
@@ -365,6 +367,13 @@ class MPC:
                         sol[i] = params_val[params_name]
                         i += 1
                     sol = list(self._mpc_fun(*sol))
+
+                    #Monitors
+                    opti_form = self._opti_xplam_to_optiform(*sol)
+                    #checking the termination criteria
+                    if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
+                        print("MPC termination criteria reached")
+                        break;
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
                 sol_mpc = [sol_states, sol_controls, sol_variables]

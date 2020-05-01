@@ -135,6 +135,8 @@ if __name__ == '__main__':
 
 	tc.add_task_constraint(task_objective)
 
+	tc.add_monitor({"name":"termination_criteria", "expression":s, "reference":6.27, "greater":True, "initial":True})
+
 	#adding the final constraints
 	final_vel = {'hard':True, 'expression':q_dot, 'reference':0}
 	final_s = {'hard':True, 'expression':s_dot, 'reference':0.0}

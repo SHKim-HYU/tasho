@@ -266,7 +266,7 @@ class task_context:
 		return sol
 
 	#Add monitors to the task context
-	def add_monitors(self, task_monitor):
+	def add_monitor(self, task_monitor):
 
 		""" Adds the monitor to the task context. 
 

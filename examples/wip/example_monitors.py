@@ -29,10 +29,10 @@ tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'
 
 #adding the monitors now
 ke = 0.5*x**2 + 0.5*x_dot**2
-tc.add_monitors({"name":"first", "expression":ke, "reference":0.1, "lower":True, "initial":True}) #check if KE is lower than 0.1 at the first step of OCP
-tc.add_monitors({"name":"final", "expression":ke, "reference":0.1, "greater":True, "final":True})#check if KE is lower than 0.1 at the final step of OCP
-tc.add_monitors({"name":"once", "expression":ke, "reference":0.1, "lower":True, "once":True})#check if KE is lower than 0.1 at the final step of OCP
-tc.add_monitors({"name":"always", "expression":ke, "reference":0.1, "lower":True, "always":True})#check if KE is lower than 0.1 at the final step of OCP
+tc.add_monitor({"name":"first", "expression":ke, "reference":0.1, "lower":True, "initial":True}) #check if KE is lower than 0.1 at the first step of OCP
+tc.add_monitor({"name":"final", "expression":ke, "reference":0.1, "greater":True, "final":True})#check if KE is lower than 0.1 at the final step of OCP
+tc.add_monitor({"name":"once", "expression":ke, "reference":0.1, "lower":True, "once":True})#check if KE is lower than 0.1 at the final step of OCP
+tc.add_monitor({"name":"always", "expression":ke, "reference":0.1, "lower":True, "always":True})#check if KE is lower than 0.1 at the final step of OCP
 
 sol = tc.solve_ocp() #to configure the monitors
 
