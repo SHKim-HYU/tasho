@@ -51,6 +51,11 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
+autodoc_default_options = {
+    'special-members': '__init__',
+    'exclude-members': '__weakref__'
+}
+
 
 # -- Options for HTML output -------------------------------------------------
 
