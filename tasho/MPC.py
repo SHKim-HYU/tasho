@@ -85,7 +85,7 @@ class MPC:
 
             if 'lbfgs' in self.parameters['solver_params']:
 
-                tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3, 'print_level':0}})
+                tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3, 'print_level':5}})
 
         elif self.parameters['solver_name'] == 'sqpmethod':
 
@@ -332,16 +332,36 @@ class MPC:
 
             raise Exception('Invalid MPC restart option ' + options)
 
-    def _sim_dynamics_update_params(self, params_val):
+    def _sim_dynamics_update_params(self, params_val, sol_states, sol_controls):
         """ 
         Internal function to simulate the dynamics by one time step to predict the states of the MPC
         when the first control input is applied.
         """
         print("Before printing system dynamics")
-        
-        print(system_dynamics)
-        print("After printing system dynamics")
+        print(params_val)
+        #obtain the current state of the system from params and the first control input
+        X = []
+        U = []
+        for state in self.states_names:
+            X.append(params_val[state+"0"])
+        for control in self.controls_names:
+            U.append(sol_controls[control][0])
+        X = cs.vcat(X)
+        U = cs.vcat(U)
 
+        #simulate the system dynamics to obtain the future state
+        next_X = self.system_dynamics(x0 = X, u = U, T = self.parameters['t_mpc'])["xf"]
+        #update the params_val with this info
+        start = 0
+        for state in self.states_names:
+            print(state)
+            state_shape = self.tc.states[state].shape
+            state_len = state_shape[0]*state_shape[1]
+            params_val[state+"0"] = np.array(next_X[start:start+state_len])
+            start = state_len + start
+        
+        print("After printing system dynamics")
+        print(params_val)
     #Continuous running of the MPC
     def runMPC(self):
 
@@ -357,12 +377,15 @@ class MPC:
 
             if self.type == "bullet_notrealtime":
 
-                #reading and setting the latest parameter values
+                #reading and setting the latest parameter values and applying MPC action
                 params_val = self._read_params_nrbullet()
+                sol_mpc = [sol_states, sol_controls, sol_variables]
+                self.sol_mpc = sol_mpc
+                self._apply_control_nrbullet(sol_mpc)
 
                 # simulate to predict the future state when the first control input is applied
                 # to use that as the starting state for the MPC and accordingly update the params_val
-                self._sim_dynamics_update_params(params_val)
+                self._sim_dynamics_update_params(params_val, sol_states, sol_controls)
 
                 #When the mpc_fun is not initialized as codegen or .casadi function
                 if self._mpc_fun == None:
@@ -390,11 +413,10 @@ class MPC:
                         break;
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
-                sol_mpc = [sol_states, sol_controls, sol_variables]
-                self.sol_mpc = sol_mpc
+                
                 self.mpc_ran = True
                 # Apply the control action to bullet environment
-                self._apply_control_nrbullet(sol_mpc)
+                
 
             elif self.type == "bullet_realtime":
 
@@ -415,13 +437,14 @@ class MPC:
                 #Computing the average of the first two velocities to apply as input
                 #assuming constant acceleration input
                 control_action = 0.5*(sol_mpc[0]['q_dot'][0,:] + sol_mpc[0]['q_dot'][1,:]).T
-                print("q_dot shape is ")
-                print(sol_mpc[0]['q_dot'].shape)
-                print("control action shape is ")
-                print(type(control_action))
-                print("joint indices length is")
-                print(len(joint_indices))
-            self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetVelocities = control_action)
+                future_joint_position = sol_mpc[0]['q'][0,:]
+                # print("q_dot shape is ")
+                # print(sol_mpc[0]['q_dot'].shape)
+                # print("control action shape is ")
+                # print(type(control_action))
+                # print("joint indices length is")
+                # print(len(joint_indices))
+            self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetPositions = future_joint_position, targetVelocities = control_action)
             print("This ran")
             print(sol_mpc[0]['s_dot'])
             print(sol_mpc[0]['s'])

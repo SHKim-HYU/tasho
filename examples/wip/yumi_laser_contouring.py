@@ -48,6 +48,7 @@ if __name__ == '__main__':
 	print(robot.joint_ub)
 
 	tc = tp.task_context(horizon_size*t_mpc)
+	tc.t_ocp = t_mpc #setting the ocp sampling
 
 	q = tc.create_expression('q', 'state', (robot.ndof, 1)) #joint positions over the trajectory
 	q_dot = tc.create_expression('q_dot', 'state', (robot.ndof, 1)) #joint velocities
@@ -237,6 +238,7 @@ if __name__ == '__main__':
 		# mpc_params['solver_params'] = {'lbfgs':True}
 		mpc_params['solver_name'] = 'sqpmethod'
 		mpc_params['solver_params'] = {'ipopt':True}
+		mpc_params['t_mpc'] = t_mpc
 		mpc_params['control_type'] = 'joint_velocity'
 		mpc_params['control_info'] = {'robotID':yumiID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 		# set the joint positions in the simulator

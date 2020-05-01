@@ -98,10 +98,10 @@ class world_simulator:
 		return True
 
 
-	def setController(self, robotID, controller_type, joint_indices, targetPositions = None, targetVelocities = None, targetForces = None):
+	def setController(self, robotID, controller_type, joint_indices, targetPositions = [None, None], targetVelocities = None, targetForces = None):
 
 		if controller_type == 'velocity':
-			if targetPositions != None:
+			if targetPositions[0] != None:
 				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)
 			else:
 				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetVelocities = targetVelocities)

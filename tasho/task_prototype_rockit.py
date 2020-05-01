@@ -37,6 +37,7 @@ class task_context:
 		self.monitors = {}
 		self.monitors_configured = False
 		self.opti = ocp.opti
+		self.t_ocp = None
 
 		self.robots = {}
 		self.OCPvars = None
