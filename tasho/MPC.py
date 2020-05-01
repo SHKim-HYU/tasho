@@ -148,6 +148,7 @@ class MPC:
             tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
         self._create_mpc_fun_casadi()
+        self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         #print(sol_controls['s_ddot'])
         
     #internal function to create the MPC function using casadi's opti.to_function capability
@@ -331,7 +332,15 @@ class MPC:
 
             raise Exception('Invalid MPC restart option ' + options)
 
-
+    def _sim_dynamics_update_params(self, params_val):
+        """ 
+        Internal function to simulate the dynamics by one time step to predict the states of the MPC
+        when the first control input is applied.
+        """
+        print("Before printing system dynamics")
+        
+        print(system_dynamics)
+        print("After printing system dynamics")
 
     #Continuous running of the MPC
     def runMPC(self):
@@ -351,6 +360,10 @@ class MPC:
                 #reading and setting the latest parameter values
                 params_val = self._read_params_nrbullet()
 
+                # simulate to predict the future state when the first control input is applied
+                # to use that as the starting state for the MPC and accordingly update the params_val
+                self._sim_dynamics_update_params(params_val)
+
                 #When the mpc_fun is not initialized as codegen or .casadi function
                 if self._mpc_fun == None:
                     for params_name in self.params_names:
@@ -361,6 +374,7 @@ class MPC:
                     
 
                 else:
+                    #print("before calling printing system dynamics function")
                     self._warm_start_casfun([sol_states, sol_controls, sol_variables], sol, options = 'shift')
                     i = par_start_element
                     for params_name in self.params_names:
@@ -372,7 +386,7 @@ class MPC:
                     opti_form = self._opti_xplam_to_optiform(*sol)
                     #checking the termination criteria
                     if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
-                        print("MPC termination criteria reached")
+                        print("MPC termination criteria reached. Exiting MPC loop.")
                         break;
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
