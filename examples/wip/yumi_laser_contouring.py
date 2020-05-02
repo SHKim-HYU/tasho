@@ -1,3 +1,5 @@
+# from sys import path
+# path.insert(0,r"/home/ajay/Desktop/motion_planning_libraries/rockit")
 import sys
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution
@@ -32,10 +34,10 @@ if __name__ == '__main__':
 	horizon_size = 10
 	t_mpc = 0.3 #the MPC sampling time
 	max_joint_vel = 30*3.14159/180
-	max_joint_acc = 30*3.14159/180
+	max_joint_acc = 180*3.14159/180
 
 	#TODO: remove below line after pinocchio starts to provide the robot joint limits
-	rob_settings = {'n_dof' : 18, 'no_links' : 20, 'q_min' : np.array([-2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, 0, 0, -2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, 0, 0]).T, 'q_max' : np.array([2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025, 2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025]).T }
+	rob_settings = {'n_dof' : 18, 'no_links' : 20, 'q_min' : np.array([-2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, -0.1, -0.1, -2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, -0.1, -0.1]).T, 'q_max' : np.array([2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025, 2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025]).T }
 	robot = rob.Robot('yumi')
 	
 	print(robot.joint_name)
@@ -107,7 +109,7 @@ if __name__ == '__main__':
 	radius = 0.1
 	p_des = circle_path(s, centre, radius)
 
-	#contour_error = {'equality':True, 'hard': False, 'expression':Ps, 'reference':p_des, 'gain':10}
+	#contour_error_soft = {'hard': False, 'expression':Ps, 'reference':p_des, 'gain':0.01, 'norm':'L2'}
 	#contour_error = {'equality':True, 'hard': True, 'expression':Ps, 'reference':p_des, 'gain':10}
 	contour_error = {'lub':True, 'hard': True, 'expression':Ps - p_des, 'upper_limits':[0.005]*3, 'lower_limits':[-0.005]*3}
 	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
@@ -121,7 +123,7 @@ if __name__ == '__main__':
 	s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':6.28, 'lower_limits':0}
 	s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
 	# task_objective = {'path_constraints':[vel_regularization, s_dot_regularization, s_con]}
-	task_objective = {'path_constraints':[contour_error, vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
+	task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 
 
 	#Add path constraints on the depth and the angle of the laser interception
@@ -157,6 +159,7 @@ if __name__ == '__main__':
 	tc.ocp.set_value(s_dot0, 0)
 	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
 	tc.set_discretization_settings(disc_settings)
+	#sol = tc.solve_ocp()
 	try:
 		sol = tc.solve_ocp()
 		#print(sol.sample(q, grid="control"))

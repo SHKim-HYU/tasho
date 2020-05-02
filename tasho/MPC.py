@@ -354,10 +354,17 @@ class MPC:
         #update the params_val with this info
         start = 0
         for state in self.states_names:
-            print(state)
+            # print(self.tc.states[state].shape)
             state_shape = self.tc.states[state].shape
             state_len = state_shape[0]*state_shape[1]
-            params_val[state+"0"] = np.array(next_X[start:start+state_len])
+            if state == 'q_dot':
+                print(state)
+                print(np.array(params_val[state+'0']).T)
+                print(np.array(next_X[start:start+state_len]))
+                params_val[state+"0"] = 0.5*(np.array(params_val[state+'0']) + np.array(next_X[start:start+state_len].T)).T
+            else:
+                params_val[state+"0"] = np.array(next_X[start:start+state_len])
+
             start = state_len + start
         
         print("After printing system dynamics")
@@ -379,6 +386,10 @@ class MPC:
 
                 #reading and setting the latest parameter values and applying MPC action
                 params_val = self._read_params_nrbullet()
+                if self.mpc_ran:
+                    for param in params_val:
+                        print("Abs error in "+ param)
+                        print(cs.fabs(old_params_val[param].T - params_val[param]))
                 sol_mpc = [sol_states, sol_controls, sol_variables]
                 self.sol_mpc = sol_mpc
                 self._apply_control_nrbullet(sol_mpc)
@@ -393,7 +404,11 @@ class MPC:
                         tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
                     #set the states, controls and variables as initial values
                     self._warm_start([sol_states, sol_controls, sol_variables], options = 'shift')
-                    sol = tc.solve_ocp()
+                    try:
+                        sol = tc.solve_ocp()
+                    except:
+                        tc.ocp.show_infeasibilities(0.5*1e-6    )
+                        raise Exception("Solver crashed")
                     
 
                 else:
@@ -415,6 +430,9 @@ class MPC:
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
                 
                 self.mpc_ran = True
+
+                old_params_val = params_val #to debug how the prediction varies from the actual plant after one step of 
+                #control is applied
                 # Apply the control action to bullet environment
                 
 
@@ -437,14 +455,17 @@ class MPC:
                 #Computing the average of the first two velocities to apply as input
                 #assuming constant acceleration input
                 control_action = 0.5*(sol_mpc[0]['q_dot'][0,:] + sol_mpc[0]['q_dot'][1,:]).T
-                future_joint_position = sol_mpc[0]['q'][0,:]
+                #simply giving the velocity at the next time step as the reference
+                #control_action = sol_mpc[0]['q_dot'][1,:].T
+                #future_joint_position = sol_mpc[0]['q'][0,:]
                 # print("q_dot shape is ")
                 # print(sol_mpc[0]['q_dot'].shape)
                 # print("control action shape is ")
                 # print(type(control_action))
                 # print("joint indices length is")
                 # print(len(joint_indices))
-            self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetPositions = future_joint_position, targetVelocities = control_action)
+            #self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetPositions = future_joint_position, targetVelocities = control_action)
+            self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetVelocities = control_action)
             print("This ran")
             print(sol_mpc[0]['s_dot'])
             print(sol_mpc[0]['s'])

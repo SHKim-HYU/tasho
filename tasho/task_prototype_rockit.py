@@ -1,6 +1,7 @@
 #Takes the task-specification and also the task context as an input and
 #returns a COP
-
+# from sys import path
+# path.insert(0,r"/home/ajay/Desktop/motion_planning_libraries/rockit")
 from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting
 import numpy as np
 import casadi as cs
