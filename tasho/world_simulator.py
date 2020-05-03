@@ -89,6 +89,14 @@ class world_simulator:
 
 		return jointStates
 
+	def enableJointForceSensor(self, robotID, joint_indices):
+
+		""" Wrapper function around pybullet to activate computation 
+		of reaction forces at the given joints. This can be read through readJointState function """
+
+		for joint_index in joint_indices:
+			p.enableJointForceTorqueSensor(robotID, joint_index)
+
 
 	def resetJointState(self, robotID, joint_indices, new_joint_states):
 

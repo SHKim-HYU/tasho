@@ -34,7 +34,7 @@ if __name__ == '__main__':
 	horizon_size = 10
 	t_mpc = 0.3 #the MPC sampling time
 	max_joint_vel = 30*3.14159/180
-	max_joint_acc = 180*3.14159/180
+	max_joint_acc = 30*3.14159/180
 
 	#TODO: remove below line after pinocchio starts to provide the robot joint limits
 	rob_settings = {'n_dof' : 18, 'no_links' : 20, 'q_min' : np.array([-2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, -0.1, -0.1, -2.9409, -2.5045, -2.9409, -2.1555, -5.0615, -1.5359, -3.9968, -0.1, -0.1]).T, 'q_max' : np.array([2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025, 2.9409, 0.7592, 2.9409, 1.3963, 5.0615, 2.4086, 3.9968, 0.025, 0.025]).T }
