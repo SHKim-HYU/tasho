@@ -46,6 +46,26 @@ if __name__ == "__main__":
 
 		bullet_world = world_simulator.world_simulator()
 
+		#create a different set of objects for different force control contour tracing tasks
+		#Spawns an object in the bullet environment and also the contour path (hence the task frame) 
+		#is determined in the frame of the robot base.
+		task_index = 0
+		if task_index == 0:
+			#contour tracing on a planar surface where the curvature of the contour to be traced is zero
+			bullet_world.add_cylinder(0.5, 0.5, 500, {'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]})
+			def contour_path(s):
+				y = -0.25 + 0.5*s
+				x = 0.5
+				z = 0.5
+				return cs.vertcat(x, y, z)
+		elif task_index == 1:
+			#contour tracing on the curved surface of a cylinder. So the curvature is constant
+			print("Not implemented")
+		elif task_index == 2:
+			#contour tracing on a suface with changing curvature
+			print("Not implemented")
+
+		#Adding the KUKA robot
 		position = [0., 0., 0.]
 		orientation = [0., 0., 0., 1.]
 		kukaID = bullet_world.add_robot(position, orientation, 'iiwa7')
@@ -55,6 +75,34 @@ if __name__ == "__main__":
 			print("[ERROR] MPC sampling time not integer multiple of physics sampling time")
 
 		joint_indices = [0, 1, 2, 3, 4, 5, 6]
+
+		#Begininning the task specification
+		#progress variables
+		s = tc.create_expression('s', 'state', (1, 1)) #Progress variable for the contour tracing task
+		s_dot = tc.create_expression('s_dot', 'state', (1, 1))
+		s_ddot = tc.create_expression('s_ddot', 'control', (1, 1))
+		tc.set_dynamics(s, s_dot)
+		tc.set_dynamics(s_dot, s_ddot)
+		s0 = tc.create_expression('s0', 'parameter', (1, 1))
+		s_dot0 = tc.create_expression('s_dot0', 'parameter', (1, 1))
+		s_init_con = {'expression':s, 'reference':s0}
+		s_dot_init_con = {'expression':s_dot, 'reference':s_dot0}
+		init_constraints = {'initial_constraints':[s_init_con, s_dot_init_con]}
+		tc.add_task_constraint(init_constraints)
+
+		#EE term
+		fk_vals = robot.fk(q)[7]
+		p_des = contour_path(s)
+
+		contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des, 'upper_limits':[0.005]*3, 'lower_limits':[-0.005]*3}
+		vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
+		s_regularization = {'hard': False, 'expression':s, 'reference':1..1, 'gain':0.1, 'norm':'L1'} #push towards contour tracing
+		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.0, 'gain':0.01, 'norm':'L2'}
+		s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.1}
+		s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':1.0, 'lower_limits':0}
+		s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
+		# task_objective = {'path_constraints':[vel_regularization, s_dot_regularization, s_con]}
+		task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 
 		#set all joint velocities to zero
 		bullet_world.resetJointState(kukaID, joint_indices, q0)
