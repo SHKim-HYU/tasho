@@ -3,6 +3,7 @@ from tasho import robot as rob
 from tasho import discrete_plan as dp
 
 from tasho import problem_template as pt
+from tasho import environment as env
 
 import casadi as cs
 from casadi import pi, cos, sin
@@ -68,4 +69,6 @@ if __name__ == '__main__':
     robot_q0 = robot.get_initial_conditions[0:robot.ndof]
     robot_qdot0 = robot.get_initial_conditions[robot.ndof:2*robot.ndof]
 
-    plan.simulate_plan(simulator = "bullet", q_init = robot_q0, qdot_init = robot_qdot0)
+    # plan.simulate_plan(simulator = "bullet", q_init = robot_q0, qdot_init = robot_qdot0)
+    environment = env.Environment()
+    cube1 = env.Cube(length = 0.3, position = [0,0,0])
