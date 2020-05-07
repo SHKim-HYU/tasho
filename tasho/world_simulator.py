@@ -67,9 +67,9 @@ class world_simulator:
 
 		return robotID
 
-	def add_object_urdf(self, position, orientaion, object_urdf, fixedBase = False):
+	def add_object_urdf(self, position, orientation, object_urdf, fixedBase = False, globalScaling = 1):
 
-		objectID = p.loadURDF(object_urdf, position, orientation, useFixedBase=fixedBase)
+		objectID = p.loadURDF(object_urdf, position, orientation, useFixedBase=fixedBase, globalScaling = globalScaling)
 		self.objectIDs.append(objectID)
 		return objectID
 
@@ -91,7 +91,7 @@ class world_simulator:
 
 	def enableJointForceSensor(self, robotID, joint_indices):
 
-		""" Wrapper function around pybullet to activate computation 
+		""" Wrapper function around pybullet to activate computation
 		of reaction forces at the given joints. This can be read through readJointState function """
 
 		for joint_index in joint_indices:
@@ -149,9 +149,9 @@ class world_simulator:
 	def end_simulation(self):
 
 		if self.verbose:
-
 			print("Ending simulation")
-			p.disconnect()
+		p.disconnect()
+
 
 	## Computes the separating hyperplane for each link of the given robot and the given set of joint poses
 	def compute_sh_bullet(self, robotID, q, distance = 0.1):
