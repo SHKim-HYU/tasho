@@ -30,6 +30,18 @@ if __name__ == '__main__':
     robot.set_state(q0_val + q_dot0_val)
     robot.set_robot_input_resolution("acceleration")
 
+    # Set environment
+    environment = env.Environment()
+    cube1 = env.Cube(length = 1, position = [0.5, 0, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "models/objects/cube_small.urdf")
+    table1 = env.Box(height = 0.3, position = [0.5, 0, 0], orientation = [0.0, 0.0, 0.7071080798594737, 0.7071054825112364], urdf = "models/objects/table.urdf")
+    table2 = env.Box(height = 0.3, position = [0,-0.5, 0], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "models/objects/table.urdf")
+
+    environment.add_object(cube1, "cube")
+    environment.add_object(table1, "table1")
+    environment.add_object(table2, "table2")
+    environment.print_objects()
+    plan.add_environment(environment)
+
     # # --------------------------------------------------------------------------
     # # Approximation to object
     # # --------------------------------------------------------------------------
@@ -69,6 +81,4 @@ if __name__ == '__main__':
     robot_q0 = robot.get_initial_conditions[0:robot.ndof]
     robot_qdot0 = robot.get_initial_conditions[robot.ndof:2*robot.ndof]
 
-    # plan.simulate_plan(simulator = "bullet", q_init = robot_q0, qdot_init = robot_qdot0)
-    environment = env.Environment()
-    cube1 = env.Cube(length = 0.3, position = [0,0,0])
+    plan.simulate_plan(simulator = "bullet", q_init = robot_q0, qdot_init = robot_qdot0)

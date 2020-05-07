@@ -67,9 +67,9 @@ class world_simulator:
 
 		return robotID
 
-	def add_object_urdf(self, position, orientation, object_urdf, fixedBase = False, globalScaling = 1):
+	def add_object_urdf(self, position, orientation, urdf, fixedBase = False, globalScaling = 1):
 
-		objectID = p.loadURDF(object_urdf, position, orientation, useFixedBase=fixedBase, globalScaling = globalScaling)
+		objectID = p.loadURDF(urdf, position, orientation, useFixedBase=fixedBase, globalScaling = globalScaling)
 		self.objectIDs.append(objectID)
 		return objectID
 

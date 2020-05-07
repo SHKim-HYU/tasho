@@ -29,6 +29,7 @@ class DiscretePlan:
         self.gravity = vertcat(0,0,-9.81)
         self.task_list = []
         self.task_names = []
+        self.environment = None
 
     def add_task(self, task, name = None):
         """Add task context to the plan.
@@ -40,11 +41,14 @@ class DiscretePlan:
 
         """
         self.task_list.append(task)
-        if name == None:
+        if name is None:
 
             self.task_names.append("task_"+str(len(self.task_list)))
         else:
             self.task_names.append(name)
+
+    def add_environment(self, environment):
+        self.environment = environment
 
     def print_tasks(self):
         """Prints the list of task names."""
@@ -190,9 +194,14 @@ class DiscretePlan:
             robotID = obj.add_robot(position, orientation, 'kinova')
             joint_indices = [0, 1, 2, 3, 4, 5, 6]
 
-            cylID = p.loadURDF("models/objects/cube_small.urdf", [0.5, 0, 0.35], [0.0, 0.0, 0.0, 1.0], globalScaling = 1.0)
-            tbID = p.loadURDF("models/objects/table.urdf", [0.5, 0, 0], p.getQuaternionFromEuler([0,0,1.5708]), globalScaling = 0.3)
-            tbID2 = p.loadURDF("models/objects/table.urdf", [0, -0.5, 0], [0.0, 0.0, 0.0, 1.0], globalScaling = 0.3)
+            self.environment.set_in_world_simulator(obj)
+            print(obj.objectIDs)
+            # cubeID = p.loadURDF("models/objects/cube_small.urdf", [0.5, 0, 0.35], [0.0, 0.0, 0.0, 1.0], globalScaling = 1.0)
+            # cubeID = obj.add_object_urdf([0.5, 0, 0.35], [0.0, 0.0, 0.0, 1.0], "models/objects/cube_small.urdf", globalScaling = 1.0)
+            # tbID = obj.add_object_urdf([0.5, 0, 0], p.getQuaternionFromEuler([0,0,1.5708]), "models/objects/table.urdf", globalScaling = 0.3)
+            # tbID2 = obj.add_object_urdf([0, -0.5, 0], [0.0, 0.0, 0.0, 1.0], "models/objects/table.urdf", globalScaling = 0.3)
+            # cubeID = self.environment.objects["cube"]
+            cubeID = obj.objectIDs[0]
 
             no_samples = int(t_mpc/obj.physics_ts)
 
@@ -234,7 +243,7 @@ class DiscretePlan:
 
                 # TODO: Avoid this, don't know how yet
                 if tname == "pickup":
-                    p.createConstraint(robotID, 6, cylID, -1, p.JOINT_FIXED, [0., 0., 1.], [0., 0, 0.1], [0., 0., 0.1])
+                    p.createConstraint(robotID, 6, cubeID, -1, p.JOINT_FIXED, [0., 0., 1.], [0., 0, 0.1], [0., 0., 0.1])
 
                 for i in range(horizon_size):
                 	q_vel_current = 0.5*(qdot_sol[i] + qdot_sol[i+1])
