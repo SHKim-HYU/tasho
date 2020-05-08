@@ -380,7 +380,7 @@ class MPC:
         sol = [0]*len(self._opti_xplam)
         par_start_element = len(self.states_names) + len(self.controls_names) + len(self.variables_names)
         #TODO: change by adding termination criteria
-        for mpc_iter in range(100):
+        for mpc_iter in range(1000):
 
             if self.type == "bullet_notrealtime":
 

@@ -16,10 +16,10 @@ if __name__ == "__main__":
 	bullet_mpc_nr = True #visualize and simulate the task as MPC
 
 	#some task settings
-	horizon_size = 1
+	horizon_size = 10
 	t_mpc = 0.02 #the MPC sampling time
-	max_joint_vel = 30*3.14159/180
-	max_joint_acc = 30*3.14159/180
+	max_joint_vel = 60*3.14159/180
+	max_joint_acc = 180*3.14159/180
 
 	#load the robot and obtain the states and controls for acceleration-limited MPC
 	robot = rob.Robot('iiwa7')
@@ -28,11 +28,14 @@ if __name__ == "__main__":
 	tc = tp.task_context(horizon_size*t_mpc)
 	q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
 
-	q0 = [0]*7 #a configuration where KUKA is vertical
+	print(robot.joint_ub)
+	print(robot.joint_lb)
+
+	q1 = [0]*7 #a configuration where KUKA is vertical
 	#a pose where the EE is facing downwards
-	q0 = [ 1.99590045e-05,  2.84250916e-01, -2.48833090e-05, -1.53393297e+00, 6.94133172e-06,  1.32338963e+00, -5.61481048e-06]
+	q1 = [ 1.99590045e-05,  2.84250916e-01, -2.48833090e-05, -1.53393297e+00, 6.94133172e-06,  1.32338963e+00, -5.61481048e-06]
 	#joint pose where EE is facing forwards
-	q0 = [-7.07045204e-08, -2.00641310e-01,  6.11552435e-08, -1.85148630e+00, 1.18393300e-08, -8.01683098e-02, -3.72281394e-08]
+	q1 = [-7.07045204e-08, -2.00641310e-01,  6.11552435e-08, -1.85148630e+00, 1.18393300e-08, -8.01683098e-02, -3.72281394e-08]
 
 	offset = 0.02 #in the z direction
 
@@ -56,8 +59,10 @@ if __name__ == "__main__":
 			def contour_path(s):
 				y = -0.25 + 0.5*s
 				x = 0.5
-				z = 0.5
-				return cs.vertcat(x, y, z)
+				z = 0.545
+				return cs.vertcat( cs.horzcat(cs.MX.eye(3),cs.vertcat(x, y, z)), cs.MX([0, 0, 0, 1]).T)
+			q1 = [-3.97670686e-01,  4.30757898e-01, -9.47372587e-02, -1.33677556e+00,
+   3.99392326e-02,  1.37526019e+00, -4.91678720e-01]
 		elif task_index == 1:
 			#contour tracing on the curved surface of a cylinder. So the curvature is constant
 			print("Not implemented")
@@ -91,34 +96,92 @@ if __name__ == "__main__":
 		tc.add_task_constraint(init_constraints)
 
 		#EE term
-		fk_vals = robot.fk(q)[7]
+		fk_vals = robot.fk(q)[6]
 		p_des = contour_path(s)
 
-		contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des, 'upper_limits':[0.005]*3, 'lower_limits':[-0.005]*3}
+		contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3, 3], 'upper_limits':[0.005]*3, 'lower_limits':[-0.005]*3}
 		vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
-		s_regularization = {'hard': False, 'expression':s, 'reference':1..1, 'gain':0.1, 'norm':'L1'} #push towards contour tracing
+		s_regularization = {'hard': False, 'expression':s, 'reference':1.1, 'gain':0.5, 'norm':'L1'} #push towards contour tracing
 		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.0, 'gain':0.01, 'norm':'L2'}
 		s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.1}
 		s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':1.0, 'lower_limits':0}
 		s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
-		# task_objective = {'path_constraints':[vel_regularization, s_dot_regularization, s_con]}
-		task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
+		task_objective = {'path_constraints':[contour_error, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
+		#task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 
+		tc.add_task_constraint(task_objective)
+		
+		#first attempt at the force control. Do motion planning only for the motion part and for the force part,
+		#use a feedback control loop to apply the force.
+		#need the direction to apply force, and the P -term
 		#set all joint velocities to zero
-		bullet_world.resetJointState(kukaID, joint_indices, q0)
+		bullet_world.resetJointState(kukaID, joint_indices, q1)
 		bullet_world.setController(kukaID, "velocity", joint_indices, targetVelocities = [0]*7)
 		bullet_world.enableJointForceSensor(kukaID, [6])
-		bullet_world.run_simulation(1000)
+		bullet_world.run_simulation(100)
 		jointState = bullet_world.readJointState(kukaID, [6])
 		print("Direct output of the force sensor")
 		print(jointState[0][2])
+
+		tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 100, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+		# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'tol':1e-3}})
+		tc.ocp.set_value(q0, q1)
+		tc.ocp.set_value(q_dot0, [0]*7)
+		tc.ocp.set_value(s0, 0)
+		tc.ocp.set_value(s_dot0, 0)
+		#tc.ocp.set_initial(s_dot, )
+		disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
+		tc.set_discretization_settings(disc_settings)
+		#sol = tc.solve_ocp()
+		try:
+			sol = tc.solve_ocp()
+			_, s_sol = sol.sample(s, grid = 'control')
+			print(s_sol)
+			#print(sol.sample(q, grid="control"))
+		except:
+			tc.ocp.show_infeasibilities(1e-3)
+			sol = tc.ocp.debug
+			sol = tc.ocp.opti.debug
+			# print(sol.value(tc.ocp._method.eval_at_control(tc.ocp, q, 0)))
+
+		tc.add_monitor({"name":"termination_criteria", "expression":s, "reference":0.99, "greater":True, "initial":True})
+
+		#configuring the parameters of the MPC
+		mpc_params = {'world':bullet_world}
+		q0_params_info = {'type':'joint_position', 'joint_indices':joint_indices, 'robotID':kukaID}
+		q_dot0_params_info = {'type':'joint_velocity', 'joint_indices':joint_indices, 'robotID':kukaID}
+		s0_params_info = {'type':'progress_variable', 'state':True}
+		s_dot0_params_info = {'type':'progress_variable', 'state':True}
+		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info}
+		mpc_params['disc_settings'] = disc_settings
+		# mpc_params['solver_name'] = 'ipopt'
+		# mpc_params['solver_params'] = {'lbfgs':True}
+		mpc_params['solver_name'] = 'sqpmethod'
+		mpc_params['solver_params'] = {'ipopt':True}
+		mpc_params['t_mpc'] = t_mpc
+		mpc_params['control_type'] = 'joint_velocity'
+		mpc_params['control_info'] = {'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
+		# set the joint positions in the simulator
+		bullet_world.resetJointState(kukaID, joint_indices, q1)
+		sim_type = "bullet_notrealtime"
+		mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
+
+		#run the ocp with IPOPT to get a good initial guess for the MPC
+		mpc_obj.configMPC_fromcurrent()
+
+		#run the MPC
+		mpc_obj.runMPC()
+
+		bullet_world.run_simulation(1000)
+
 		#filter the force sensor reading to compensate for the mass of the last link to estimate the
 		#force applied at the end effector in the global reference frame
 
 		#7th ([6]) element of the output of robot.fk() provides the frame corresponding to the 7th joint
 		#which is the same joint where the torque sensor is enabled.
-		print(robot.fk(q0)[6])
-		jointPose = np.array(robot.fk(q0)[6])
+		print(q1)
+		print(robot.fk(q1)[6])
+		jointPose = np.array(robot.fk(q1)[6])
 		invJointPose = utils.geometry.inv_T_matrix(jointPose) #compute the inverse of the transformation
 		#	matrix of the joint pose
 		print(invJointPose)
