@@ -303,7 +303,8 @@ class task_context:
 		#enforcing that each monitor should be a scalar
 		if expr_sampled[0].shape[0] !=1 and expr_sampled[0].shape[1] > 1:
 			raise Exception("The monitor " + monitor["name"] + " is not a scalar")
-
+		# print("Expr sampled is!!!!!!!!!!!!!!!!!!!")
+		# print(expr_sampled[0])
 		if 'initial' in monitor:
 			expr_fun = cs.Function('monitor_'+monitor["name"], [opti.x, opti.p, opti.lam_g], [expr_sampled[0], opti.x])
 		elif 'final' in monitor:

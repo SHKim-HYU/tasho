@@ -182,11 +182,11 @@ class MPC:
             opti_xplam.append(temp)
 
         #adding the lagrange multiplier terms as well
-        print(tc.ocp.opti.p)
-        print(opti_xplam[3])
-        print(opti_xplam[4])
-        print(opti_xplam[5])
-        print(opti_xplam[6])
+        # print(tc.ocp.opti.p)
+        # print(opti_xplam[3])
+        # print(opti_xplam[4])
+        # print(opti_xplam[5])
+        # print(opti_xplam[6])
         opti_xplam.append(tc.ocp.opti.lam_g)
 
         #setting the MPC function!
@@ -215,14 +215,15 @@ class MPC:
 
             for variable in tc.variables:
                 _, sol_variable = sol.sample(tc.variables[variable], grid = 'control')
+                sol_variable = sol_variable[0]
                 sol_variables[variable] = sol_variable
 
         #when the solver directly gives the list of decision variables
         else:
             i = 0
             for state in self.states_names:
-                print("Shape of state " + state + " is = ")
-                print(sol[i].shape)
+                # print("Shape of state " + state + " is = ")
+                # print(sol[i].shape)
                 sol_states[state] = np.array(sol[i].T)
                 i += 1
 
@@ -337,8 +338,8 @@ class MPC:
         Internal function to simulate the dynamics by one time step to predict the states of the MPC
         when the first control input is applied.
         """
-        print("Before printing system dynamics")
-        print(params_val)
+        # print("Before printing system dynamics")
+        # print(params_val)
         #obtain the current state of the system from params and the first control input
         X = []
         U = []
@@ -358,17 +359,17 @@ class MPC:
             state_shape = self.tc.states[state].shape
             state_len = state_shape[0]*state_shape[1]
             if state == 'q_dot':
-                print(state)
-                print(np.array(params_val[state+'0']).T)
-                print(np.array(next_X[start:start+state_len]))
+                # print(state)
+                # print(np.array(params_val[state+'0']).T)
+                # print(np.array(next_X[start:start+state_len]))
                 params_val[state+"0"] = 0.5*(np.array(params_val[state+'0']) + np.array(next_X[start:start+state_len].T)).T
             else:
                 params_val[state+"0"] = np.array(next_X[start:start+state_len])
 
             start = state_len + start
         
-        print("After printing system dynamics")
-        print(params_val)
+        #print("After printing system dynamics")
+        #print(params_val)
     #Continuous running of the MPC
     def runMPC(self):
 
@@ -386,10 +387,10 @@ class MPC:
 
                 #reading and setting the latest parameter values and applying MPC action
                 params_val = self._read_params_nrbullet()
-                if self.mpc_ran:
-                    for param in params_val:
-                        print("Abs error in "+ param)
-                        print(cs.fabs(old_params_val[param].T - params_val[param]))
+                #if self.mpc_ran:
+                    #for param in params_val:
+                        # print("Abs error in "+ param)
+                        # print(cs.fabs(old_params_val[param].T - params_val[param]))
                 sol_mpc = [sol_states, sol_controls, sol_variables]
                 self.sol_mpc = sol_mpc
                 self._apply_control_nrbullet(sol_mpc)
@@ -414,6 +415,8 @@ class MPC:
                 else:
                     #print("before calling printing system dynamics function")
                     self._warm_start_casfun([sol_states, sol_controls, sol_variables], sol, options = 'shift')
+                    print("this ran")
+                    print(sol_variables)
                     i = par_start_element
                     for params_name in self.params_names:
                         sol[i] = params_val[params_name]
@@ -423,6 +426,9 @@ class MPC:
                     #Monitors
                     opti_form = self._opti_xplam_to_optiform(*sol)
                     #checking the termination criteria
+                    
+                    #print(opti_form)
+                    print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
                     if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
                         print("MPC termination criteria reached. Exiting MPC loop.")
                         break;
@@ -466,9 +472,9 @@ class MPC:
                 # print(len(joint_indices))
             #self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetPositions = future_joint_position, targetVelocities = control_action)
             self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetVelocities = control_action)
-            print("This ran")
-            print(sol_mpc[0]['s_dot'])
-            print(sol_mpc[0]['s'])
+            # print("This ran")
+            # print(sol_mpc[0]['s_dot'])
+            # print(sol_mpc[0]['s'])
         elif self.parameters['control_type'] == 'joint_torque':
 
             print("Not implemented")
@@ -535,6 +541,9 @@ class MPC:
 
                     params_val[params_name] = 0
 
+            elif param_info['type'] == 'set_value':
+
+                params_val[params_name] = param_info['value']
 
             else:
 
