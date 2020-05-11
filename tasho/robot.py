@@ -7,6 +7,7 @@ from math import inf
 from numbers import Real
 import matplotlib.pyplot as plt
 import json
+import casadi as cs
 
 #TODO: If input resolution has already been set for a previous task, you don't need to set it again
 
@@ -63,6 +64,32 @@ class Robot:
 
         """
         self.name = name
+
+    def set_kinematic_jacobian(self, name, q):
+        """Creates a function that computes the kinematic jacobian of the robot
+
+        :param name: Name to be set for the returned function
+        :type name: string
+
+        :param q: The kinematic jacobian is computed for the frame of this joint number
+        :type name: integer
+
+        """
+
+        #TODO: also add the geometric jacobian for the rotational part. Better to use pinocchio 
+        #interface to set this in the long term
+
+        q_sym = cs.MX.sym('q', self.ndof, 1)
+
+        #computing the jacobian
+        fk = self.fk(q_sym)[q]
+        jac = cs.jacobian(fk[0:3,3], q_sym)
+
+        #constructing and returning the function
+        jac_fun = cs.Function(name, [q_sym], [jac])
+        return jac_fun
+
+
 
     def set_joint_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
