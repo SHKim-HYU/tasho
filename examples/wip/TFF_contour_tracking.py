@@ -19,7 +19,7 @@ if __name__ == "__main__":
 	horizon_size = 10
 	t_mpc = 0.02 #the MPC sampling time
 	max_joint_vel = 60*3.14159/180
-	max_joint_acc = 180*3.14159/180
+	max_joint_acc = 60*3.14159/180
 
 	#load the robot and obtain the states and controls for acceleration-limited MPC
 	robot = rob.Robot('iiwa7')
@@ -95,6 +95,13 @@ if __name__ == "__main__":
 		init_constraints = {'initial_constraints':[s_init_con, s_dot_init_con]}
 		tc.add_task_constraint(init_constraints)
 
+		force_desired = tc.create_expression('f_des', 'parameter', (3, 1))
+		force_measured = tc.create_expression('f_meas', 'parameter', (3,1))
+		q_dot_force = tc.create_expression('q_dot_force', 'variable', (7,1))
+
+		# tc.ocp.set_value(force_desired, [0,0,0])
+		# tc.ocp.set_value(force_measured, [0,0,0])
+
 		#EE term
 		fk_vals = robot.fk(q)[6]
 		p_des = contour_path(s)
@@ -153,6 +160,8 @@ if __name__ == "__main__":
 		s0_params_info = {'type':'progress_variable', 'state':True}
 		s_dot0_params_info = {'type':'progress_variable', 'state':True}
 		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info}
+		mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,0])}
+		mpc_params['params']['f_meas'] = {'type':'set_value', 'value':np.array([0,0,0])}
 		mpc_params['disc_settings'] = disc_settings
 		# mpc_params['solver_name'] = 'ipopt'
 		# mpc_params['solver_params'] = {'lbfgs':True}
