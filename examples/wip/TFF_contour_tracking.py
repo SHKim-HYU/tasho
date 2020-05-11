@@ -161,7 +161,20 @@ if __name__ == "__main__":
 		s_dot0_params_info = {'type':'progress_variable', 'state':True}
 		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info}
 		mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,0])}
-		mpc_params['params']['f_meas'] = {'type':'set_value', 'value':np.array([0,0,0])}
+
+		#creating a function to pass as a parameter to the MPC class to appropriately post process 
+		#the sensor readings
+		def joint_force_compensation(fk, q, force):
+			mass_last_link = 0.3
+			reactionGravVector = np.array([0, 0, 9.81])
+			jointPose = np.array(fk(q)[6])
+			invJointPose = utils.geometry.inv_T_matrix(jointPose)
+			force_last_link = cs.mtimes(invJointPose[0:3, 0:3], reactionGravVector)*mass_last_link
+			force_corrected = force - force_last_link
+
+			return force_corrected
+
+		mpc_params['params']['f_meas'] = {'type':'joint_force', 'robotID':kukaID, 'joint_indices':[6], 'fk':robot.fk, 'post_process':joint_force_compensation}
 		mpc_params['disc_settings'] = disc_settings
 		# mpc_params['solver_name'] = 'ipopt'
 		# mpc_params['solver_params'] = {'lbfgs':True}
@@ -189,6 +202,8 @@ if __name__ == "__main__":
 		#7th ([6]) element of the output of robot.fk() provides the frame corresponding to the 7th joint
 		#which is the same joint where the torque sensor is enabled.
 		print(q1)
+
+
 		print(robot.fk(q1)[6])
 		jointPose = np.array(robot.fk(q1)[6])
 		invJointPose = utils.geometry.inv_T_matrix(jointPose) #compute the inverse of the transformation

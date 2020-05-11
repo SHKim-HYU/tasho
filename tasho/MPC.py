@@ -528,6 +528,14 @@ class MPC:
 
                 params_val[params_name] = param_val
 
+            elif param_info['type'] == 'joint_force':
+
+                jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
+                forces = jointsInfo[0][2][0:3]
+                forces_corrected = param_info['post_process'](param_info['fk'], params_val['q0'], forces)
+
+                params_val[params_name] = forces_corrected
+
             elif param_info['type'] == 'progress_variable':
                 if self.mpc_ran:
                     if 'state' in param_info:
