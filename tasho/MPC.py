@@ -147,7 +147,7 @@ class MPC:
             print("Using IPOPT with LBFGS as the default solver")
             tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
-        self._create_mpc_fun_casadi()
+        #self._create_mpc_fun_casadi()
         self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         #print(sol_controls['s_ddot'])
         
@@ -408,7 +408,7 @@ class MPC:
                     try:
                         sol = tc.solve_ocp()
                     except:
-                        tc.ocp.show_infeasibilities(0.5*1e-6    )
+                        tc.ocp.show_infeasibilities(0.5*1e-6)
                         raise Exception("Solver crashed")
                     
 
@@ -466,15 +466,29 @@ class MPC:
                 #future_joint_position = sol_mpc[0]['q'][0,:]
                 # print("q_dot shape is ")
                 # print(sol_mpc[0]['q_dot'].shape)
-                # print("control action shape is ")
-                # print(type(control_action))
+                print("control action shape is ")
+                print(control_action.shape)
                 # print("joint indices length is")
                 # print(len(joint_indices))
             #self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetPositions = future_joint_position, targetVelocities = control_action)
+            if 'force_control' in control_info:
+                 q_dot_force = cs.vec(sol_mpc[2]['q_dot_force'])
+                 print('qdot force shape is ')
+                 print(q_dot_force.shape)
+                 control_action = np.array(cs.vec(control_action) + q_dot_force)
+
+            #control_action = control_action[0]
+            print(control_action)
+                 #print(q_dot_force)
             self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetVelocities = control_action)
             # print("This ran")
             # print(sol_mpc[0]['s_dot'])
             # print(sol_mpc[0]['s'])
+
+            
+
+            
+
         elif self.parameters['control_type'] == 'joint_torque':
 
             print("Not implemented")
