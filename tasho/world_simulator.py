@@ -43,6 +43,18 @@ class world_simulator:
 		self.objectIDs = cylinderID
 		return cylinderID
 
+	def add_cube(self, pose, scale = 1.0, fixedBase = True):
+
+		if self.verbose:
+			print("Adding a cylinder to the bullet environment")
+
+		position = pose['position']
+		orientation = pose['orientation']
+		cubeID = p.loadURDF("models/objects/cube.urdf",position, orientation, useFixedBase = True, globalScaling = scale)
+
+		self.objectIDs = cubeID
+		return cubeID
+
 	def add_robot(self, position, orientation, robot_name = None, robot_urdf = None, fixedBase = True):
 
 		if robot_name != None:
@@ -110,7 +122,7 @@ class world_simulator:
 
 		if controller_type == 'velocity':
 			if targetPositions[0] != None:
-				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)
+				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)#, forces = [50]*len(targetVelocities))
 			else:
 				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetVelocities = targetVelocities)
 		elif controller_type == 'position':
