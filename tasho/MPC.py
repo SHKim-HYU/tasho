@@ -394,7 +394,7 @@ class MPC:
                     #     print(cs.fabs(cs.vec(old_params_val[param]) - cs.vec(params_val[param])))
                 sol_mpc = [sol_states, sol_controls, sol_variables]
                 self.sol_mpc = sol_mpc
-                self._apply_control_nrbullet(sol_mpc)
+                self._apply_control_nrbullet(sol_mpc, params_val)
 
                 # simulate to predict the future state when the first control input is applied
                 # to use that as the starting state for the MPC and accordingly update the params_val
@@ -432,6 +432,7 @@ class MPC:
                     print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
                     if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
                         print("MPC termination criteria reached. Exiting MPC loop.")
+                        self.world.setController(control_info['robotID'], 'velocity', control_info['joint_indices'], targetVelocities = [0]*len(control_info['joint_indices']))
                         break;
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
@@ -441,7 +442,7 @@ class MPC:
                 old_params_val = params_val #to debug how the prediction varies from the actual plant after one step of 
                 #control is applied
                 # Apply the control action to bullet environment
-                
+                #self._apply_control_nrbullet(sol_mpc) #uncomment if the simulation of system to predict future is not done
 
             elif self.type == "bullet_realtime":
 
@@ -452,7 +453,7 @@ class MPC:
                 print("[ERROR] Unknown simulation type")
 
     # Internal function to apply the output of the MPC to the non-realtime bullet environment
-    def _apply_control_nrbullet(self, sol_mpc):
+    def _apply_control_nrbullet(self, sol_mpc, params_val):
 
         if self.parameters['control_type'] == 'joint_velocity':
             control_info = self.parameters['control_info']
@@ -473,13 +474,22 @@ class MPC:
                 # print(len(joint_indices))
             #self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetPositions = future_joint_position, targetVelocities = control_action)
             if 'force_control' in control_info:
-                 q_dot_force = cs.vec(sol_mpc[2]['q_dot_force'])
-                 print('qdot force shape is ')
-                 print(q_dot_force.shape)
+                 q_dot_force = control_info['fcon_fun'](params_val['q0'], params_val['f_des'], params_val['f_meas'])
+                 print('qdot force is ')
+                 print(q_dot_force)
+                 #cap the magnitude of q_dot_force
+                 max_q_dot_force_norm = 0.01
+                 norm_q_dot_force = cs.norm_1(q_dot_force)
+                 if norm_q_dot_force > max_q_dot_force_norm:
+                    print("norm of q_dot_force:")
+                    print(norm_q_dot_force)
+                    q_dot_force = q_dot_force/norm_q_dot_force*max_q_dot_force_norm
+                    print("q dot force after normalization")
+                    print(q_dot_force)
                  control_action = np.array(cs.vec(control_action) + q_dot_force)
 
             #control_action = control_action[0]
-            print(control_action)
+            #print(control_action)
                  #print(q_dot_force)
             self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetVelocities = control_action)
             # print("This ran")

@@ -57,7 +57,7 @@ if __name__ == "__main__":
 		task_index = 0
 		if task_index == 0:
 			#contour tracing on a planar surface where the curvature of the contour to be traced is zero
-			bullet_world.add_cube({'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]}, scale = 0.5)
+			bullet_world.add_cube({'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]}, scale = 0.55)
 			def contour_path(s):
 				y = -0.25 + 0.5*s
 				x = 0.5
@@ -99,10 +99,11 @@ if __name__ == "__main__":
 
 		force_desired = tc.create_expression('f_des', 'parameter', (3, 1))
 		force_measured = tc.create_expression('f_meas', 'parameter', (3,1))
-		q_dot_force = tc.create_expression('q_dot_force', 'variable', (7,1))
-		K = 0.005*0 #proportional gain of the feedback force controller
+		#q_dot_force = tc.create_expression('q_dot_force', 'variable', (7,1))
+		K = 0.05 #proportional gain of the feedback force controller
 		jac_val = jac_fun(q0)
-		#q_dot_force = cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-4, force_desired - force_measured)
+		q_dot_force = cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-6, K*(force_desired - force_measured)))
+		q_dot_force_fun = cs.Function('q_dot_force_fun', [q0, force_desired, force_measured], [q_dot_force])
 
 		# tc.ocp.set_value(force_desired, [0,0,0])
 		# tc.ocp.set_value(force_measured, [0,0,0])
@@ -120,8 +121,8 @@ if __name__ == "__main__":
 		s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.1}
 		s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':1.0, 'lower_limits':0}
 		s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
-		q_dot_force_con = {'hard':True, 'expression':q_dot_force, 'reference':cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-4, K*(force_desired - force_measured)))}
-		task_objective = {'path_constraints':[q_dot_force_con, contour_error_soft, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
+		#q_dot_force_con = {'hard':True, 'expression':q_dot_force, 'reference':cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-4, K*(force_desired - force_measured)))}
+		task_objective = {'path_constraints':[contour_error_soft, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
 		#task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 
 		tc.add_task_constraint(task_objective)
@@ -168,7 +169,7 @@ if __name__ == "__main__":
 		s0_params_info = {'type':'progress_variable', 'state':True}
 		s_dot0_params_info = {'type':'progress_variable', 'state':True}
 		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info}
-		mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-5])}
+		mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-200])}
 
 		#creating a function to pass as a parameter to the MPC class to appropriately post process 
 		#the sensor readings
@@ -179,7 +180,7 @@ if __name__ == "__main__":
 			invJointPose = utils.geometry.inv_T_matrix(jointPose)
 			force_last_link = cs.mtimes(invJointPose[0:3, 0:3], reactionGravVector)*mass_last_link
 			force_corrected = force - force_last_link
-
+			force_corrected = cs.mtimes(jointPose[0:3, 0:3], force_corrected)
 			return force_corrected
 
 		mpc_params['params']['f_meas'] = {'type':'joint_force', 'robotID':kukaID, 'joint_indices':[6], 'fk':robot.fk, 'post_process':joint_force_compensation}
@@ -190,7 +191,7 @@ if __name__ == "__main__":
 		mpc_params['solver_params'] = {'ipopt':True}
 		mpc_params['t_mpc'] = t_mpc
 		mpc_params['control_type'] = 'joint_velocity'
-		mpc_params['control_info'] = {'force_control':True, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
+		mpc_params['control_info'] = {'force_control':True, 'fcon_fun':q_dot_force_fun, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 		# set the joint positions in the simulator
 		bullet_world.resetJointState(kukaID, joint_indices, q1)
 		sim_type = "bullet_notrealtime"
