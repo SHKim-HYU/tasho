@@ -57,7 +57,7 @@ if __name__ == "__main__":
 		task_index = 0
 		if task_index == 0:
 			#contour tracing on a planar surface where the curvature of the contour to be traced is zero
-			bullet_world.add_cylinder(0.5, 0.5, 500, {'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]})
+			bullet_world.add_cube({'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]}, scale = 0.5)
 			def contour_path(s):
 				y = -0.25 + 0.5*s
 				x = 0.5
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 		force_desired = tc.create_expression('f_des', 'parameter', (3, 1))
 		force_measured = tc.create_expression('f_meas', 'parameter', (3,1))
 		q_dot_force = tc.create_expression('q_dot_force', 'variable', (7,1))
-		K = 0.05 #proportional gain of the feedback force controller
+		K = 0.005*0 #proportional gain of the feedback force controller
 		jac_val = jac_fun(q0)
 		#q_dot_force = cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-4, force_desired - force_measured)
 
@@ -111,15 +111,17 @@ if __name__ == "__main__":
 		fk_vals = robot.fk(q)[6]
 		p_des = contour_path(s)
 
-		contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3, 3], 'upper_limits':[0.005]*3, 'lower_limits':[-0.005]*3}
+		contour_error_soft = {'hard': False, 'expression':fk_vals[0:3,3], 'reference':p_des[0:3, 3], 'gain':5.0, 'norm':'L2'}
+		contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3, 3], 'upper_limits':[0.005, 0.005, 0.005], 'lower_limits':[-0.005, -0.005, -0.1]}
 		vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
-		s_regularization = {'hard': False, 'expression':s, 'reference':1.1, 'gain':0.5, 'norm':'L1'} #push towards contour tracing
-		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.0, 'gain':0.01, 'norm':'L2'}
+		s_regularization = {'hard': False, 'expression':s, 'reference':1.1, 'gain':0.5*0, 'norm':'L1'} #push towards contour tracing
+		#s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':0.1, 'norm':'L2'}
+		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':1.0, 'norm':'L1'}
 		s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.1}
 		s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':1.0, 'lower_limits':0}
 		s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
 		q_dot_force_con = {'hard':True, 'expression':q_dot_force, 'reference':cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-4, K*(force_desired - force_measured)))}
-		task_objective = {'path_constraints':[q_dot_force_con, contour_error, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
+		task_objective = {'path_constraints':[q_dot_force_con, contour_error_soft, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
 		#task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 
 		tc.add_task_constraint(task_objective)
@@ -182,10 +184,10 @@ if __name__ == "__main__":
 
 		mpc_params['params']['f_meas'] = {'type':'joint_force', 'robotID':kukaID, 'joint_indices':[6], 'fk':robot.fk, 'post_process':joint_force_compensation}
 		mpc_params['disc_settings'] = disc_settings
-		mpc_params['solver_name'] = 'ipopt'
-		mpc_params['solver_params'] = {'lbfgs':True}
-		# mpc_params['solver_name'] = 'sqpmethod'
-		# mpc_params['solver_params'] = {'ipopt':True}
+		# mpc_params['solver_name'] = 'ipopt'
+		# mpc_params['solver_params'] = {'lbfgs':True}
+		mpc_params['solver_name'] = 'sqpmethod'
+		mpc_params['solver_params'] = {'ipopt':True}
 		mpc_params['t_mpc'] = t_mpc
 		mpc_params['control_type'] = 'joint_velocity'
 		mpc_params['control_info'] = {'force_control':True, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}

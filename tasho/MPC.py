@@ -127,6 +127,7 @@ class MPC:
                 kkt_tol_du = 1e-1
                 min_step_size = 1e-6
                 max_iter = 3
+                ipopt_max_iter = 50
                 max_iter_ls = 0
 
                 ipopt_tol = 1e-3
@@ -147,7 +148,7 @@ class MPC:
             print("Using IPOPT with LBFGS as the default solver")
             tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
-        #self._create_mpc_fun_casadi()
+        self._create_mpc_fun_casadi()
         self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         #print(sol_controls['s_ddot'])
         
@@ -338,8 +339,8 @@ class MPC:
         Internal function to simulate the dynamics by one time step to predict the states of the MPC
         when the first control input is applied.
         """
-        # print("Before printing system dynamics")
-        # print(params_val)
+        print("Before printing system dynamics")
+        print(params_val)
         #obtain the current state of the system from params and the first control input
         X = []
         U = []
@@ -387,10 +388,10 @@ class MPC:
 
                 #reading and setting the latest parameter values and applying MPC action
                 params_val = self._read_params_nrbullet()
-                #if self.mpc_ran:
-                    #for param in params_val:
-                        # print("Abs error in "+ param)
-                        # print(cs.fabs(old_params_val[param].T - params_val[param]))
+                # if self.mpc_ran:
+                    # for param in params_val:
+                    #     print("Abs error in "+ param)
+                    #     print(cs.fabs(cs.vec(old_params_val[param]) - cs.vec(params_val[param])))
                 sol_mpc = [sol_states, sol_controls, sol_variables]
                 self.sol_mpc = sol_mpc
                 self._apply_control_nrbullet(sol_mpc)
@@ -549,6 +550,8 @@ class MPC:
                 forces_corrected = param_info['post_process'](param_info['fk'], params_val['q0'], forces)
 
                 params_val[params_name] = forces_corrected
+                print("Force sensor readings:")
+                print(forces_corrected)
 
             elif param_info['type'] == 'progress_variable':
                 if self.mpc_ran:
