@@ -504,6 +504,25 @@ class MPC:
 
             print("Not implemented")
 
+        elif self.parameters['control_type'] == 'joint_acceleration':
+            #implemented using the inverse dynamics solver and applying joint torques
+
+            control_info = self.parameters['control_info']
+            joint_indices = control_info['joint_indices']
+            control_action = sol_mpc[1]['q_ddot'][0,:].T
+            robot = self.parameters['params']['robots'][control_info['robotID']]
+
+            #compute joint torques through inverse dynamics of casadi model
+            #joint_torques = np.array(robot.id(params_val['q0'], params_val['q_dot0'], control_action))
+
+            #compute joint torques using inverse dynamics functions from pybullet
+            joint_torques = self.world.computeInverseDynamics(control_info['robotID'], list(params_val['q0']), [0]*7, [0]*7)#, params_val['q_dot0'], control_action)
+            
+            print(joint_torques)
+            self.world.setController(control_info['robotID'], 'torque', joint_indices, targetTorques = joint_torques)
+            if 'force_control' in control_info:
+                print("Not implemented")
+
         elif self.parameters['control_type'] == 'joint_position':
 
             print("Not implemented")

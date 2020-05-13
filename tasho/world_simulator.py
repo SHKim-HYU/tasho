@@ -20,6 +20,7 @@ class world_simulator:
 		planeId = p.loadURDF("plane.urdf")
 		self.robotIDs = []
 		self.objectIDs = []
+		self.torque_control_mode = False
 
 		# Add button for
 		p.addUserDebugParameter("Disconnect",1,0,1)
@@ -117,8 +118,16 @@ class world_simulator:
 
 		return True
 
+	def computeInverseDynamics(self, robotID, positions, velocities, accelerations):
+		""" Use pybullet function to compute the inverse dynamics of the given robot
+		"""
+		print("computing inverse dynamics")
+		jointTorques = p.calculateInverseDynamics(robotID, positions, velocities, accelerations)
+		print("Finished computing inverse dynamics")
+		return jointTorques
 
-	def setController(self, robotID, controller_type, joint_indices, targetPositions = [None, None], targetVelocities = None, targetForces = None):
+
+	def setController(self, robotID, controller_type, joint_indices, targetPositions = [None, None], targetVelocities = None, targetTorques = None):
 
 		if controller_type == 'velocity':
 			if targetPositions[0] != None:
@@ -128,7 +137,10 @@ class world_simulator:
 		elif controller_type == 'position':
 			p.setJointMotorControlArray(robotID, joint_indices, p.POSITION_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)
 		elif controller_type == 'torque':
-			p.setJointMotorControlArray(robotID, joint_indices, p.TORQUE_CONTROL, targetForces = targetForces)
+			if not self.torque_control_mode:
+				 p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, forces = [0]*len(joint_indices))
+				 self.torque_control_mode = True
+			p.setJointMotorControlArray(robotID, joint_indices, p.TORQUE_CONTROL, forces = targetTorques)
 		else:
 			print("unknown controller type")
 
