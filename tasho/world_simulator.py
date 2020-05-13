@@ -138,8 +138,11 @@ class world_simulator:
 			p.setJointMotorControlArray(robotID, joint_indices, p.POSITION_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)
 		elif controller_type == 'torque':
 			if not self.torque_control_mode:
-				 p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, forces = [0]*len(joint_indices))
-				 self.torque_control_mode = True
+				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, forces = [0]*len(joint_indices))
+				#TODO: add a routine to read link indices to change this. BUG?
+				for link_idx in joint_indices:
+					p.changeDynamics(robotID, link_idx, linearDamping=0.0, angularDamping=0.0, jointDamping=0.0)
+				self.torque_control_mode = True
 			p.setJointMotorControlArray(robotID, joint_indices, p.TORQUE_CONTROL, forces = targetTorques)
 		else:
 			print("unknown controller type")

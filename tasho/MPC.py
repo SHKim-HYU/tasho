@@ -359,7 +359,7 @@ class MPC:
             # print(self.tc.states[state].shape)
             state_shape = self.tc.states[state].shape
             state_len = state_shape[0]*state_shape[1]
-            if state == 'q_dot':
+            if state == 'q_dot' and self.parameters['control_type'] == 'joint_velocity':
                 # print(state)
                 # print(np.array(params_val[state+'0']).T)
                 # print(np.array(next_X[start:start+state_len]))
@@ -432,6 +432,7 @@ class MPC:
                     print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
                     if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
                         print("MPC termination criteria reached. Exiting MPC loop.")
+                        control_info = self.parameters['control_info']
                         self.world.setController(control_info['robotID'], 'velocity', control_info['joint_indices'], targetVelocities = [0]*len(control_info['joint_indices']))
                         break;
 
@@ -497,7 +498,7 @@ class MPC:
             # print(sol_mpc[0]['s'])
 
             
-
+            self.world.run_simulation(control_info['no_samples'])
             
 
         elif self.parameters['control_type'] == 'joint_torque':
@@ -516,12 +517,14 @@ class MPC:
             #joint_torques = np.array(robot.id(params_val['q0'], params_val['q_dot0'], control_action))
 
             #compute joint torques using inverse dynamics functions from pybullet
-            joint_torques = self.world.computeInverseDynamics(control_info['robotID'], list(params_val['q0']), [0]*7, [0]*7)#, params_val['q_dot0'], control_action)
+            joint_torques = self.world.computeInverseDynamics(control_info['robotID'], list(params_val['q0']), list(params_val['q_dot0']), list(control_action))
             
             print(joint_torques)
-            self.world.setController(control_info['robotID'], 'torque', joint_indices, targetTorques = joint_torques)
             if 'force_control' in control_info:
                 print("Not implemented")
+            for i in range(control_info['no_samples']):
+                self.world.setController(control_info['robotID'], 'torque', joint_indices, targetTorques = joint_torques)
+                self.world.run_simulation(1)
 
         elif self.parameters['control_type'] == 'joint_position':
 
@@ -530,9 +533,7 @@ class MPC:
         else:
 
             raise Exception('[Error] Unknown control type for bullet environment initialized')
-
-        #Run the simulator
-        self.world.run_simulation(control_info['no_samples'])
+        
 
     # Internal function to read the values of the parameter variables from the bullet simulation environment
     # in non realtime case

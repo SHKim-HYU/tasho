@@ -9,6 +9,9 @@ from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+
+#TODO: add rk2 discretization in rockit, because do not need rk4 for constant acceleration.
 
 if __name__ == "__main__":
 
@@ -23,7 +26,7 @@ if __name__ == "__main__":
 
 	#load the robot and obtain the states and controls for acceleration-limited MPC
 	robot = rob.Robot('iiwa7')
-	print(robot)
+	#print(robot.id([0]*7, [0]*7, [0]*7))
 	robot.set_joint_velocity_limits(lb = -max_joint_vel, ub = max_joint_vel)
 	robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
 	jac_fun = robot.set_kinematic_jacobian('kin_jac', 6)
@@ -46,6 +49,7 @@ if __name__ == "__main__":
 		from tasho import world_simulator
 		from tasho import MPC
 		from tasho import utils
+		import pybullet as p
 		
 		#from utils import geometry
 
@@ -100,7 +104,7 @@ if __name__ == "__main__":
 		force_desired = tc.create_expression('f_des', 'parameter', (3, 1))
 		force_measured = tc.create_expression('f_meas', 'parameter', (3,1))
 		#q_dot_force = tc.create_expression('q_dot_force', 'variable', (7,1))
-		K = 0.05 #proportional gain of the feedback force controller
+		K = 0.05*0 #proportional gain of the feedback force controller
 		jac_val = jac_fun(q0)
 		q_dot_force = cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-6, K*(force_desired - force_measured)))
 		q_dot_force_fun = cs.Function('q_dot_force_fun', [q0, force_desired, force_measured], [q_dot_force])
@@ -133,8 +137,25 @@ if __name__ == "__main__":
 		#set all joint velocities to zero
 		bullet_world.resetJointState(kukaID, joint_indices, q1)
 		bullet_world.setController(kukaID, "velocity", joint_indices, targetVelocities = [0]*7)
+
+		#unlock the torque control mode
+		# p.setJointMotorControlArray(kukaID, [0,1,2,3,4,5,6], p.VELOCITY_CONTROL, forces=[0]*7)
+		# for link_idx in joint_indices:
+		# 	p.changeDynamics(kukaID, link_idx, linearDamping=0.0, angularDamping=0.0, jointDamping=0.0)
+		#check if the torque control works with a high rate of control
+		# for i in range(100):
+		# 	jointsInfo = bullet_world.readJointState(kukaID, joint_indices)
+		# 	q1 = []
+		# 	for jointInfo in jointsInfo:
+		# 		q1.append(jointInfo[0])
+		# 	torques = p.calculateInverseDynamics(kukaID, q1, [0]*7, [0.1]*7)	
+		# 	for j in range(4):
+		# 		bullet_world.setController(kukaID, "torque", [0,1,2,3,4,5,6], targetTorques = torques)
+		# 		p.stepSimulation()
+		# 		time.sleep(bullet_world.physics_ts)
+
 		bullet_world.enableJointForceSensor(kukaID, [6])
-		bullet_world.run_simulation(100)
+		#bullet_world.run_simulation(100)
 		jointState = bullet_world.readJointState(kukaID, [6])
 		print("Direct output of the force sensor")
 		print(jointState[0][2])
@@ -168,7 +189,7 @@ if __name__ == "__main__":
 		q_dot0_params_info = {'type':'joint_velocity', 'joint_indices':joint_indices, 'robotID':kukaID}
 		s0_params_info = {'type':'progress_variable', 'state':True}
 		s_dot0_params_info = {'type':'progress_variable', 'state':True}
-		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info}
+		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info, 'robots':{kukaID:robot}}
 		mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-200])}
 
 		#creating a function to pass as a parameter to the MPC class to appropriately post process 
@@ -190,7 +211,7 @@ if __name__ == "__main__":
 		mpc_params['solver_name'] = 'sqpmethod'
 		mpc_params['solver_params'] = {'ipopt':True}
 		mpc_params['t_mpc'] = t_mpc
-		mpc_params['control_type'] = 'joint_velocity'
+		mpc_params['control_type'] = 'joint_acceleration' #'joint_velocity'
 		mpc_params['control_info'] = {'force_control':True, 'fcon_fun':q_dot_force_fun, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 		# set the joint positions in the simulator
 		bullet_world.resetJointState(kukaID, joint_indices, q1)
@@ -203,7 +224,7 @@ if __name__ == "__main__":
 		#run the MPC
 		mpc_obj.runMPC()
 
-		bullet_world.run_simulation(1000)
+		#bullet_world.run_simulation(1000)
 
 		#filter the force sensor reading to compensate for the mass of the last link to estimate the
 		#force applied at the end effector in the global reference frame
