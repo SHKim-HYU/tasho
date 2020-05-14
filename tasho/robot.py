@@ -87,6 +87,7 @@ class Robot:
 
         #constructing and returning the function
         jac_fun = cs.Function(name, [q_sym], [jac])
+        self.trans_jacobian = jac_fun
         return jac_fun
 
 

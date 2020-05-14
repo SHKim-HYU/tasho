@@ -104,7 +104,7 @@ if __name__ == "__main__":
 		force_desired = tc.create_expression('f_des', 'parameter', (3, 1))
 		force_measured = tc.create_expression('f_meas', 'parameter', (3,1))
 		#q_dot_force = tc.create_expression('q_dot_force', 'variable', (7,1))
-		K = 0.05*0 #proportional gain of the feedback force controller
+		K = 0.05 #proportional gain of the feedback force controller
 		jac_val = jac_fun(q0)
 		q_dot_force = cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-6, K*(force_desired - force_measured)))
 		q_dot_force_fun = cs.Function('q_dot_force_fun', [q0, force_desired, force_measured], [q_dot_force])
@@ -190,7 +190,7 @@ if __name__ == "__main__":
 		s0_params_info = {'type':'progress_variable', 'state':True}
 		s_dot0_params_info = {'type':'progress_variable', 'state':True}
 		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info, 'robots':{kukaID:robot}}
-		mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-200])}
+		mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-10])}
 
 		#creating a function to pass as a parameter to the MPC class to appropriately post process 
 		#the sensor readings
@@ -206,13 +206,13 @@ if __name__ == "__main__":
 
 		mpc_params['params']['f_meas'] = {'type':'joint_force', 'robotID':kukaID, 'joint_indices':[6], 'fk':robot.fk, 'post_process':joint_force_compensation}
 		mpc_params['disc_settings'] = disc_settings
-		# mpc_params['solver_name'] = 'ipopt'
-		# mpc_params['solver_params'] = {'lbfgs':True}
-		mpc_params['solver_name'] = 'sqpmethod'
-		mpc_params['solver_params'] = {'ipopt':True}
+		mpc_params['solver_name'] = 'ipopt'
+		mpc_params['solver_params'] = {'lbfgs':True}
+		# mpc_params['solver_name'] = 'sqpmethod'
+		# mpc_params['solver_params'] = {'ipopt':True}
 		mpc_params['t_mpc'] = t_mpc
 		mpc_params['control_type'] = 'joint_acceleration' #'joint_velocity'
-		mpc_params['control_info'] = {'force_control':True, 'fcon_fun':q_dot_force_fun, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
+		mpc_params['control_info'] = {'force_control':True, 'jac_fun':jac_fun, 'fcon_fun':q_dot_force_fun, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 		# set the joint positions in the simulator
 		bullet_world.resetJointState(kukaID, joint_indices, q1)
 		sim_type = "bullet_notrealtime"

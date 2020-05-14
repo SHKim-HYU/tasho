@@ -519,9 +519,14 @@ class MPC:
             #compute joint torques using inverse dynamics functions from pybullet
             joint_torques = self.world.computeInverseDynamics(control_info['robotID'], list(params_val['q0']), list(params_val['q_dot0']), list(control_action))
             
-            print(joint_torques)
             if 'force_control' in control_info:
-                print("Not implemented")
+                #compute the feedforward torque needed to apply the desired EE force
+                #print(control_info['jac_fun']([0]*7))   
+                torque_forces = cs.mtimes(control_info['jac_fun'](params_val['q0']).T, params_val['f_des']) 
+                joint_torques = np.array(cs.vec(joint_torques) + cs.vec(torque_forces))
+
+            print(joint_torques)
+
             for i in range(control_info['no_samples']):
                 self.world.setController(control_info['robotID'], 'torque', joint_indices, targetTorques = joint_torques)
                 self.world.run_simulation(1)
