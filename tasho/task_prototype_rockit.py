@@ -226,6 +226,7 @@ class task_context:
 		"""
 
 		ocp = self.ocp
+		options["expand"] = True
 		ocp.solver(solver, options)
 
 	def set_discretization_settings(self, settings):
