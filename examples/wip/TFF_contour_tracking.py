@@ -63,7 +63,8 @@ if __name__ == "__main__":
 			#contour tracing on a planar surface where the curvature of the contour to be traced is zero
 			bullet_world.add_cube({'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]}, scale = 0.57)
 			def contour_path(s):
-				y = -0.25 + 0.5*s
+				# y = -0.25 + 0.5*s #a path where the direction does not change
+				y = -0.25 + 0.5*sin(3.14159*s) #the direction changes
 				x = 0.5
 				z = 0.545
 				return cs.vertcat( cs.horzcat(cs.MX.eye(3),cs.vertcat(x, y, z)), cs.MX([0, 0, 0, 1]).T)
@@ -116,18 +117,23 @@ if __name__ == "__main__":
 		fk_vals = robot.fk(q)[6]
 		p_des = contour_path(s)
 
-		contour_error_soft = {'hard': False, 'expression':fk_vals[0:3,3], 'reference':p_des[0:3, 3], 'gain':5.0, 'norm':'L2'}
-		contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3, 3], 'upper_limits':[0.005, 0.005, 0.005], 'lower_limits':[-0.005, -0.005, -0.1]}
-		vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
-		s_regularization = {'hard': False, 'expression':s, 'reference':1.1, 'gain':0.5*0, 'norm':'L1'} #push towards contour tracing
-		# s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':0.1, 'norm':'L2'}
-		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':1.0, 'norm':'L1'}
-		s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.1}
+		# contour_error_soft = {'hard': False, 'expression':fk_vals[0:3,3], 'reference':p_des[0:3, 3], 'gain':5.0, 'norm':'L2'}
+		contour_error_slack = tc.create_expression('path_con_slack', 'control', (3,1))
+		contour_error_slack_con1 = {'inequality':True, 'hard':True, 'upper_limits':contour_error_slack, 'expression':fk_vals[0:3,3] - p_des[0:3,3] + np.array([0.005, 0.005, 0.005])}
+		contour_error_slack_con2 = {'inequality':True, 'hard':True, 'expression':-contour_error_slack, 'upper_limits':fk_vals[0:3,3] - p_des[0:3,3] - np.array([0.005, 0.005, 0.1])}
+		#TODO: create a function in task_protoype to add objectives without specifying as constraints
+		tc.ocp.add_objective(tc.ocp.sum(contour_error_slack[0])*5.0 + tc.ocp.sum(contour_error_slack[1])*5.0 + tc.ocp.sum(contour_error_slack[2])*1.0)
+		# contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3, 3], 'upper_limits':[0.005, 0.005, 0.005], 'lower_limits':[-0.005, -0.005, -0.1]}
+		vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1*10}
+		s_regularization = {'hard': False, 'expression':s, 'reference':1.0, 'gain':50, 'norm':'L1'} #push towards contour tracing
+		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':0.01*100, 'norm':'L2'}
+		# s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':1.0, 'norm':'L1'}
+		s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.01*100}
 		s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':1.0, 'lower_limits':0}
 		s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
 		#q_dot_force_con = {'hard':True, 'expression':q_dot_force, 'reference':cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-4, K*(force_desired - force_measured)))}
-		task_objective = {'path_constraints':[contour_error_soft, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
-		#task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
+		task_objective = {'path_constraints':[contour_error_slack_con1, contour_error_slack_con2, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
+		# task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 
 		tc.add_task_constraint(task_objective)
 		
@@ -209,6 +215,9 @@ if __name__ == "__main__":
 		# mpc_params['solver_name'] = 'ipopt'
 		# mpc_params['solver_params'] = {'lbfgs':True}
 		mpc_params['solver_name'] = 'sqpmethod'
+		# mpc_params['solver_params'] = {'qpoases':True}
+		# mpc_params['solver_params'] = {'qrqp':True}
+		# mpc_params['solver_params'] = {'osqp':True}
 		mpc_params['solver_params'] = {'ipopt':True}
 		mpc_params['t_mpc'] = t_mpc
 		mpc_params['control_type'] = 'joint_acceleration' #'joint_velocity' #
