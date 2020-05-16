@@ -11,7 +11,7 @@ stages:
   before_script:
     - source activate tasho-base
     - rm -rf .pip
-    - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet
+    - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet==2.7.2
     - python setup.py install
     - rm -rfv /tmp/*
   cache:
