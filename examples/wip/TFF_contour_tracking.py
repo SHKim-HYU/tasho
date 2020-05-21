@@ -67,15 +67,20 @@ if __name__ == "__main__":
 				y = -0.25 + 0.5*sin(3.14159*s) #the direction changes
 				x = 0.5
 				z = 0.545
-				return cs.vertcat( cs.horzcat(cs.MX.eye(3),cs.vertcat(x, y, z)), cs.MX([0, 0, 0, 1]).T)
+				return cs.vertcat(x, y, z), cs.vertcat(0, 0, 1)
 			q1 = [-3.97670686e-01,  4.30757898e-01, -9.47372587e-02, -1.33677556e+00,
    3.99392326e-02,  1.37526019e+00, -4.91678720e-01]
 		elif task_index == 1:
 			#contour tracing on the curved surface of a cylinder. So the curvature is constant
+			bullet_world.add_cylinder({'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]})
+			q1 = [-3.97670686e-01,  4.30757898e-01, -9.47372587e-02, -1.33677556e+00,
+   3.99392326e-02,  1.37526019e+00, -4.91678720e-01]
 			print("Not implemented")
 		elif task_index == 2:
 			#contour tracing on a suface with changing curvature
 			print("Not implemented")
+
+		print(robot.fk(q1)[6])
 
 		#Adding the KUKA robot
 		position = [0., 0., 0.]
@@ -115,24 +120,30 @@ if __name__ == "__main__":
 
 		#EE term
 		fk_vals = robot.fk(q)[6]
-		p_des = contour_path(s)
+		p_des, normal = contour_path(s)
+		angle_limit = cos(10*3.14159/180) #The constraint on the EE angle during contour-tracing
+		dot_prod_ee_workpiece = -cs.mtimes(fk_vals[0:3,2].T, normal)
+		#Hard constraint on the angle
+		angle_constraint = {'hard':True, 'inequality':True, 'expression':-dot_prod_ee_workpiece, 'upper_limits':-angle_limit}
+		#soft
+		# angle_constraint = {'hard':False, 'equality':True, 'expression':-dot_prod_ee_workpiece, 'reference': 1.0, 'gain':100.0} #'upper_limits':-angle_limit}
 
-		# contour_error_soft = {'hard': False, 'expression':fk_vals[0:3,3], 'reference':p_des[0:3, 3], 'gain':5.0, 'norm':'L2'}
+		# contour_error_soft = {'hard': False, 'expression':fk_vals[0:3,3], 'reference':p_des[0:3], 'gain':5.0, 'norm':'L2'}
 		contour_error_slack = tc.create_expression('path_con_slack', 'control', (3,1))
-		contour_error_slack_con1 = {'inequality':True, 'hard':True, 'upper_limits':contour_error_slack, 'expression':fk_vals[0:3,3] - p_des[0:3,3] + np.array([0.005, 0.005, 0.005])}
-		contour_error_slack_con2 = {'inequality':True, 'hard':True, 'expression':-contour_error_slack, 'upper_limits':fk_vals[0:3,3] - p_des[0:3,3] - np.array([0.005, 0.005, 0.1])}
+		contour_error_slack_con1 = {'inequality':True, 'hard':True, 'upper_limits':contour_error_slack, 'expression':fk_vals[0:3,3] - p_des[0:3] + np.array([0.005, 0.005, 0.005])}
+		contour_error_slack_con2 = {'inequality':True, 'hard':True, 'expression':-contour_error_slack, 'upper_limits':fk_vals[0:3,3] - p_des[0:3] - np.array([0.005, 0.005, 0.1])}
 		#TODO: create a function in task_protoype to add objectives without specifying as constraints
 		tc.ocp.add_objective(tc.ocp.sum(contour_error_slack[0])*5.0 + tc.ocp.sum(contour_error_slack[1])*5.0 + tc.ocp.sum(contour_error_slack[2])*1.0)
-		# contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3, 3], 'upper_limits':[0.005, 0.005, 0.005], 'lower_limits':[-0.005, -0.005, -0.1]}
+		# contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3], 'upper_limits':[0.005, 0.005, 0.005], 'lower_limits':[-0.005, -0.005, -0.1]}
 		vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1*10}
-		s_regularization = {'hard': False, 'expression':s, 'reference':1.0, 'gain':50, 'norm':'L1'} #push towards contour tracing
+		s_regularization = {'hard': False, 'expression':s, 'reference':1.0, 'gain':30, 'norm':'L1'} #push towards contour tracing
 		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':0.01*100, 'norm':'L2'}
 		# s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':1.0, 'norm':'L1'}
 		s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.01*100}
 		s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':1.0, 'lower_limits':0}
 		s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
 		#q_dot_force_con = {'hard':True, 'expression':q_dot_force, 'reference':cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-4, K*(force_desired - force_measured)))}
-		task_objective = {'path_constraints':[contour_error_slack_con1, contour_error_slack_con2, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
+		task_objective = {'path_constraints':[angle_constraint, contour_error_slack_con1, contour_error_slack_con2, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
 		# task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 
 		tc.add_task_constraint(task_objective)
@@ -161,7 +172,7 @@ if __name__ == "__main__":
 		# 		time.sleep(bullet_world.physics_ts)
 
 		bullet_world.enableJointForceSensor(kukaID, [6])
-		#bullet_world.run_simulation(100)
+		bullet_world.run_simulation(100)
 		jointState = bullet_world.readJointState(kukaID, [6])
 		print("Direct output of the force sensor")
 		print(jointState[0][2])

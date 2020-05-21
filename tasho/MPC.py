@@ -92,9 +92,9 @@ class MPC:
             if 'qrqp' in self.parameters['solver_params']:
                 kkt_tol_pr = 1e-3
                 kkt_tol_du = 1e-1
-                min_step_size = 1e-4
-                max_iter = 1
-                max_iter_ls = 2
+                min_step_size = 1e-6
+                max_iter = 2
+                max_iter_ls = 3
                 qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : False, 'print_iter': False, 'print_header': False, 'dump_in': False, "error_on_fail" : False}
                 solver_options = {'qpsol': 'qrqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
                 tc.set_ocp_solver('sqpmethod', solver_options)
