@@ -5,7 +5,7 @@ from tasho import task_prototype_rockit as tp
 from tasho import input_resolution
 from tasho import robot as rob
 import casadi as cs
-from casadi import pi, cos, sin
+from casadi import pi, cos, sin, acos
 from rockit import MultipleShooting, Ocp
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,6 +21,7 @@ if __name__ == "__main__":
 	#some task settings
 	horizon_size = 10
 	t_mpc = 0.02 #the MPC sampling time
+	# t_mpc = 0.5
 	max_joint_vel = 60*3.14159/180
 	max_joint_acc = 60*3.14159/180
 
@@ -58,7 +59,7 @@ if __name__ == "__main__":
 		#create a different set of objects for different force control contour tracing tasks
 		#Spawns an object in the bullet environment and also the contour path (hence the task frame) 
 		#is determined in the frame of the robot base.
-		task_index = 0
+		task_index = 1
 		if task_index == 0:
 			#contour tracing on a planar surface where the curvature of the contour to be traced is zero
 			bullet_world.add_cube({'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]}, scale = 0.57)
@@ -70,12 +71,22 @@ if __name__ == "__main__":
 				return cs.vertcat(x, y, z), cs.vertcat(0, 0, 1)
 			q1 = [-3.97670686e-01,  4.30757898e-01, -9.47372587e-02, -1.33677556e+00,
    3.99392326e-02,  1.37526019e+00, -4.91678720e-01]
+
 		elif task_index == 1:
 			#contour tracing on the curved surface of a cylinder. So the curvature is constant
-			bullet_world.add_cylinder({'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]})
-			q1 = [-3.97670686e-01,  4.30757898e-01, -9.47372587e-02, -1.33677556e+00,
-   3.99392326e-02,  1.37526019e+00, -4.91678720e-01]
-			print("Not implemented")
+			#bullet_world.add_cylinder({'position':[0.7, 0.0, 0.25], 'orientation':[0., 0., 0., 1.0]})
+			q1 = [ 2.11986744e+00, -8.24362460e-01, -2.37549196e+00, -1.51492594e+00,
+  -2.70267349e+00, -1.40317018e+00,  2.64492712e+00]
+			def contour_path(s):
+				x = 0.5
+				theta = pi/6 + s*2*pi/3
+				y = 0.0 - 0.25*cos(theta)
+				z = 0.25 + 0.25*sin(theta)
+
+				normal = cs.vertcat(0, -cos(theta), sin(theta))
+
+				return cs.vertcat(x, y, z), normal
+		
 		elif task_index == 2:
 			#contour tracing on a suface with changing curvature
 			print("Not implemented")
@@ -124,9 +135,9 @@ if __name__ == "__main__":
 		angle_limit = cos(10*3.14159/180) #The constraint on the EE angle during contour-tracing
 		dot_prod_ee_workpiece = -cs.mtimes(fk_vals[0:3,2].T, normal)
 		#Hard constraint on the angle
-		angle_constraint = {'hard':True, 'inequality':True, 'expression':-dot_prod_ee_workpiece, 'upper_limits':-angle_limit}
+		# angle_constraint = {'hard':True, 'inequality':True, 'expression':-dot_prod_ee_workpiece, 'upper_limits':-angle_limit}
 		#soft
-		# angle_constraint = {'hard':False, 'equality':True, 'expression':-dot_prod_ee_workpiece, 'reference': 1.0, 'gain':100.0} #'upper_limits':-angle_limit}
+		angle_constraint = {'hard':False, 'equality':True, 'expression':acos(dot_prod_ee_workpiece), 'reference': 0.0, 'gain':10.0} #'upper_limits':-angle_limit}
 
 		# contour_error_soft = {'hard': False, 'expression':fk_vals[0:3,3], 'reference':p_des[0:3], 'gain':5.0, 'norm':'L2'}
 		contour_error_slack = tc.create_expression('path_con_slack', 'control', (3,1))
@@ -134,9 +145,9 @@ if __name__ == "__main__":
 		contour_error_slack_con2 = {'inequality':True, 'hard':True, 'expression':-contour_error_slack, 'upper_limits':fk_vals[0:3,3] - p_des[0:3] - np.array([0.005, 0.005, 0.1])}
 		#TODO: create a function in task_protoype to add objectives without specifying as constraints
 		tc.ocp.add_objective(tc.ocp.sum(contour_error_slack[0])*5.0 + tc.ocp.sum(contour_error_slack[1])*5.0 + tc.ocp.sum(contour_error_slack[2])*1.0)
-		# contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3], 'upper_limits':[0.005, 0.005, 0.005], 'lower_limits':[-0.005, -0.005, -0.1]}
+		contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3], 'upper_limits':[0.005, 0.005, 0.005], 'lower_limits':[-0.005, -0.005, -0.1]}
 		vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1*10}
-		s_regularization = {'hard': False, 'expression':s, 'reference':1.0, 'gain':30, 'norm':'L1'} #push towards contour tracing
+		s_regularization = {'hard': False, 'expression':s, 'reference':1.0, 'gain':30, 'norm':'L1'} #push towards contour tracing #30 for planar contour
 		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':0.01*100, 'norm':'L2'}
 		# s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':1.0, 'norm':'L1'}
 		s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.01*100}
@@ -207,7 +218,8 @@ if __name__ == "__main__":
 		s0_params_info = {'type':'progress_variable', 'state':True}
 		s_dot0_params_info = {'type':'progress_variable', 'state':True}
 		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info, 'robots':{kukaID:robot}}
-		mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-20])}
+		# mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-20])}
+		mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,0])}
 
 		#creating a function to pass as a parameter to the MPC class to appropriately post process 
 		#the sensor readings
@@ -223,15 +235,15 @@ if __name__ == "__main__":
 
 		mpc_params['params']['f_meas'] = {'type':'joint_force', 'robotID':kukaID, 'joint_indices':[6], 'fk':robot.fk, 'post_process':joint_force_compensation}
 		mpc_params['disc_settings'] = disc_settings
-		# mpc_params['solver_name'] = 'ipopt'
-		# mpc_params['solver_params'] = {'lbfgs':True}
-		mpc_params['solver_name'] = 'sqpmethod'
+		mpc_params['solver_name'] = 'ipopt'
+		mpc_params['solver_params'] = {'lbfgs':True}
+		# mpc_params['solver_name'] = 'sqpmethod'
 		# mpc_params['solver_params'] = {'qpoases':True}
 		# mpc_params['solver_params'] = {'qrqp':True}
 		# mpc_params['solver_params'] = {'osqp':True}
-		mpc_params['solver_params'] = {'ipopt':True}
+		# mpc_params['solver_params'] = {'ipopt':True}
 		mpc_params['t_mpc'] = t_mpc
-		mpc_params['control_type'] = 'joint_acceleration' #'joint_velocity' #
+		mpc_params['control_type'] = 'joint_velocity' # 'joint_acceleration' #'
 		mpc_params['control_info'] = {'force_control':True, 'jac_fun':jac_fun, 'fcon_fun':q_dot_force_fun, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 		# set the joint positions in the simulator
 		bullet_world.resetJointState(kukaID, joint_indices, q1)
