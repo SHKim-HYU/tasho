@@ -15,6 +15,7 @@ class world_simulator:
 		self.verbose = True
 		self.physics_ts = 1.0/240.0 #Time step for the bullet environment for physics simulation
 		physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
+		p.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
 		p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
 		p.setGravity(0,0,-9.81)
 		planeId = p.loadURDF("plane.urdf")
@@ -30,16 +31,17 @@ class world_simulator:
 
 	## add_cylinder(radius, height, weight, pose)
 	# Function to add a uniform cylinder. Closely follows the interface of pybullet
-	def add_cylinder(self, radius, height, weight, pose):
+	def add_cylinder(self, pose, scale = 1.0, fixedBase = True):
 
 		if self.verbose:
 			print("Adding a cylinder to the bullet environment")
 
 		position = pose['position']
 		orientation = pose['orientation']
-		collisionShapeId = p.createCollisionShape(shapeType=p.GEOM_CYLINDER, radius = radius, height = height)
-		visualShapeId = p.createVisualShape(shapeType=p.GEOM_CYLINDER, radius = radius, rgbaColor=[0, 0, 0, 1], specularColor=[0.4, .4, 0], length = height )
-		cylinderID = p.createMultiBody(1, collisionShapeId, visualShapeId, position,orientation)
+		cylinderID = p.loadURDF("models/objects/cylinder.urdf",position, orientation, useFixedBase = fixedBase, globalScaling = scale)
+		# collisionShapeId = p.createCollisionShape(shapeType=p.GEOM_CYLINDER, radius = radius, height = height)
+		# visualShapeId = p.createVisualShape(shapeType=p.GEOM_CYLINDER, radius = radius, rgbaColor=[0, 0, 0, 1], specularColor=[0.4, .4, 0], length = height )
+		# cylinderID = p.createMultiBody(1, collisionShapeId, visualShapeId, position,orientation)
 
 		self.objectIDs = cylinderID
 		return cylinderID
@@ -51,7 +53,7 @@ class world_simulator:
 
 		position = pose['position']
 		orientation = pose['orientation']
-		cubeID = p.loadURDF("models/objects/cube.urdf",position, orientation, useFixedBase = True, globalScaling = scale)
+		cubeID = p.loadURDF("models/objects/cube.urdf",position, orientation, useFixedBase = fixedBase, globalScaling = scale)
 
 		self.objectIDs = cubeID
 		return cubeID
