@@ -1,7 +1,7 @@
 #Takes the task-specification and also the task context as an input and
 #returns a COP
-# from sys import path
-# path.insert(0,r"/home/ajay/Desktop/motion_planning_libraries/rockit")
+from sys import path
+path.insert(0,r"/home/ajay/Desktop/motion_planning_libraries/rockit")
 from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting
 import numpy as np
 import casadi as cs
@@ -154,7 +154,7 @@ class task_context:
 							#hard constraint on the translational componenet
 							ocp.subject_to(ocp.at_tf(expression[0:3, 3]) == reference[0:3, 3])
 							#hard constraint on the rotational component
-							rot_error = cs.mtimes(expression[0:3, 0:3], reference[0:3, 0:3])
+							rot_error = cs.mtimes(expression[0:3, 0:3].T, reference[0:3, 0:3])
 							ocp.subject_to(ocp.at_tf(cs.vertcat(rot_error[0,0], rot_error[1,1], rot_error[2,2])) == 1)
 					else:
 						ocp.subject_to(ocp.at_tf(final_con['expression']) == final_con['reference'])
