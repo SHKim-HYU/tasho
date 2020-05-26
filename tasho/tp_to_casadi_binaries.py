@@ -17,7 +17,6 @@ class tp_to_casadi_binaries:
 
 
         self.tc = tc
-        self.type = sim_type
         self.parameters = parameters
         #Create a list of the MPC states, variables, controls and parameters in a fixed order
         self.params_names = tc.parameters.keys() 
@@ -27,16 +26,91 @@ class tp_to_casadi_binaries:
 
         self.generated_functions = {} #add all the casadi functions for later saving as .casadi files
         self._create_ocp_vars()
+        self._create_OCP_binary()
+        self._create_MPC_binary() #todo: add a condition to check if the MPC is optional
 
-    def create_OCP_binary(self):
+    def _create_OCP_binary(self):
 
-        ''' 
-        Creates a casadi function for solving the OCP using IPOPT solver to a high degree of tolerance
-        '''
         tc = self.tc
         tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
-        ocp_fun = tc.ocp.opti.to_function('ocp_fun', self.opti_xplam, opti_xplam)
+        ocp_fun = tc.ocp.opti.to_function('ocp_fun', self._ocp_vars, self._ocp_vars)
         self.generated_functions['ocp_fun'] = ocp_fun
+
+    def _create_MPC_binary(self):
+
+        tc = self.tc
+        #configure the solver for the MPC iterations
+        if self.parameters['solver_name'] == 'ipopt':
+
+            if 'lbfgs' in self.parameters['solver_params']:
+
+                tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3, 'print_level':5}})
+
+        elif self.parameters['solver_name'] == 'sqpmethod':
+
+            if 'qrqp' in self.parameters['solver_params']:
+                kkt_tol_pr = 1e-3
+                kkt_tol_du = 1e-1
+                min_step_size = 1e-6
+                max_iter = 2
+                max_iter_ls = 3
+                qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : False, 'print_iter': False, 'print_header': False, 'dump_in': False, "error_on_fail" : False}
+                solver_options = {'qpsol': 'qrqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
+                tc.set_ocp_solver('sqpmethod', solver_options)
+
+            elif 'osqp' in self.parameters['solver_params']:
+                kkt_tol_pr = 1e-3
+                kkt_tol_du = 1e-1
+                min_step_size = 1e-4
+                max_iter = 5
+                max_iter_ls = 2
+                eps_abs = 1e-5
+                eps_rel = 1e-5
+                qpsol_options = {'osqp': {'alpha': 1, 'eps_abs': eps_abs, 'eps_rel': eps_rel, 'verbose':0}, 'dump_in': False, 'error_on_fail':False}
+                solver_options = {'qpsol': 'osqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
+                tc.set_ocp_solver('sqpmethod', solver_options)
+
+            elif 'qpoases' in self.parameters['solver_params']:
+                kkt_tol_pr = 1e-3
+                kkt_tol_du = 1e-1
+                min_step_size = 1e-4
+                max_iter = 10
+                max_iter_ls = 0
+                qpoases_tol = 1e-4
+                qpsol_options = {'printLevel': 'none', 'enableEqualities': True, 'initialStatusBounds' : 'inactive', 'terminationTolerance': qpoases_tol}
+                solver_options = {'qpsol': 'qpoases', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
+                tc.set_ocp_solver('sqpmethod', solver_options)
+
+            elif 'ipopt' in self.parameters['solver_params']:
+                kkt_tol_pr = 1e-3
+                kkt_tol_du = 1e-1
+                min_step_size = 1e-6
+                max_iter = 3
+                ipopt_max_iter = 50
+                max_iter_ls = 0
+
+                ipopt_tol = 1e-3
+                tiny_step_tol = 1e-6
+                mu_init = 1e-3
+                # linear_solver = 'ma27'
+                linear_solver = 'mumps'
+
+                ipopt_options = {'tol': ipopt_tol, 'tiny_step_tol': tiny_step_tol, 'fixed_variable_treatment': 'make_constraint', 'hessian_constant': 'yes', 'jac_c_constant': 'yes', 'jac_d_constant': 'yes', 'accept_every_trial_step': 'yes', 'mu_init': mu_init, 'print_level': 0, 'linear_solver': linear_solver}
+                nlpsol_options = {'ipopt': ipopt_options, 'print_time': False}
+                qpsol_options = {'nlpsol': 'ipopt', 'nlpsol_options': nlpsol_options, 'print_time': False, 'verbose': False}
+                solver_options = {'qpsol': 'nlpsol', 'qpsol_options': qpsol_options, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
+                tc.set_ocp_solver('sqpmethod', solver_options)
+
+
+        else:
+            # Set ipopt as default solver
+            print("Using IPOPT with LBFGS as the default solver")
+            tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+
+        #create the MPC fun
+        mpc_fun = tc.ocp.opti.to_function('mpc_fun', self._ocp_vars, self._ocp_vars)
+        self.generated_functions['mpc_fun'] = mpc_fun
+
 
     #internal function to create the OCP/MPC function using casadi's opti.to_function capability
     def _create_ocp_vars(self):
