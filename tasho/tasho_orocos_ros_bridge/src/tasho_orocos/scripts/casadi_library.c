@@ -257,13 +257,36 @@ static int ocp_fun(lua_State* L){
   double* x_0[no_args]; //initial guess for the solver
   double* results[no_args]; 
     //Allocate memory for all the input arguments to the casadi functions
+  double temp0[198];
+  double temp1[198];
+  double temp2[11];
+  double temp3[11];
+  double temp4[10];
+  double temp5[180];
+  double temp6[18];
+  double temp7[18];
+  double temp8[1];
+  double temp9[1];
+  double temp10[1108];
 
-  for(i = 0; i<11; i++){
-    double x[n[i]];
-    double res_element[n[i]];
-    x_0[i] = x;
-    results[i] = res_element;
-  }
+  x_0[0] = temp0;
+  x_0[1] = temp1;
+  x_0[2] = temp2;
+  x_0[3] = temp3;
+  x_0[4] = temp4;
+  x_0[5] = temp5;
+  x_0[6] = temp6;
+  x_0[7] = temp7;
+  x_0[8] = temp8;
+  x_0[9] = temp9;
+  x_0[10] = temp10;
+
+  // for(i = 0; i<11; i++){
+  //   double x[n[i]];
+  //   double res_element[n[i]];
+  //   // x_0[i] = x;
+  //   results[i] = res_element;
+  // }
   double params[102]; //input for the parameters of the ocp
   double result[1062]; //output of the solver
    
@@ -310,7 +333,8 @@ static int ocp_fun(lua_State* L){
   // arg[0] = x_0;
   // arg[1] = params;
   for (i = 0; i<11; i++){
-    res[i] = results[i];
+    // res[i] = results[i];
+    res[i] = x_0[i];
   }
   // res[0] = result;
 
