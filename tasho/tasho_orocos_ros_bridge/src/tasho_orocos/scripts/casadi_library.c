@@ -228,7 +228,7 @@ static int ocp_fun(lua_State* L){
   }
   
   printf("Loaded number of functions: %d\n", casadi_c_n_loaded());
-
+  
   // Identify a Function by name
   int id = casadi_c_id("ocp_fun");
 
@@ -245,33 +245,57 @@ static int ocp_fun(lua_State* L){
   double *res[sz_res];
   casadi_int iw[sz_iw];
   double w[sz_w];
-
+  
   /* Function input and output */
-  int n = 1062; //18*20*2 + 18*20*19 - joint pose, velocity and acceleration vectors
+ 
+  int i = 0;
+  int j = 0;
+  int no_args = 11;
+  int n[11] = {198, 198, 11, 11, 10, 180, 18, 18, 1, 1, 1108}; //18*20*2 + 18*20*19 - joint pose, velocity and acceleration vectors
   int n_params = 102;
-  double x_0[n]; //initial guess for the solver
+  double temp[1100];
+  double* x_0[no_args]; //initial guess for the solver
+  double* results[no_args]; 
+    //Allocate memory for all the input arguments to the casadi functions
+
+  for(i = 0; i<11; i++){
+    double x[n[i]];
+    double res_element[n[i]];
+    x_0[i] = x;
+    results[i] = res_element;
+  }
   double params[102]; //input for the parameters of the ocp
   double result[1062]; //output of the solver
-  int i = 0;
+   
 
   //read the initial guess from lua 
+
   
-  luaL_checktype(L,1, LUA_TTABLE); // 1st argument must be a table (t)
+ 
 
-  for (i=1; i<=n; i++){		
-	lua_rawgeti(L, 1, i);  // push t
-	int Top = lua_gettop(L);
-	x_0[i-1] = lua_tonumber(L, Top);
-	lua_pop(L,1);	
+
+
+  for (j = 1; j<= no_args; j++){
+
+     luaL_checktype(L,j, LUA_TTABLE); // 1st argument must be a table (t)
+    
+    for (i=1; i<=n[j-1]; i++){		
+	    lua_rawgeti(L, j, i);  // push t
+	    int Top = lua_gettop(L);
+	    x_0[j-1][i-1] = lua_tonumber(L, Top);
+	    lua_pop(L,1);	
+    }
   }
 
-  luaL_checktype(L,2, LUA_TTABLE); // 1st argument must be a table (t)
-  for (i=1; i<=n_params; i++){		
-	lua_rawgeti(L, 2, i);  // push t
-	int Top = lua_gettop(L);
-	params[i-1] = lua_tonumber(L, Top);
-	lua_pop(L,1);	
-  }
+
+  printf("val result[1] = %f and res[2] = %f and res[3] = %f \n", x_0[6][0], result[1], result[2]);
+ //  luaL_checktype(L,2, LUA_TTABLE); // 1st argument must be a table (t)
+ //  for (i=1; i<=n_params; i++){		
+	// lua_rawgeti(L, 2, i);  // push t
+	// int Top = lua_gettop(L);
+	// params[i-1] = lua_tonumber(L, Top);
+	// lua_pop(L,1);	
+ //  }
 
 
 
@@ -280,19 +304,19 @@ static int ocp_fun(lua_State* L){
   int mem = casadi_c_checkout_id(id);
 
   /* Evaluate the function */
-  for (i = 0, i<11; i++){
-    arg[i] = x_0
+  for (i = 0; i<11; i++){
+    arg[i] = x_0[i];
   }
   // arg[0] = x_0;
   // arg[1] = params;
-  for (i = 0, i<11; i++){
-    res[i] = x_0
+  for (i = 0; i<11; i++){
+    res[i] = results[i];
   }
   // res[0] = result;
 
   // Evaluation is thread-safe
   if (casadi_c_eval_id(id, arg, res, iw, w, mem)) return 1;
-
+  printf("This ran\n");
   // Release thread-local (not thread-safe)
   casadi_c_release_id(id, mem);
 
@@ -300,7 +324,7 @@ static int ocp_fun(lua_State* L){
 
   printf("val result[1] = %f and res[2] = %f and res[3] = %f \n", result[0], result[1], result[2]);
   lua_newtable(L); //creating a lua table to pass the solution to lua
-  for(i = 1; i<=n; i++){
+  for(i = 1; i<=n[i-1]; i++){
   	
    	lua_pushnumber(L, result[i-1]);
    	lua_rawseti(L, -2, i);
