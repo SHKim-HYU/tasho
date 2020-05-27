@@ -255,7 +255,6 @@ static int ocp_fun(lua_State* L){
   int n_params = 102;
   double temp[1100];
   double* x_0[no_args]; //initial guess for the solver
-  double* results[no_args]; 
     //Allocate memory for all the input arguments to the casadi functions
   double temp0[198];
   double temp1[198];
@@ -281,14 +280,44 @@ static int ocp_fun(lua_State* L){
   x_0[9] = temp9;
   x_0[10] = temp10;
 
+  /* Evaluate the function */
+  for (i = 0; i<11; i++){
+    arg[i] = x_0[i];
+  }
+
+  // double rtemp0[198];
+  // double rtemp1[198];
+  // double rtemp2[11];
+  // double rtemp3[11];
+  // double rtemp4[10];
+  // double rtemp5[180];
+  // double rtemp6[18];
+  // double rtemp7[18];
+  // double rtemp8[1];
+  // double rtemp9[1];
+  // double rtemp10[1108];
+
+  // res[0] = rtemp0;
+  // res[1] = rtemp1;
+  // res[2] = rtemp2;
+  // res[3] = rtemp3;
+  // res[4] = rtemp4;
+  // res[5] = rtemp5;
+  // res[6] = rtemp6;
+  // res[7] = rtemp7;
+  // res[8] = rtemp8;
+  // res[9] = rtemp9;
+  // res[10] = rtemp10;
+
   // for(i = 0; i<11; i++){
   //   double x[n[i]];
   //   double res_element[n[i]];
   //   // x_0[i] = x;
   //   results[i] = res_element;
   // }
-  double params[102]; //input for the parameters of the ocp
-  double result[1062]; //output of the solver
+  // double params[102]; //input for the parameters of the ocp
+  double result[1754]; //output of the solver
+  res[0] = result;
    
 
   //read the initial guess from lua 
@@ -311,7 +340,7 @@ static int ocp_fun(lua_State* L){
   }
 
 
-  printf("val result[1] = %f and res[2] = %f and res[3] = %f \n", x_0[6][0], result[1], result[2]);
+  // printf("val result[1] = %f and res[2] = %f and res[3] = %f \n", x_0[6][0], result[1], result[2]);
  //  luaL_checktype(L,2, LUA_TTABLE); // 1st argument must be a table (t)
  //  for (i=1; i<=n_params; i++){		
 	// lua_rawgeti(L, 2, i);  // push t
@@ -326,33 +355,42 @@ static int ocp_fun(lua_State* L){
   casadi_c_incref_id(id);
   int mem = casadi_c_checkout_id(id);
 
-  /* Evaluate the function */
-  for (i = 0; i<11; i++){
-    arg[i] = x_0[i];
-  }
+  
   // arg[0] = x_0;
   // arg[1] = params;
-  for (i = 0; i<11; i++){
-    // res[i] = results[i];
-    res[i] = x_0[i];
-  }
+  // for (i = 0; i<11; i++){
+  //   // res[i] = results[i];
+  //   res[i] = x_0[i];
+  // }
   // res[0] = result;
 
   // Evaluation is thread-safe
   if (casadi_c_eval_id(id, arg, res, iw, w, mem)) return 1;
   printf("This ran\n");
   // Release thread-local (not thread-safe)
-  casadi_c_release_id(id, mem);
+  // casadi_c_release_id(id, mem);
 
 
 
-  printf("val result[1] = %f and res[2] = %f and res[3] = %f \n", result[0], result[1], result[2]);
+  printf("val result[1] = %f and res[2] = %f and res[3] = %f \n", res[0][396], res[0][397], res[0][398]);
   lua_newtable(L); //creating a lua table to pass the solution to lua
-  for(i = 1; i<=n[i-1]; i++){
+  // int k = 1;
+  // for(i = 0; i<no_args; i++){
+
+  //   for (j = 0; j<n[i];j++){
   	
-   	lua_pushnumber(L, result[i-1]);
-   	lua_rawseti(L, -2, i);
+  //  	lua_pushnumber(L, res[i][j]);
+  //  	lua_rawseti(L, -2, k);
+  //   k = k +1;
+  //   }
+  // }
+
+  for(i = 1; i<=1754; i++){
+    
+    lua_pushnumber(L, result[i-1]);
+    lua_rawseti(L, -2, i);
    }
+
 
    /* Free memory (thread-safe) */
   casadi_c_decref_id(id);
