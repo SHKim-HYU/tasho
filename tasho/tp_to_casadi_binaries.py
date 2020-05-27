@@ -111,6 +111,11 @@ class tp_to_casadi_binaries:
         mpc_fun = tc.ocp.opti.to_function('mpc_fun', self._ocp_vars, self._ocp_vars)
         self.generated_functions['mpc_fun'] = mpc_fun
 
+    def _create_meta_data(self, destination):
+        #create meta data about the casadi binaries, parameters and monitors and so on
+        #for the rosnode or the orocos component
+        #would be saved as a json file
+        print("not implemented")
 
     #internal function to create the OCP/MPC function using casadi's opti.to_function capability
     def _create_ocp_vars(self):
@@ -142,12 +147,6 @@ class tp_to_casadi_binaries:
             print(temp)
             opti_xplam.append(temp)
 
-        #adding the lagrange multiplier terms as well
-        # print(tc.ocp.opti.p)
-        # print(opti_xplam[3])
-        # print(opti_xplam[4])
-        # print(opti_xplam[5])
-        # print(opti_xplam[6])
         opti_xplam.append(tc.ocp.opti.lam_g)
 
         #setting the MPC function!
@@ -163,7 +162,8 @@ class tp_to_casadi_binaries:
         Saves all the created casadi functions in the form of .casadi files in the specified destination
         '''
 
-        print("Not implemented")
+        for key in self.generated_functions:
+            self.generated_functions[key].save(destination + key + '.casadi')
 
 
 
