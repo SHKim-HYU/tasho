@@ -51,7 +51,7 @@ counter = 0
 iface=rttlib.create_if(iface_spec)
 iface.props.Ts:set(0.4)
 iface.props.ndof:set(18)
-iface.props.no_samples:set(19)
+iface.props.no_samples:set(11)
 iface.props.gain:set(0)
 iface.props.simulation:set(true)
 iface.props.dt:set(1/250.0)
@@ -73,37 +73,81 @@ joint_pos_val = {0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0 ,0 ,0 ,0 ,0 ,0 ,0}
 joint_vel_ref_r = {0, 0, 0, 0, 0, 0, 0}
 joint_vel_ref_l = {0, 0, 0, 0, 0, 0, 0}
 
-gain= iface.props.gain:get()
-Ts= iface.props.Ts:get()
-ndof= iface.props.ndof:get()
-no_samples= iface.props.no_samples:get()
-dt = iface.props.dt:get()
-simulation = iface.props.simulation:get()  
+  
 joint_vel_traj = {} --iface.props.joint_vel_traj:get()
 joint_pos_traj = {} --iface.props.joint_pos_traj:get() 
 
 function configureHook()
+
+  gain= iface.props.gain:get()
+  Ts= iface.props.Ts:get()
+  ndof= iface.props.ndof:get()
+  no_samples= iface.props.no_samples:get()
+  dt = iface.props.dt:get()
+  simulation = iface.props.simulation:get()
+  motion_type =  iface.props.motion_type:get()
 
   motion_start = false
   time_start = 10000 -- Just initializing with a large value
   time_end = no_samples*Ts -- The total time duration of the timed trajectory
   --should read the robot joint pose here, then send it to the casadi solver as one of the opti.x and also the goal frame should be passed.
   iface=rttlib.create_if(iface_spec)
-  params = {}
-  for i = 1,102 do
-	params[i] = 0
-end
-  x_0 = {}
-  for i = 1,1062 do
-	x_0[i] = 0
-end
+
+  q = {}
+  for i=1,198 do 
+  	q[i] = 0
+  end
+  q_dot = {}
+  for i=1,198 do 
+  	q_dot[i] = 0
+  end
+  s = {}
+  for i=1,11 do 
+  	s[i] = 0
+  end
+  s_dot = {}
+  for i=1,11 do 
+  	s_dot[i] = 0
+  end
+  s_ddot = {}
+  for i=1,10 do 
+  	s_ddot[i] = 0
+  end
+  q_ddot = {}
+  for i=1,180 do 
+  	q_ddot[i] = 0
+  end
+  
+  lam_g = {}
+  for i=1,1108 do 
+  	lam_g[i] = 0
+  end
+  
+  q_dot0 = {}
+  for i=1,18 do 
+  	q_dot0[i] = 0
+  end
+  
+  s0 = {}
+  s0[1] = 0
+  
+  s_dot0 = {}
+  s_dot0[1] = 0
+  
+  -- q0 = {-1.35488912e+00, -8.72846052e-01, 2.18411843e+00,  6.78786296e-01,
+  --   2.08696971e+00, -9.76390128e-01, -1.71721329e+00,  1.65969745e-03,
+  --   1.65969745e-03,  1.47829337e+00, -5.24943547e-01, -1.95134781e+00,
+  --   5.30517837e-01, -2.69960026e+00, -8.14070355e-01,  1.17172289e+00,
+  --   2.06459136e-03,  2.06462524e-03}
+
+  q0 = {}
 
 
   fs,pos=iface.ports.joint_pos_in_both:read()
   if fs~='NoData' then 
         local p = pos:totab()
         for i = 1, 18 do
-        	params[i] = p[i]
+        	q0[i] = p[i]
         end
     end
 
@@ -113,7 +157,7 @@ end
         local p = pos:totab()
         for i = 1, 9 do
         	--print("i is " .. i)
-        	params[i] = p[i]
+        	q0[i] = p[i]
         	--print(type(joint_pos_val[i]))
         end
     end
@@ -123,7 +167,7 @@ end
         local p = pos:totab()
         for i = 1, 9 do
         	--print("i is " .. i)
-        	params[i+9] = p[i]
+        	q0[i+9] = p[i]
         	--print(type(joint_pos_val[i]))
         end
     end
@@ -145,7 +189,7 @@ end
 -- params[36 + 15] = 0.65;
 -- params[36 + 16] = 1.0;
 -- local Tgoal= iface.props.Tgoal:get()
--- local motion_type =  iface.props.motion_type:get()
+-- local 
 -- for i = 1,16 do
 --   params[36 + i] = Tgoal[i-1]
 -- end
@@ -158,20 +202,21 @@ elseif motion_type == 2.0 then
   motion_plan = mp.callmp_rightarm(x_0, params)
 
 elseif motion_type == 3.0 then
-
-  motion_plan = mp.call_ocp(x_0)
+  print("Calling the casadi OCP solver from lua")
+  motion_plan = mp.call_ocp(q,q_dot,s, s_ddot, s_ddot, q_ddot,q0,q_dot0,{0},{0},lam_g)
 
 else 
 
-  print("NO valid motion type specified")
+  print("NO valid motion type specified. The specified motion type was")
+  print(Tgoal)
 
 end
 
 a = {}
 b = {}
-  for i = 1,18*20 do
+  for i = 1,18*no_samples do
   	b[i] = motion_plan[i]
-  	a[i] = motion_plan[18*20+i]
+  	a[i] = motion_plan[18*no_samples+i]
   end
   jvvals = rtt.Variable("array")
   jvvals:fromtab(a)

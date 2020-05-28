@@ -14,7 +14,7 @@ function sleep(n)
   os.execute("sleep " .. tonumber(n))
 end
 
-simulation = false
+simulation = true
 
 --rtt.setLogLevel("Debug")
 rtt.setLogLevel("Info")
@@ -51,10 +51,10 @@ end
 --   "yumi_joint_6_r", "g21", "g22"};
 
 --deploy the timed trajectory following componentsimulated robot:
-etasl_rtt_dir = rtt.provides("ros"):find("tasho_orocos")
+tasho_orocos_dir = rtt.provides("ros"):find("tasho_orocos")
 depl:loadComponent("timed_traj", "OCL::LuaComponent")
 timed_traj = depl:getPeer("timed_traj")
-timed_traj:exec_file(etasl_rtt_dir.."/scripts/ocp_component.lua")
+timed_traj:exec_file(tasho_orocos_dir.."/scripts/ocp_component.lua")
 depl:setActivity("timed_traj", 1/samplefreq, 99, rtt.globals.ORO_SCHED_RT)
 
 cp=rtt.Variable("ConnPolicy")
@@ -62,11 +62,16 @@ cp=rtt.Variable("ConnPolicy")
 -- deploy simulated robot:
     depl:loadComponent("simrobot", "OCL::LuaComponent")
     simrobot = depl:getPeer("simrobot")
-    simrobot:exec_file(etasl_rtt_dir.."/scripts/rtt/simple_robot_sim.lua")
+    simrobot:exec_file(tasho_orocos_dir.."/scripts/simple_robot_sim.lua")
     init_jnts=rtt.Variable("array")
-    init_jnts:fromtab({-0.2584968737740488, -1.4751856359575597, 1.8219996281082655, 0.5209283064234688, 1.9839690235976921, 0.26398453977796843, -0.02014585756950192, 0.00014965985730298973, 0.00014965985730298973, 9.238809314721515e-06, -9.316113154953396e-05, 4.120291461621384e-05, -4.938317223991528e-05, 2.4445993726109504e-07, 3.06687470916545e-06, 0.0, 0.00014965985730298973, 0.00014965985730298973})
+    init_jnts:fromtab({-1.35488912e+00, -8.72846052e-01, 2.18411843e+00,  6.78786296e-01,
+  2.08696971e+00, -9.76390128e-01, -1.71721329e+00,  1.65969745e-03,
+  1.65969745e-03,  1.47829337e+00, -5.24943547e-01, -1.95134781e+00,
+  5.30517837e-01, -2.69960026e+00, -8.14070355e-01,  1.17172289e+00,
+  2.06459136e-03,  2.06462524e-03})
     simrobot:getProperty("initial_position"):set( init_jnts )
     depl:setActivity("simrobot", 1/samplefreq, 99, rtt.globals.ORO_SCHED_RT)
+    timed_traj:getProperty("motion_type"):set(3)
 
 depl:connectPeers("simrobot","timed_traj")
 if simulation == true then
@@ -77,60 +82,6 @@ if simulation == true then
     --depl:stream("timed_traj.joint_pos_ref_out_both", ros:topic("/joint_states_from_orocos"))
     simrobot:configure()
     simrobot:start()
-
-    --create a sequence of three motions to check the dual arm manipulation planner
-
-    --first left arm
-    Tdesired = {}
-    Tdesired[1] = 1.0;
-    Tdesired[6] = -1.0
-    Tdesired[11] = -1.0;
-    Tdesired[13] = 0.4;
-    Tdesired[14] = 0.2;
-    Tdesired[15] = 0.65;
-    Tdesired[16] = 1.0;
-    local Tgoal_inp = rtt.Variable("array")
-    Tgoal_inp:fromtab(Tdesired)
-    timed_traj:getProperty("gain"):set(0)
-    timed_traj:getProperty("dt"):set(1/samplefreq)
-    timed_traj:getProperty("motion_type"):set(1.0)
-    timed_traj:getProperty("Tgoal"):set(Tgoal_inp)
-    print(Tgoal_inp)
-    sleep(0.1)
-    timed_traj:configure()    
-    sleep(5.1)
-    timed_traj:start()
-
-    
-    
-    sleep(9.0)
-
-    timed_traj:stop()
-
-    --second right arm
-    Tdesired = {}
-    Tdesired[1] = 1.0;
-    Tdesired[6] = -1.0
-    Tdesired[11] = -1.0;
-    Tdesired[13] = 0.4;
-    Tdesired[14] = -0.4;
-    Tdesired[15] = 0.65;
-    Tdesired[16] = 1.0;
-    local Tgoal_inp = rtt.Variable("array")
-    Tgoal_inp:fromtab(Tdesired)
-    timed_traj:getProperty("motion_type"):set(2.0)
-    timed_traj:getProperty("Tgoal"):set(Tgoal_inp)
-    print(Tgoal_inp)
-    sleep(0.1)
-    timed_traj:configure()    
-    sleep(5.1)
-    timed_traj:start()
-
-    
-    
-    sleep(10.0)
-
-    timed_traj:stop()
 
     --now dual arm
 
@@ -144,17 +95,17 @@ if simulation == true then
     Tdesired[16] = 1.0;
     local Tgoal_inp = rtt.Variable("array")
     Tgoal_inp:fromtab(Tdesired)
-    timed_traj:getProperty("motion_type"):set(3.0)
+    
     timed_traj:getProperty("Tgoal"):set(Tgoal_inp)
     print(Tgoal_inp)
     sleep(0.1)
     timed_traj:configure()    
-    sleep(5.1)
+    sleep(1.1)
     timed_traj:start()
 
     
     
-    sleep(10.0)
+    sleep(5.0)
     timed_traj:stop()
     simrobot:stop()
 else 
