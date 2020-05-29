@@ -43,7 +43,18 @@ if __name__ == "__main__":
 
 	bullet_world = world_simulator.world_simulator()
 	kukaID = p.loadURDF("models/force_control/my_kuka.urdf", useFixedBase = 1)
+	position = [0.0, 0.0, 0.0]
+	orientation = [0.0, 0.0, 0.0, 1.0]
+	# kukaID = bullet_world.add_robot(position, orientation, 'iiwa7')
 	contour = p.loadURDF('models/force_control/my_contour3.urdf', useFixedBase = 1)
+
+	bullet_world.enableJointForceSensor(kukaID, [8])
+	bullet_world.run_simulation(100)
+	jointState = bullet_world.readJointState(kukaID, [8])
+	print("Direct output of the force sensor")
+	print(jointState[0][2])
+
+	time.sleep(5)
 
 	
 	print(robot.joint_ub)
@@ -63,13 +74,15 @@ if __name__ == "__main__":
 	init_constraints = {'initial_constraints':[s_init_con, s_dot_init_con]}
 	tc.add_task_constraint(init_constraints)
 
+	
+
 
 
 	fk_vals = robot.fk(q)[7]
 	def contour_path(s):
 		# y = -0.25 + 0.5*s #a path where the direction does not change
 		y = 0.0 + 0.16*sin(2*3.14159*s) #the direction changes
-		x = 0.63 + 0.16*cos(2*3.14159*s)
+		x = 0.57 + 0.16*cos(2*3.14159*s)
 		z = 0.15
 		return cs.vertcat(x, y, z), cs.vertcat(0, 0, 1)
 
@@ -96,8 +109,22 @@ if __name__ == "__main__":
 	bullet_world.resetJointState(kukaID, joint_indices, q1)
 	bullet_world.setController(kukaID, "velocity", joint_indices, targetVelocities = [0]*7)
 
-	# bullet_world.run_simulation(1000);
-
+	# # bullet_world.run_simulation(1000);
+	# #unlock the torque control mode
+	# p.setJointMotorControlArray(kukaID, [0,1,2,3,4,5,6], p.VELOCITY_CONTROL, forces=[0]*7)
+	# for link_idx in [0,1,2,3,4,5,6]:
+	# 	p.changeDynamics(kukaID, link_idx, linearDamping=0.0, angularDamping=0.0, jointDamping=0.0)
+	# #check if the torque control works with a high rate of control
+	# for i in range(1000):
+	# 	jointsInfo = bullet_world.readJointState(kukaID, [0,1,2,3,4,5,6])
+	# 	q1 = []
+	# 	for jointInfo in jointsInfo:
+	# 		q1.append(jointInfo[0])
+	# 	torques = p.calculateInverseDynamics(kukaID, q1, [0]*7, [0.0]*7)	
+	# 	for j in range(4):
+	# 		bullet_world.setController(kukaID, "torque", [0,1,2,3,4,5,6], targetTorques = torques)
+	# 		p.stepSimulation()
+	# 		time.sleep(bullet_world.physics_ts)
 	
 	force_desired = tc.create_expression('f_des', 'parameter', (3, 1))
 	force_measured = tc.create_expression('f_meas', 'parameter', (3,1))
@@ -159,11 +186,7 @@ if __name__ == "__main__":
 		# 		p.stepSimulation()
 		# 		time.sleep(bullet_world.physics_ts)
 
-	bullet_world.enableJointForceSensor(kukaID, [8])
-	bullet_world.run_simulation(100)
-	jointState = bullet_world.readJointState(kukaID, [8])
-	print("Direct output of the force sensor")
-	print(jointState[0][2])
+	
 	
 	tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 200, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 	# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'tol':1e-3}})
@@ -197,19 +220,19 @@ if __name__ == "__main__":
 	s0_params_info = {'type':'progress_variable', 'state':True}
 	s_dot0_params_info = {'type':'progress_variable', 'state':True}
 	mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info, 'robots':{kukaID:robot}}
-	# mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-20])}
-	mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,0])}
+	mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-20])}
+	# mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,0])}
 
 	#creating a function to pass as a parameter to the MPC class to appropriately post process 
 	#the sensor readings
 	def joint_force_compensation(fk, q, force):
 		mass_last_link = 0.3
-		reactionGravVector = np.array([0, 0, 9.81])
-		jointPose = np.array(fk(q)[6])
-		invJointPose = utils.geometry.inv_T_matrix(jointPose)
-		force_last_link = cs.mtimes(invJointPose[0:3, 0:3], reactionGravVector)*mass_last_link
-		force_corrected = force - force_last_link
-		force_corrected = cs.mtimes(jointPose[0:3, 0:3], force_corrected)
+		# reactionGravVector = np.array([0, 0, 9.81])
+		jointPose = np.array(fk(q)[7])
+		# invJointPose = utils.geometry.inv_T_matrix(jointPose)
+		# force_last_link = cs.mtimes(invJointPose[0:3, 0:3], reactionGravVector)*mass_last_link
+		# force_corrected = force - force_last_link
+		force_corrected = cs.mtimes(jointPose[0:3, 0:3], force)
 		return force_corrected
 
 	mpc_params['params']['f_meas'] = {'type':'joint_force', 'robotID':kukaID, 'joint_indices':[8], 'fk':robot.fk, 'post_process':joint_force_compensation}
@@ -217,12 +240,12 @@ if __name__ == "__main__":
 	# mpc_params['solver_name'] = 'ipopt'
 	# mpc_params['solver_params'] = {'lbfgs':True}
 	mpc_params['solver_name'] = 'sqpmethod'
-	# mpc_params['solver_params'] = {'qpoases':True}
-	# mpc_params['solver_params'] = {'qrqp':True}
-	# mpc_params['solver_params'] = {'osqp':True}
+	# # mpc_params['solver_params'] = {'qpoases':True}
+	# # mpc_params['solver_params'] = {'qrqp':True}
+	# # mpc_params['solver_params'] = {'osqp':True}
 	mpc_params['solver_params'] = {'ipopt':True}
 	mpc_params['t_mpc'] = t_mpc
-	mpc_params['control_type'] = 'joint_velocity' # 'joint_acceleration' #'
+	mpc_params['control_type'] = 'joint_acceleration' #'joint_velocity' # 
 	mpc_params['control_info'] = {'force_control':True, 'jac_fun':jac_fun, 'fcon_fun':q_dot_force_fun, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 	# set the joint positions in the simulator
 	bullet_world.resetJointState(kukaID, joint_indices, q1)
