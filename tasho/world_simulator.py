@@ -133,9 +133,9 @@ class world_simulator:
 
 		if controller_type == 'velocity':
 			if targetPositions[0] != None:
-				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)#, forces = [50]*len(targetVelocities))
+				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities, velocityGains = np.array([1,1,1,1,1,1,1]))#, forces = [50]*len(targetVelocities))
 			else:
-				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetVelocities = targetVelocities)
+				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetVelocities = targetVelocities, velocityGains = np.array([1,1,1,1,1,1,1])*1)
 		elif controller_type == 'position':
 			p.setJointMotorControlArray(robotID, joint_indices, p.POSITION_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)
 		elif controller_type == 'torque':

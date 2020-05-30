@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
 	#some task settings
 	horizon_size = 10
-	t_mpc = 0.05 #the MPC sampling time
+	t_mpc = 0.02#1.0/240.0 #the MPC sampling time
 	# t_mpc = 0.5
 	max_joint_vel = 60*3.14159/180
 	max_joint_acc = 60*3.14159/180
@@ -48,13 +48,7 @@ if __name__ == "__main__":
 	# kukaID = bullet_world.add_robot(position, orientation, 'iiwa7')
 	contour = p.loadURDF('models/force_control/my_contour3.urdf', useFixedBase = 1)
 
-	bullet_world.enableJointForceSensor(kukaID, [8])
-	bullet_world.run_simulation(100)
-	jointState = bullet_world.readJointState(kukaID, [8])
-	print("Direct output of the force sensor")
-	print(jointState[0][2])
-
-	time.sleep(5)
+	
 
 	
 	print(robot.joint_ub)
@@ -75,26 +69,28 @@ if __name__ == "__main__":
 	tc.add_task_constraint(init_constraints)
 
 	
+	alpha = acos(0.05/0.075)
 
 
-
-	fk_vals = robot.fk(q)[7]
+	fk_vals = robot.fk(q)[6]
+	fk_vals[0:3,3] = fk_vals[0:3,3] + fk_vals[0:3, 0:3]@np.array([0.0, 0.0, 0.17])
 	def contour_path(s):
 		# y = -0.25 + 0.5*s #a path where the direction does not change
-		y = 0.0 + 0.16*sin(2*3.14159*s) #the direction changes
-		x = 0.57 + 0.16*cos(2*3.14159*s)
-		z = 0.15
+		y = -0.05 - 0.09*cos((pi-alpha)*s) #the direction changes
+		x = 0.64 + 0.09*sin((pi-alpha)*s)
+		z = 0.02
 		return cs.vertcat(x, y, z), cs.vertcat(0, 0, 1)
 
 	p_des, normal = contour_path(s)
 	angle_limit = cos(2*3.14159/180) #The constraint on the EE angle during contour-tracing
-	dot_prod_ee_workpiece = -cs.mtimes(fk_vals[0:3,0].T, normal)
+	dot_prod_ee_workpiece = -cs.mtimes(fk_vals[0:3,2].T, normal)
 	#q1 = [-0.5,  1.0, -1.5, 1.5, -1.0, -1.5, 1.0]
-	q1 =  [-0.40174915,  1.56133071, -1.81245879,  0.82562738, -1.39821232, -1.40046134, -2.73368259]
+	# q1 =  [-0.40174915,  1.56133071, -1.81245879,  0.82562738, -1.39821232, -1.40046134, -2.73368259]
+	q1 = [-2.18298982e-01,  1.07219659e+00,  5.10961987e-03, -1.20711480e+00, -5.82502632e-03,  8.61895526e-01, -2.12168830e-01]
 
 	
 
-	print(robot.fk(q1)[6])
+	print(robot.fk(q1)[7])
 
 
 	no_samples = int(t_mpc / bullet_world.physics_ts)
@@ -108,6 +104,14 @@ if __name__ == "__main__":
 	joint_indices = [0, 1, 2, 3, 4, 5, 6]
 	bullet_world.resetJointState(kukaID, joint_indices, q1)
 	bullet_world.setController(kukaID, "velocity", joint_indices, targetVelocities = [0]*7)
+
+	bullet_world.enableJointForceSensor(kukaID, [8])
+	bullet_world.run_simulation(100)
+	jointState = bullet_world.readJointState(kukaID, [8])
+	print("Direct output of the force sensor")
+	print(jointState[0][2])
+
+	# time.sleep(5)
 
 	# # bullet_world.run_simulation(1000);
 	# #unlock the torque control mode
@@ -129,8 +133,11 @@ if __name__ == "__main__":
 	force_desired = tc.create_expression('f_des', 'parameter', (3, 1))
 	force_measured = tc.create_expression('f_meas', 'parameter', (3,1))
 	#q_dot_force = tc.create_expression('q_dot_force', 'variable', (7,1))
-	K = 0.05 #proportional gain of the feedback force controller
-	jac_val = jac_fun(q0)
+	K = 0.001 #proportional gain of the feedback force controller
+	# jac_val = jac_fun(q0)
+	fk_jac = robot.fk(q0)[6]
+	fk_jac[0:3,3] = fk_jac[0:3,3] + fk_jac[0:3, 0:3]@np.array([0.0, 0.0, 0.17])
+	jac_val = cs.jacobian(fk_jac[0:3, 3], q0)
 	q_dot_force = cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-6, K*(force_desired - force_measured)))
 	q_dot_force_fun = cs.Function('q_dot_force_fun', [q0, force_desired, force_measured], [q_dot_force])
 
@@ -142,14 +149,14 @@ if __name__ == "__main__":
 	#Hard constraint on the angle
 	# angle_constraint = {'hard':True, 'inequality':True, 'expression':-dot_prod_ee_workpiece, 'upper_limits':-angle_limit}
 	#soft
-	angle_constraint = {'hard':False, 'equality':True, 'expression':acos(dot_prod_ee_workpiece), 'reference': 0.0, 'gain':10.0} #'upper_limits':-angle_limit}
+	angle_constraint = {'hard':False, 'equality':True, 'expression':acos(dot_prod_ee_workpiece), 'reference': 0.0, 'gain':100.0} #'upper_limits':-angle_limit}
 
 	# contour_error_soft = {'hard': False, 'expression':fk_vals[0:3,3], 'reference':p_des[0:3], 'gain':5.0, 'norm':'L2'}
 	contour_error_slack = tc.create_expression('path_con_slack', 'control', (3,1))
-	contour_error_slack_con1 = {'inequality':True, 'hard':True, 'upper_limits':contour_error_slack, 'expression':fk_vals[0:3,3] - p_des[0:3] + np.array([0.005, 0.005, 0.000])}
-	contour_error_slack_con2 = {'inequality':True, 'hard':True, 'expression':-contour_error_slack, 'upper_limits':fk_vals[0:3,3] - p_des[0:3] - np.array([0.005, 0.005, 0.002])}
+	contour_error_slack_con1 = {'inequality':True, 'hard':True, 'upper_limits':contour_error_slack, 'expression':fk_vals[0:3,3] - p_des[0:3] + np.array([0.02, 0.02, 0.005])}
+	contour_error_slack_con2 = {'inequality':True, 'hard':True, 'expression':-contour_error_slack, 'upper_limits':fk_vals[0:3,3] - p_des[0:3] - np.array([0.02, 0.02, 0.005])}
 	#TODO: create a function in task_protoype to add objectives without specifying as constraints
-	tc.ocp.add_objective(tc.ocp.sum(contour_error_slack[0])*100.0 + tc.ocp.sum(contour_error_slack[1])*100.0 + tc.ocp.sum(contour_error_slack[2])*100.0)
+	tc.ocp.add_objective(tc.ocp.sum(contour_error_slack[0])*10.0 + tc.ocp.sum(contour_error_slack[1])*10.0 + tc.ocp.sum(contour_error_slack[2])*100.0)
 	contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3], 'upper_limits':[0.005, 0.005, 0.01], 'lower_limits':[-0.005, -0.005, -0.01]}
 	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1*10}
 	s_regularization = {'hard': False, 'expression':s, 'reference':1.0, 'gain':1, 'norm':'L1'} #push towards contour tracing #30 for planar contour
@@ -220,15 +227,15 @@ if __name__ == "__main__":
 	s0_params_info = {'type':'progress_variable', 'state':True}
 	s_dot0_params_info = {'type':'progress_variable', 'state':True}
 	mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info, 'robots':{kukaID:robot}}
-	mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,-20])}
-	# mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,0])}
+	# mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([-10,0,0])}
+	mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,0])}
 
 	#creating a function to pass as a parameter to the MPC class to appropriately post process 
 	#the sensor readings
 	def joint_force_compensation(fk, q, force):
 		mass_last_link = 0.3
 		# reactionGravVector = np.array([0, 0, 9.81])
-		jointPose = np.array(fk(q)[7])
+		jointPose = np.array(fk(q)[6])
 		# invJointPose = utils.geometry.inv_T_matrix(jointPose)
 		# force_last_link = cs.mtimes(invJointPose[0:3, 0:3], reactionGravVector)*mass_last_link
 		# force_corrected = force - force_last_link
@@ -245,7 +252,7 @@ if __name__ == "__main__":
 	# # mpc_params['solver_params'] = {'osqp':True}
 	mpc_params['solver_params'] = {'ipopt':True}
 	mpc_params['t_mpc'] = t_mpc
-	mpc_params['control_type'] = 'joint_acceleration' #'joint_velocity' # 
+	mpc_params['control_type'] = 'joint_velocity' #  'joint_acceleration' #
 	mpc_params['control_info'] = {'force_control':True, 'jac_fun':jac_fun, 'fcon_fun':q_dot_force_fun, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 	# set the joint positions in the simulator
 	bullet_world.resetJointState(kukaID, joint_indices, q1)

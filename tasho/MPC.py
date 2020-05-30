@@ -479,14 +479,14 @@ class MPC:
                  print('qdot force is ')
                  print(q_dot_force)
                  #cap the magnitude of q_dot_force
-                 max_q_dot_force_norm = 0.01
-                 norm_q_dot_force = cs.norm_1(q_dot_force)
-                 if norm_q_dot_force > max_q_dot_force_norm:
-                    print("norm of q_dot_force:")
-                    print(norm_q_dot_force)
-                    q_dot_force = q_dot_force/norm_q_dot_force*max_q_dot_force_norm
-                    print("q dot force after normalization")
-                    print(q_dot_force)
+                 # max_q_dot_force_norm = 0.1
+                 # norm_q_dot_force = cs.norm_1(q_dot_force)
+                 # if norm_q_dot_force > max_q_dot_force_norm:
+                 #    print("norm of q_dot_force:")
+                 #    print(norm_q_dot_force)
+                 #    q_dot_force = q_dot_force/norm_q_dot_force*max_q_dot_force_norm
+                 #    print("q dot force after normalization")
+                 #    print(q_dot_force)
                  control_action = np.array(cs.vec(control_action) + q_dot_force)
 
             #control_action = control_action[0]
