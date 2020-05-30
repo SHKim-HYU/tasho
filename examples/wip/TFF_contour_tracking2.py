@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
 	#some task settings
 	horizon_size = 10
-	t_mpc = 0.02#1.0/240.0 #the MPC sampling time
+	t_mpc = 0.01#1.0/240.0 #the MPC sampling time
 	# t_mpc = 0.5
 	max_joint_vel = 60*3.14159/180
 	max_joint_acc = 60*3.14159/180
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 	#print(robot.id([0]*7, [0]*7, [0]*7))
 	robot.set_joint_velocity_limits(lb = -max_joint_vel, ub = max_joint_vel)
 	robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
-	jac_fun = robot.set_kinematic_jacobian('kin_jac', 6)
+	# jac_fun = robot.set_kinematic_jacobian('kin_jac', 6)
 	tc = tp.task_context(horizon_size*t_mpc)
 	q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
 
@@ -76,14 +76,16 @@ if __name__ == "__main__":
 	fk_vals[0:3,3] = fk_vals[0:3,3] + fk_vals[0:3, 0:3]@np.array([0.0, 0.0, 0.17])
 	def contour_path(s):
 		# y = -0.25 + 0.5*s #a path where the direction does not change
-		y = -0.05 - 0.09*cos((pi-alpha)*s) #the direction changes
-		x = 0.64 + 0.09*sin((pi-alpha)*s)
+		normal_x = cs.if_else( s<= 0.33, sin((pi-alpha)*s*3), sin(alpha + (pi - alpha)*(s-0.33)*3))
+		normal_y = cs.if_else( s<= 0.33, -cos((pi-alpha)*s*3), -cos(alpha + (pi - alpha)*(s-0.33)*3))
+		y = cs.if_else( s<= 0.33, -0.05 - 0.09*cos((pi-alpha)*s*3), 0.05 - 0.09*cos(alpha + (pi - alpha)*(s-0.33)*3)) #the direction changes
+		x = cs.if_else( s<= 0.33, 0.64 + 0.09*sin((pi-alpha)*s*3), 0.64 + 0.09*sin(alpha + (pi - alpha)*(s-0.33)*3))
 		z = 0.02
-		return cs.vertcat(x, y, z), cs.vertcat(0, 0, 1)
+		return cs.vertcat(x, y, z), cs.vertcat(normal_x, normal_y, 0)
 
 	p_des, normal = contour_path(s)
 	angle_limit = cos(2*3.14159/180) #The constraint on the EE angle during contour-tracing
-	dot_prod_ee_workpiece = -cs.mtimes(fk_vals[0:3,2].T, normal)
+	dot_prod_ee_workpiece = -cs.mtimes(fk_vals[0:3,2].T, cs.vertcat(0, 0, 1))
 	#q1 = [-0.5,  1.0, -1.5, 1.5, -1.0, -1.5, 1.0]
 	# q1 =  [-0.40174915,  1.56133071, -1.81245879,  0.82562738, -1.39821232, -1.40046134, -2.73368259]
 	q1 = [-2.18298982e-01,  1.07219659e+00,  5.10961987e-03, -1.20711480e+00, -5.82502632e-03,  8.61895526e-01, -2.12168830e-01]
@@ -138,6 +140,7 @@ if __name__ == "__main__":
 	fk_jac = robot.fk(q0)[6]
 	fk_jac[0:3,3] = fk_jac[0:3,3] + fk_jac[0:3, 0:3]@np.array([0.0, 0.0, 0.17])
 	jac_val = cs.jacobian(fk_jac[0:3, 3], q0)
+	jac_fun = cs.Function('jac_fun', [q0], [jac_val])
 	q_dot_force = cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-6, K*(force_desired - force_measured)))
 	q_dot_force_fun = cs.Function('q_dot_force_fun', [q0, force_desired, force_measured], [q_dot_force])
 
@@ -151,22 +154,24 @@ if __name__ == "__main__":
 	#soft
 	angle_constraint = {'hard':False, 'equality':True, 'expression':acos(dot_prod_ee_workpiece), 'reference': 0.0, 'gain':100.0} #'upper_limits':-angle_limit}
 
-	# contour_error_soft = {'hard': False, 'expression':fk_vals[0:3,3], 'reference':p_des[0:3], 'gain':5.0, 'norm':'L2'}
+	# contour_error_soft = {'hard': False, 'expression':fk_vals[0:3,3], 'reference':p_des[0:3], 'gain':1000.0, 'norm':'L2'}
 	contour_error_slack = tc.create_expression('path_con_slack', 'control', (3,1))
-	contour_error_slack_con1 = {'inequality':True, 'hard':True, 'upper_limits':contour_error_slack, 'expression':fk_vals[0:3,3] - p_des[0:3] + np.array([0.02, 0.02, 0.005])}
-	contour_error_slack_con2 = {'inequality':True, 'hard':True, 'expression':-contour_error_slack, 'upper_limits':fk_vals[0:3,3] - p_des[0:3] - np.array([0.02, 0.02, 0.005])}
+	contour_error_slack_con1 = {'inequality':True, 'hard':True, 'upper_limits':contour_error_slack, 'expression':fk_vals[0:3,3] - p_des[0:3] + 0*np.array([0.01, 0.01, 0.005])}
+	contour_error_slack_con2 = {'inequality':True, 'hard':True, 'expression':-contour_error_slack, 'upper_limits':fk_vals[0:3,3] - p_des[0:3] - 0*np.array([0.01, 0.01, 0.005])}
 	#TODO: create a function in task_protoype to add objectives without specifying as constraints
-	tc.ocp.add_objective(tc.ocp.sum(contour_error_slack[0])*10.0 + tc.ocp.sum(contour_error_slack[1])*10.0 + tc.ocp.sum(contour_error_slack[2])*100.0)
+	# tc.ocp.add_objective(tc.ocp.sum(contour_error_slack[0])*1.0 + tc.ocp.sum(contour_error_slack[1])*1.0 + tc.ocp.sum(contour_error_slack[2])*100.0)
+	tc.ocp.add_objective(tc.ocp.sum(contour_error_slack[0]**2)*10.0 + tc.ocp.sum(contour_error_slack[1]**2)*10.0 + tc.ocp.sum(contour_error_slack[2]**2)*100.0)
 	contour_error = {'lub':True, 'hard': True, 'expression':fk_vals[0:3,3] - p_des[0:3], 'upper_limits':[0.005, 0.005, 0.01], 'lower_limits':[-0.005, -0.005, -0.01]}
 	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1*10}
-	s_regularization = {'hard': False, 'expression':s, 'reference':1.0, 'gain':1, 'norm':'L1'} #push towards contour tracing #30 for planar contour
-	s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':0.01*100, 'norm':'L2'}
+	s_regularization = {'hard': False, 'expression':s, 'reference':1.0, 'gain':0*10.0, 'norm':'L1'} #push towards contour tracing #30 for planar contour
+	s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.1, 'gain':0.1*10, 'norm':'L2'}
 	# s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.3, 'gain':1.0, 'norm':'L1'}
 	s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.01*100}
 	s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':1.0, 'lower_limits':0}
-	s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3.0, 'lower_limits':0}
+	s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3.0, 'lower_limits':-0.0}
 	#q_dot_force_con = {'hard':True, 'expression':q_dot_force, 'reference':cs.mtimes(jac_val.T, cs.solve(cs.mtimes(jac_val, jac_val.T) + 1e-4, K*(force_desired - force_measured)))}
 	task_objective = {'path_constraints':[angle_constraint, contour_error_slack_con1, contour_error_slack_con2, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
+	# task_objective = {'path_constraints':[angle_constraint, contour_error_soft, vel_regularization, s_regularization, s_ddot_regularization, s_dotcon,  s_dot_regularization, s_con]}
 	# task_objective = {'path_constraints':[contour_error,  vel_regularization, s_regularization, s_dot_regularization, s_con, s_dotcon, s_ddot_regularization]}
 
 	tc.add_task_constraint(task_objective)
@@ -227,8 +232,9 @@ if __name__ == "__main__":
 	s0_params_info = {'type':'progress_variable', 'state':True}
 	s_dot0_params_info = {'type':'progress_variable', 'state':True}
 	mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info, 'robots':{kukaID:robot}}
-	# mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([-10,0,0])}
-	mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,0])}
+	# mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,10,0])}
+	# mpc_params['params']['f_des'] = {'type':'set_value', 'value':np.array([0,0,0])}
+	mpc_params['params']['f_des'] = {'type':'function_of_s', 'function':contour_path, 'gain':-10}
 
 	#creating a function to pass as a parameter to the MPC class to appropriately post process 
 	#the sensor readings
@@ -252,7 +258,7 @@ if __name__ == "__main__":
 	# # mpc_params['solver_params'] = {'osqp':True}
 	mpc_params['solver_params'] = {'ipopt':True}
 	mpc_params['t_mpc'] = t_mpc
-	mpc_params['control_type'] = 'joint_velocity' #  'joint_acceleration' #
+	mpc_params['control_type'] =  'joint_acceleration' #'joint_velocity' # 
 	mpc_params['control_info'] = {'force_control':True, 'jac_fun':jac_fun, 'fcon_fun':q_dot_force_fun, 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
 	# set the joint positions in the simulator
 	bullet_world.resetJointState(kukaID, joint_indices, q1)

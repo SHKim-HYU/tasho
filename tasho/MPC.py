@@ -356,7 +356,7 @@ class MPC:
         #update the params_val with this info
         start = 0
         for state in self.states_names:
-            # print(self.tc.states[state].shape)
+            # print(state)
             state_shape = self.tc.states[state].shape
             state_len = state_shape[0]*state_shape[1]
             if state == 'q_dot' and self.parameters['control_type'] == 'joint_velocity':
@@ -366,7 +366,7 @@ class MPC:
                 params_val[state+"0"] = 0.5*(np.array(params_val[state+'0']) + np.array(next_X[start:start+state_len].T)).T
             else:
                 params_val[state+"0"] = np.array(next_X[start:start+state_len])
-
+            # print(params_val[state+"0"])
             start = state_len + start
         
         #print("After printing system dynamics")
@@ -607,6 +607,12 @@ class MPC:
 
                 params_val[params_name] = param_info['value']
 
+            elif param_info['type'] == 'function_of_s':
+                if self.mpc_ran:
+                    _, normal = param_info['function'](self.sol_mpc[0]['s'][0])
+                    params_val[params_name] = normal*param_info['gain']
+                else:
+                    params_val[params_name] = np.array([0,0,0]).T
             else:
 
                 print("[ERROR] Invalid type of parameter to be read from the simulation environment")
