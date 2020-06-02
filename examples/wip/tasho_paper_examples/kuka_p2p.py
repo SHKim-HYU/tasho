@@ -22,7 +22,7 @@ if __name__ == '__main__':
 	position = [0.0, 0.0, 0.0]
 	orientation = [0.0, 0.0, 0.0, 1.0]
 	kukaID = obj.add_robot(position, orientation, 'iiwa7')
-	max_joint_acc = 60*3.14159/180
+	max_joint_acc = 180*3.14159/180
 	max_joint_vel = 90*3.14159/180
 	robot = rob.Robot('iiwa7')	
 
@@ -42,23 +42,24 @@ if __name__ == '__main__':
 
 	fk_vals = robot.fk(q)[6]
 
-	T_goal = np.array([[-1., 0., 0., 0.44], [0., 1., 0., 0.5], [0.0, 0., -1.0, 0.5], [0.0, 0.0, 0.0, 1.0]])
+	T_goal = np.array([[-1., 0., 0., 0.44], [0., 1., 0., 0.47], [0.0, 0., -1.0, 0.4], [0.0, 0.0, 0.0, 1.0]])
 
 	# final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
 	final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
-	# final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':10, 'trans_gain':10, 'norm':'L2'}
+	# final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L2'}
+	
 	# final_vel = {'hard':True, 'expression':q_dot, 'reference':0}
-	# final_constraints = {'final_constraints':[final_pos, final_vel]}
-	final_constraints = {'final_constraints':[final_pos]}
-	tc.add_task_constraint(final_constraints)
+	# final_constraints = {'final_constraints':[final_pos]}
+	# final_constraints = {'final_constraints':[final_vel]}
+	# tc.add_task_constraint(final_constraints)
 
 	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
 	acc_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':0.1}
-	task_objective = {'path_constraints':[vel_regularization, acc_regularization]}
+	task_objective = {'path_constraints':[final_pos, vel_regularization, acc_regularization]}
 	tc.add_task_constraint(task_objective)
 
-	# q0_val = [0]*7
-	q0_val = [-0.23081576,  0.90408998,  0.02868817, -1.20917942, -0.03413408,  1.05074694, -0.19664998]
+	q0_val = [0]*7
+	# q0_val = [-0.23081576,  0.90408998,  0.02868817, -1.20917942, -0.03413408,  1.05074694, -0.19664998]
 	tc.ocp.set_value(q0, q0_val)
 	tc.ocp.set_value(q_dot0, [0]*7)
 

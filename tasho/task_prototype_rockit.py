@@ -170,8 +170,8 @@ class task_context:
 							if 'norm' not in final_con or final_con['norm'] == 'L2':
 								# ocp.add_objective(ocp.at_tf(cs.sumsqr(trans_error))*final_con['trans_gain'])
 								# ocp.add_objective(ocp.at_tf((rot_error[0,0] - 1)**2 + (rot_error[1,1] - 1)**2 + (rot_error[2,2] - 1)**2)*final_con['rot_gain'])
-								ocp.add_objective(ocp.integral(cs.sumsqr(trans_error))*final_con['trans_gain'])
-								ocp.add_objective(ocp.integral((rot_error[0,0] - 1)**2 + (rot_error[1,1] - 1)**2 + (rot_error[2,2] - 1)**2)*final_con['rot_gain'])
+								ocp.add_objective(ocp.at_tf(cs.sumsqr(trans_error))*final_con['trans_gain'])
+								ocp.add_objective(ocp.at_tf(((rot_error[0,0] + rot_error[1,1] + rot_error[2,2] - 1)/2-1)**2)*3*final_con['rot_gain'])
 							elif final_con['norm'] == 'L1':
 								# trans_error_sum = cs.fabs(trans_error[0]) + cs.fabs(trans_error[1]) + cs.fabs(trans_error[2])
 								# ocp.add_objective(ocp.at_tf(trans_error_sum)*final_con['trans_gain'])
@@ -189,11 +189,11 @@ class task_context:
 								# ocp.subject_to(-slack_variable[3:6] <= (ocp.at_tf(rot_error - 1) <= slack_variable[3:6]))
 								# ocp.add_objective((slack_variable[0] + slack_variable[1] + slack_variable[2])*final_con['trans_gain'])
 								# ocp.add_objective((slack_variable[3] + slack_variable[4] + slack_variable[5])*final_con['rot_gain'])
-								slack_variable = self.create_expression('slack_final_frame', 'control', (6,1))
-								ocp.subject_to(-slack_variable[0:3] <= (trans_error <= slack_variable[0:3]))
-								ocp.subject_to(-slack_variable[3:6] <= (rot_error - 1 <= slack_variable[3:6]))
-								ocp.add_objective(ocp.integral((slack_variable[0] + slack_variable[1] + slack_variable[2]))*final_con['trans_gain'])
-								ocp.add_objective(ocp.integral(slack_variable[3] + slack_variable[4] + slack_variable[5])*final_con['rot_gain'])
+								slack_variable = self.create_expression('slack_final_frame', 'variable', (6,1))
+								ocp.subject_to(-slack_variable[0:3] <= (ocp.at_tf(trans_error) <= slack_variable[0:3]))
+								ocp.subject_to(-slack_variable[3:6] <= (ocp.at_tf(rot_error) - 1 <= slack_variable[3:6]))
+								ocp.add_objective((slack_variable[0] + slack_variable[1] + slack_variable[2])*final_con['trans_gain'])
+								ocp.add_objective((slack_variable[3] + slack_variable[4] + slack_variable[5])*final_con['rot_gain'])
 							else:
 								raise Exception("Error")
 						else:
@@ -207,7 +207,28 @@ class task_context:
 
 			if not 'inequality' in path_con and not 'lub' in path_con:
 				if not path_con['hard']:
-					if 'norm' not in path_con or path_con['norm'] == 'L2':
+					if 'type' in path_con:
+						if 'Frame' in path_con['type']:
+							expression = path_con['expression']
+							reference = path_con['reference']
+							#hard constraint on the translational componenet
+							trans_error = expression[0:3, 3] - reference[0:3, 3]
+							rot_error = cs.mtimes(expression[0:3, 0:3].T, reference[0:3, 0:3])
+							if 'norm' not in path_con or path_con['norm'] == 'L2':
+								ocp.add_objective(ocp.integral(cs.sumsqr(trans_error))*path_con['trans_gain'])
+								# ocp.add_objective(ocp.integral((rot_error[0,0] - 1)**2 + (rot_error[1,1] - 1)**2 + (rot_error[2,2] - 1)**2)*path_con['rot_gain'])
+								#the rotational error chosen is proportional to the square of (cos(theta_error) - 1)
+								ocp.add_objective(ocp.integral(((rot_error[0,0] + rot_error[1,1] + rot_error[2,2] - 1)/2-1)**2)*3*path_con['rot_gain'])
+							elif path_con['norm'] == 'L1':
+								cos_theta_error = (rot_error[0,0] +  rot_error[1,1] + rot_error[2,2] - 2)*0.5
+								slack_variable = self.create_expression('slack_final_frame', 'control', (4,1))
+								ocp.subject_to(-slack_variable[0:3] <= (trans_error <= slack_variable[0:3]))
+								ocp.subject_to(-slack_variable[3] <= (cos_theta_error - 1 <= slack_variable[3]))
+								ocp.add_objective(ocp.integral((slack_variable[0] + slack_variable[1] + slack_variable[2]))*path_con['trans_gain'])
+								ocp.add_objective(ocp.integral(slack_variable[3])*3*path_con['rot_gain'])
+							else:
+								raise Exception("Error")
+					elif 'norm' not in path_con or path_con['norm'] == 'L2':
 						# print('L2 norm added')
 						ocp.add_objective(ocp.integral(cs.sumsqr(path_con['expression'] - path_con['reference']))*path_con['gain'])
 					elif path_con['norm'] == 'L1':
