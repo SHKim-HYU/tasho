@@ -138,7 +138,7 @@ class MPC:
 
                 ipopt_options = {'tol': ipopt_tol, 'tiny_step_tol': tiny_step_tol, 'fixed_variable_treatment': 'make_constraint', 'hessian_constant': 'yes', 'jac_c_constant': 'yes', 'jac_d_constant': 'yes', 'accept_every_trial_step': 'yes', 'mu_init': mu_init, 'print_level': 0, 'linear_solver': linear_solver}
                 nlpsol_options = {'ipopt': ipopt_options, 'print_time': False}
-                qpsol_options = {'nlpsol': 'ipopt', 'nlpsol_options': nlpsol_options, 'print_time': False, 'verbose': False}
+                qpsol_options = {'nlpsol': 'ipopt', 'nlpsol_options': nlpsol_options, 'print_time': False, 'verbose': False, 'error_on_fail':False}
                 solver_options = {'qpsol': 'nlpsol', 'qpsol_options': qpsol_options, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
                 tc.set_ocp_solver('sqpmethod', solver_options)
 
@@ -212,7 +212,7 @@ class MPC:
 
             for control in tc.controls:
                 _, sol_control = sol.sample(tc.controls[control], grid = 'control')
-                sol_controls[control] = sol_control
+                sol_controls[control] = sol_control[0:-1]
 
             for variable in tc.variables:
                 _, sol_variable = sol.sample(tc.variables[variable], grid = 'control')
@@ -387,7 +387,7 @@ class MPC:
             if self.type == "bullet_notrealtime":
 
                 #reading and setting the latest parameter values and applying MPC action
-                params_val = self._read_params_nrbullet()
+                params_val = self._read_params_nrbullet() 
                 # if self.mpc_ran:
                     # for param in params_val:
                     #     print("Abs error in "+ param)
@@ -395,10 +395,11 @@ class MPC:
                 sol_mpc = [sol_states, sol_controls, sol_variables]
                 self.sol_mpc = sol_mpc
                 self._apply_control_nrbullet(sol_mpc, params_val)
+                self.mpc_ran = True
 
                 # simulate to predict the future state when the first control input is applied
                 # to use that as the starting state for the MPC and accordingly update the params_val
-                self._sim_dynamics_update_params(params_val, sol_states, sol_controls)
+                self._sim_dynamics_update_params(params_val, sol_states, sol_controls) 
 
                 #When the mpc_fun is not initialized as codegen or .casadi function
                 if self._mpc_fun == None:
@@ -426,15 +427,24 @@ class MPC:
 
                     #Monitors
                     opti_form = self._opti_xplam_to_optiform(*sol)
+
+                    #computing the primal feasibility of the solution
+                    fun_pr = tc.function_primal_residual()
+                    residual_max = fun_pr(*opti_form)
+                    print("primal residual is : " + str(residual_max.full()))
+
+                    if residual_max.full() >= 1e-3:
+                        print("Solver infeasible")
+                        return 'MPC_FAILED'
+
                     #checking the termination criteria
-                    
                     #print(opti_form)
                     print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
                     if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
                         print("MPC termination criteria reached after " + str(mpc_iter) + " number of MPC samples. Exiting MPC loop.")
                         control_info = self.parameters['control_info']
                         self.world.setController(control_info['robotID'], 'velocity', control_info['joint_indices'], targetVelocities = [0]*len(control_info['joint_indices']))
-                        break;
+                        return 'MPC_SUCCEEDED'
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
                 
@@ -535,7 +545,7 @@ class MPC:
                     #computing the joint torque to apply at the same frequency as bullet simulation
                     params_innerloop = self._read_params_nrbullet()
                     joint_torques = self.world.computeInverseDynamics(control_info['robotID'], list(params_innerloop['q0']), list(params_innerloop['q_dot0']), list(control_action))
-                    
+
         elif self.parameters['control_type'] == 'joint_position':
 
             print("Not implemented")

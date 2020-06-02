@@ -123,9 +123,9 @@ class world_simulator:
 	def computeInverseDynamics(self, robotID, positions, velocities, accelerations):
 		""" Use pybullet function to compute the inverse dynamics of the given robot
 		"""
-		print("computing inverse dynamics")
+		# print("computing inverse dynamics")
 		jointTorques = p.calculateInverseDynamics(robotID, positions, velocities, accelerations)
-		print("Finished computing inverse dynamics")
+		# print("Finished computing inverse dynamics")
 		return jointTorques
 
 
@@ -135,7 +135,7 @@ class world_simulator:
 			if targetPositions[0] != None:
 				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities, velocityGains = np.array([1,1,1,1,1,1,1]))#, forces = [50]*len(targetVelocities))
 			else:
-				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetVelocities = targetVelocities, velocityGains = np.array([1,1,1,1,1,1,1])*1)
+				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetVelocities = targetVelocities) #, velocityGains = np.array([1,1,1,1,1,1,1])*1)
 		elif controller_type == 'position':
 			p.setJointMotorControlArray(robotID, joint_indices, p.POSITION_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)
 		elif controller_type == 'torque':

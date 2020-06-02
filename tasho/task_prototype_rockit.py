@@ -351,6 +351,19 @@ class task_context:
 
 		self.monitors_configured = True
 
+	def function_primal_residual(self):
+
+		""" Returns a function to compute the primal residual of the output of the solver"""
+
+		opti = self.ocp.opti
+		residual = cs.fmax(opti.g - opti.ubg, 0) + cs.fmax(-opti.g + opti.lbg, 0)
+		residual_max = cs.mmax(residual)
+		fun_pr = cs.Function('fun_pr', [opti.x, opti.p, opti.lam_g], [residual_max])
+
+		return fun_pr
+
+
+
 	#Internal function to configure each monitor
 	def _configure_each_monitor(self, monitor):
 
