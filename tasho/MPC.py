@@ -431,7 +431,7 @@ class MPC:
                     #print(opti_form)
                     print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
                     if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
-                        print("MPC termination criteria reached. Exiting MPC loop.")
+                        print("MPC termination criteria reached after " + str(mpc_iter) + " number of MPC samples. Exiting MPC loop.")
                         control_info = self.parameters['control_info']
                         self.world.setController(control_info['robotID'], 'velocity', control_info['joint_indices'], targetVelocities = [0]*len(control_info['joint_indices']))
                         break;
@@ -531,6 +531,11 @@ class MPC:
                 self.world.setController(control_info['robotID'], 'torque', joint_indices, targetTorques = joint_torques)
                 self.world.run_simulation(1)
 
+                if not 'force_control' in control_info:
+                    #computing the joint torque to apply at the same frequency as bullet simulation
+                    params_innerloop = self._read_params_nrbullet()
+                    joint_torques = self.world.computeInverseDynamics(control_info['robotID'], list(params_innerloop['q0']), list(params_innerloop['q_dot0']), list(control_action))
+                    
         elif self.parameters['control_type'] == 'joint_position':
 
             print("Not implemented")
