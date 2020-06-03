@@ -5,6 +5,7 @@
 
 import casadi as cs
 import numpy as np
+from time import time
 
 
 class MPC:
@@ -35,6 +36,8 @@ class MPC:
         #casadi function to take opti.x and opti.p and convert to list of states, controls and variables
         self._optip_to_paramlist = None
         self._optix_to_statecontrolvariablelist = None
+        self._solver_time = [] #array to keep track of the time taken by the solver in every MPC step
+        self.torque_effort_sumsqr = 0
 
 
         if sim_type == "bullet_notrealtime":
@@ -423,11 +426,12 @@ class MPC:
                     for params_name in self.params_names:
                         sol[i] = params_val[params_name]
                         i += 1
+                    tic = time()
                     sol = list(self._mpc_fun(*sol))
-
+                    toc = time() - tic
+                    self._solver_time.append(toc)
                     #Monitors
                     opti_form = self._opti_xplam_to_optiform(*sol)
-
                     #computing the primal feasibility of the solution
                     fun_pr = tc.function_primal_residual()
                     residual_max = fun_pr(*opti_form)
@@ -538,6 +542,7 @@ class MPC:
             print(joint_torques)
 
             for i in range(control_info['no_samples']):
+                self.torque_effort_sumsqr += cs.sumsqr(joint_torques)*self.world.physics_ts
                 self.world.setController(control_info['robotID'], 'torque', joint_indices, targetTorques = joint_torques)
                 self.world.run_simulation(1)
 

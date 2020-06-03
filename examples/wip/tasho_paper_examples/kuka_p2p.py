@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
 	#obj.run_simulation(1000)
 	print(robot.joint_acc_lb)
-	horizon_size = 20
+	horizon_size = 5
 	t_mpc = 0.1
 
 
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
 	fk_vals = robot.fk(q)[6]
 
-	T_goal = np.array([[-1., 0., 0., 0.44], [0., 1., 0., 0.47], [0.0, 0., -1.0, 0.4], [0.0, 0.0, 0.0, 1.0]])
+	T_goal = np.array([[-1., 0., 0., -0.24], [0., 1., 0., -0.37], [0.0, 0., -1.0, 0.5], [0.0, 0.0, 0.0, 1.0]])
 
 	# final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
 	final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
@@ -59,7 +59,8 @@ if __name__ == '__main__':
 	tc.add_task_constraint(task_objective)
 
 	q0_val = [0]*7
-	# q0_val = [-0.23081576,  0.90408998,  0.02868817, -1.20917942, -0.03413408,  1.05074694, -0.19664998]
+	q0_val = [-0.23081576,  0.90408998,  0.02868817, -1.20917942, -0.03413408,  1.05074694, -0.19664998]
+	# q0_val = [0.6967786678678314, 1.0571249256028108, 0.14148034853277666, -1.270205899164967, 0.24666659678004457, 0.7847437220601475, 0.41090241207031053]
 	tc.ocp.set_value(q0, q0_val)
 	tc.ocp.set_value(q_dot0, [0]*7)
 
@@ -119,4 +120,10 @@ if __name__ == '__main__':
 	mpc_obj.configMPC_fromcurrent()
 
 	# 	#run the MPC
-	mpc_obj.runMPC()
+	status = mpc_obj.runMPC()
+	print(status)
+	print("Time taken by the solver in each iterations")
+	print(mpc_obj._solver_time)
+	print("The integral of the torque^2 of effort")
+	print(mpc_obj.torque_effort_sumsqr)
+	obj.end_simulation()
