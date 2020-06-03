@@ -8,6 +8,7 @@ from numbers import Real
 import matplotlib.pyplot as plt
 import json
 import casadi as cs
+import numpy as np
 
 #TODO: If input resolution has already been set for a previous task, you don't need to set it again
 
@@ -320,6 +321,15 @@ class Robot:
 
     def set_robot_input_resolution(self, input_resolution = "acceleration"):
         self.input_resolution = input_resolution
+
+    def generate_random_configuration(self):
+        """ Returns a random configuration of the robot that respects the joint
+        limits"""
+
+        n = self.ndof
+        joint_ub = np.array(joint_ub)
+        joint_lb = np.array(joint_lb)
+        rand_joint_val = np.random.rand(n)*(joint_ub - joint_lb) + joint_lb       
 
     # def transcribe(self, task_context):
     #
