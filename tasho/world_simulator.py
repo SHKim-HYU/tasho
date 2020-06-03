@@ -18,7 +18,7 @@ class world_simulator:
 		p.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
 		p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
 		p.setGravity(0,0,-9.81)
-		planeId = p.loadURDF("plane.urdf")
+		# planeId = p.loadURDF("plane.urdf")
 		self.robotIDs = []
 		self.objectIDs = []
 		self.torque_control_mode = False

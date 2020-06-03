@@ -38,6 +38,7 @@ class MPC:
         self._optix_to_statecontrolvariablelist = None
         self._solver_time = [] #array to keep track of the time taken by the solver in every MPC step
         self.torque_effort_sumsqr = 0
+        self.max_mpc_iter = 300 #limit on the number of MPC iterations
 
 
         if sim_type == "bullet_notrealtime":
@@ -385,7 +386,7 @@ class MPC:
         sol = [0]*len(self._opti_xplam)
         par_start_element = len(self.states_names) + len(self.controls_names) + len(self.variables_names)
         #TODO: change by adding termination criteria
-        for mpc_iter in range(1000):
+        for mpc_iter in range(self.max_mpc_iter):
 
             if self.type == "bullet_notrealtime":
 
@@ -466,6 +467,10 @@ class MPC:
             else:
 
                 print("[ERROR] Unknown simulation type")
+
+            if mpc_iter == self.max_mpc_iter - 1:
+                print("MPC timeout")
+                return 'MPC_TIMEOUT'
 
     # Internal function to apply the output of the MPC to the non-realtime bullet environment
     def _apply_control_nrbullet(self, sol_mpc, params_val):

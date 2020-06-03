@@ -324,12 +324,14 @@ class Robot:
 
     def generate_random_configuration(self):
         """ Returns a random configuration of the robot that respects the joint
-        limits"""
+        limits."""
 
         n = self.ndof
-        joint_ub = np.array(joint_ub)
-        joint_lb = np.array(joint_lb)
+        joint_ub = np.array(self.joint_ub).T
+        joint_lb = np.array(self.joint_lb).T
         rand_joint_val = np.random.rand(n)*(joint_ub - joint_lb) + joint_lb       
+
+        return list(rand_joint_val[0])
 
     # def transcribe(self, task_context):
     #
