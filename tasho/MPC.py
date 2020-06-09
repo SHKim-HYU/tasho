@@ -28,6 +28,7 @@ class MPC:
         self.variables_names = tc.variables.keys()
 
         #casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
+        self.mpc_debug = False
         self._mpc_fun = None
         self._opti_xplam = [] #list of all the decision variables, parameters and lagrange multipliers
         #casadi function to take list of variables and convert to opti.x and opti.p form
@@ -38,7 +39,7 @@ class MPC:
         self._optix_to_statecontrolvariablelist = None
         self._solver_time = [] #array to keep track of the time taken by the solver in every MPC step
         self.torque_effort_sumsqr = 0
-        self.max_mpc_iter = 300 #limit on the number of MPC iterations
+        self.max_mpc_iter = 100 #limit on the number of MPC iterations
 
 
         if sim_type == "bullet_notrealtime":
@@ -152,7 +153,8 @@ class MPC:
             print("Using IPOPT with LBFGS as the default solver")
             tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
-        self._create_mpc_fun_casadi()
+        if self.mpc_debug is not True:
+            self._create_mpc_fun_casadi()
         self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         #print(sol_controls['s_ddot'])
         
@@ -522,7 +524,14 @@ class MPC:
 
         elif self.parameters['control_type'] == 'joint_torque':
 
-            print("Not implemented")
+            control_info = self.parameters['control_info']
+            joint_indices = control_info['joint_indices']
+            control_action = sol_mpc[1]['tau'][0,:].T
+            robot = self.parameters['params']['robots'][control_info['robotID']]
+
+            for i in range(control_info['no_samples']):
+                self.world.setController(control_info['robotID'], 'torque', joint_indices, targetTorques = control_action)
+                self.world.run_simulation(1)
 
         elif self.parameters['control_type'] == 'joint_acceleration':
             #implemented using the inverse dynamics solver and applying joint torques
@@ -531,6 +540,7 @@ class MPC:
             joint_indices = control_info['joint_indices']
             control_action = sol_mpc[1]['q_ddot'][0,:].T
             robot = self.parameters['params']['robots'][control_info['robotID']]
+
 
             #compute joint torques through inverse dynamics of casadi model
             #joint_torques = np.array(robot.id(params_val['q0'], params_val['q_dot0'], control_action))
