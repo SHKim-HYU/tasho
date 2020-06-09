@@ -128,7 +128,7 @@ class Robot:
         self.joint_ub = _ub
         self.joint_lb = _lb
 
-    def set_torque_limits(self, lb = None, ub = None):
+    def set_joint_torque_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
         # TODO: Print some warning/error when size of lb and ub doesn't correspond to ndof
         ndof = self.ndof
@@ -160,8 +160,8 @@ class Robot:
             else:
                 _lb = lb
 
-        self.torque_ub = _ub
-        self.torque_lb = _lb
+        self.joint_torque_ub = _ub
+        self.joint_torque_lb = _lb
 
     def set_joint_velocity_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
