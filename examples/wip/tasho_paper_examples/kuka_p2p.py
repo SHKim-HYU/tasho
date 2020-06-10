@@ -24,7 +24,9 @@ if __name__ == '__main__':
 	orientation = [0.0, 0.0, 0.0, 1.0]
 	robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
 	robot.set_joint_velocity_limits(lb = -max_joint_vel, ub = max_joint_vel)
+	robot.set_joint_torque_limits(lb = -100, ub = 100)
 
+	print(robot.joint_torque_lb)
 	#create a library of joint values to be stored
 	# q_lib = [[0.6967786678678314, 1.0571249256028108, 0.14148034853277666, -1.270205899164967, 0.24666659678004457, 0.7847437220601475, 0.41090241207031053],
 	# [0]*7]
@@ -58,20 +60,23 @@ if __name__ == '__main__':
 	results = {}
 
 	horizon_sizes = [2,3,4,5,6,7,8,9,10,12,14,16,18,20, 24, 28, 32, 36, 40, 50]
-	# horizon_sizes = [5,10]
+	# horizon_sizes = [40]
 	for i in range(50):
 		for horizon_size in horizon_sizes:
 			#obj.run_simulation(1000)
-			print(robot.joint_acc_lb)
+			print(robot.joint_torque_lb)
+			print(robot.joint_torque_ub)
 			# horizon_size = 40
-			t_mpc = 0.1
+			t_mpc = 0.05
 
-			obj = world_simulator.world_simulator()
+			obj = world_simulator.world_simulator(plane_spawn = False, bullet_gui = False)
+			obj.visualization_realtime = False
 
 			kukaID = obj.add_robot(position, orientation, 'iiwa7')
 		
 
 			tc = tp.task_context(horizon_size*t_mpc)
+			# q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(tc, robot, {'forward_dynamics_constraints': False})
 			q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
 			fk_vals = robot.fk(q)[6]
 
@@ -79,32 +84,35 @@ if __name__ == '__main__':
 			rand_conf = robot.generate_random_configuration()
 			print("Random goal pose at the configuration")
 			print(rand_conf)
-			T_goal = robot.fk(rand_conf)[6].full()
+			# T_goal = robot.fk(rand_conf)[6].full()
 			T_goal = robot.fk(q_destination_array[i])[6].full()
 
-			# final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
-			final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
-			# final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L2'}
+			final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
+			# final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
+			final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L2'}
 	
-			# final_vel = {'hard':True, 'expression':q_dot, 'reference':0}
+			# terminal_cost = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
+			terminal_cost = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L2'}
 			# final_constraints = {'final_constraints':[final_pos]}
 			# final_constraints = {'final_constraints':[final_vel]}
-			# tc.add_task_constraint(final_constraints)
+			tc.add_task_constraint({'final_constraints':[terminal_cost]})
 
 			vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1}
 			acc_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':0.1}
+			# torque_regularization = {'hard': False, 'expression':tau, 'reference':0, 'gain':0.0001}
+			# tc.add_task_constraint({'path_constraints':[torque_regularization]})
 			task_objective = {'path_constraints':[final_pos, vel_regularization, acc_regularization]}
 			tc.add_task_constraint(task_objective)
 
 			q0_val = [0]*7
-			q0_val = [-0.23081576,  0.90408998,  0.02868817, -1.20917942, -0.03413408,  1.05074694, -0.19664998]
+			# q0_val = [-0.23081576,  0.90408998,  0.02868817, -1.20917942, -0.03413408,  1.05074694, -0.19664998]
 			# q0_val = [0.6967786678678314, 1.0571249256028108, 0.14148034853277666, -1.270205899164967, 0.24666659678004457, 0.7847437220601475, 0.41090241207031053]
 			# q0_val = robot.generate_random_configuration()
 			q0_val = q_source_array[i]
 			# tc.ocp.set_value(q0, q0_val)
 			# tc.ocp.set_value(q_dot0, [0]*7)
 
-			# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+			# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-6}})
 			disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
 			# tc.set_discretization_settings(disc_settings)
 			# sol = tc.solve_ocp()
@@ -113,6 +121,11 @@ if __name__ == '__main__':
 
 
 			#begin the visualization of applying OCP solution in open loop
+			# _, qdd_sol = sol.sample(q_ddot, grid="control")
+			# print(qdd_sol)
+			# _, tau_sol = sol.sample(tau, grid="control")
+			# print(tau_sol)
+			# time.sleep(5)
 			# _, q_sol = sol.sample(q, grid="control")
 			# print(robot.fk(q_sol[-1])[6])
 			# print(q_sol[-1])
@@ -155,7 +168,7 @@ if __name__ == '__main__':
 			sim_type = "bullet_notrealtime"
 
 			mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
-
+			mpc_obj.max_mpc_iter = 200
 			#run the ocp with IPOPT to get a good initial guess for the MPC
 			mpc_obj.configMPC_fromcurrent()
 
@@ -169,6 +182,8 @@ if __name__ == '__main__':
 			solver_time = mpc_obj._solver_time
 			results[str(horizon_size) +',' + str(i)] = {'status':status, 'torque_effort':list(mpc_obj.torque_effort_sumsqr.full()[0]), 'avg_solver_time':sum(solver_time)/len(solver_time), 'total_trajectory_time':t_mpc*len(solver_time)}
 			obj.end_simulation()
+
+			time.sleep(2.0)
 
 	print(results)
 	with open('examples/wip/tasho_paper_examples/p2p_results.txt', 'w') as fp:

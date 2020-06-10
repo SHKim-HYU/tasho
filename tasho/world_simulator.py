@@ -10,18 +10,23 @@ import time
 
 class world_simulator:
 
-	def __init__(self):
+	def __init__(self, plane_spawn = True, bullet_gui = True):
 
 		self.verbose = True
 		self.physics_ts = 1.0/240.0 #Time step for the bullet environment for physics simulation
-		physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
+		if bullet_gui:
+			physicsClient = p.connect(p.GUI)
+		else:
+			physicsClient = p.connect(p.DIRECT)
 		p.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
 		p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
 		p.setGravity(0,0,-9.81)
-		# planeId = p.loadURDF("plane.urdf")
+		if plane_spawn:
+			planeId = p.loadURDF("plane.urdf")
 		self.robotIDs = []
 		self.objectIDs = []
 		self.torque_control_mode = False
+		self.visualization_realtime = True
 
 		# Add button for
 		p.addUserDebugParameter("Disconnect",1,0,1)
@@ -157,7 +162,8 @@ class world_simulator:
 		for i in range(N):
 
 			p.stepSimulation()
-			time.sleep(self.physics_ts)
+			if self.visualization_realtime:
+				time.sleep(self.physics_ts)
 
 	def run_continouous_simulation(self):
 		run_sim = True
@@ -171,7 +177,8 @@ class world_simulator:
 					print("Pressed Enter. Exit")
 
 			p.stepSimulation()
-			time.sleep(self.physics_ts)
+			if self.visualization_realtime:
+				time.sleep(self.physics_ts)
 
 	## end_simulation()
 	# Ends the simulation, disconnects the bullet environment.
