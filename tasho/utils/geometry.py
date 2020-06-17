@@ -28,19 +28,19 @@ def cross_vec2mat(v, format = 'MX'):
 
 	return R
 
-def cross_mat2vec(W, format = 'SX'):
+def cross_mat2vec(W, format = 'MX'):
 
 	""" Takes in a skew-symmetric cross product matrix and returns a vector"""
 
 	if format == 'MX':
-		v = cs.MX.zeros(3.1)
+		v = cs.MX.zeros(3,1)
 
 	elif format == 'SX':
-		v = cs.MS.zeros(3,1)
+		v = cs.SX.zeros(3,1)
 
 	v[0] = W[2,1]
-	v[1] = w[0, 2]
-	v[2] = w[1, 0]
+	v[1] = W[0, 2]
+	v[2] = W[1, 0]
 
 	return v
 

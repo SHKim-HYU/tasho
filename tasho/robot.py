@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import json
 import casadi as cs
 import numpy as np
+from tasho.utils import geometry
 
 #TODO: If input resolution has already been set for a previous task, you don't need to set it again
 
@@ -85,9 +86,22 @@ class Robot:
         #computing the jacobian
         fk = self.fk(q_sym)[q]
         jac = cs.jacobian(fk[0:3,3], q_sym)
+        jac_rot = cs.jacobian(fk[0:3, 0:3], q_sym)
+
+        flag = False
+        for i in range(self.ndof):
+            jac_rot_mat = cs.mtimes(cs.reshape(jac_rot[:,i], 3, 3), fk[0:3, 0:3].T)
+
+            if flag:
+                jac_rot_vec = cs.horzcat(jac_rot_vec, geometry.cross_mat2vec(jac_rot_mat))
+
+            else:
+                jac_rot_vec = geometry.cross_mat2vec(jac_rot_mat)
+                flag = True
+
 
         #constructing and returning the function
-        jac_fun = cs.Function(name, [q_sym], [jac])
+        jac_fun = cs.Function(name, [q_sym], [jac, jac_rot_vec])
         self.trans_jacobian = jac_fun
         return jac_fun
 
