@@ -204,19 +204,6 @@ class task_context:
 			else:
 				print('ERROR: unknown type of path constraint added')
 
-	def generate_function(self, name="opti", save=True, codegen=True):
-		# opti = self.opti
-		# func = opti.to_function(name, [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
-		#
-		# if save == True:
-		# 	func.save(name+'.casadi');
-		# if codegen == True:
-		# 	func.generate(name+'.c',{"with_header": True});
-		# self.ocp_fun = self.ocp.to_function('ocp_fun', \
-        #         [param_X0, param_obst, param_v_safe, param_xy_last, param_xy, param_theta, T, states, controls, V_states], output)
-		print("opti not available in OCP @ Rockit. Will change this soon")
-
-
 	def set_ocp_solver(self, solver, options={}):
 
 		""" Choose the numerical solver for solving the OCP and set the options.
@@ -299,7 +286,7 @@ class task_context:
 	#Internal function to configure each monitor
 	def _configure_each_monitor(self, monitor):
 
-		opti = self.ocp.opti
+		opti = self.ocp._method.opti
 		expr = monitor['expression']
 		#define the casadi function to compute the monitor value
 		_, expr_sampled = self.ocp.sample(expr, grid='control') #the monitored expression over the ocp control grid
@@ -420,6 +407,62 @@ class task_context:
 		else:
 
 			raise Exception("ERROR: Only available options for input_resolution are: \"velocity\", \"acceleration\" or \"torque\".")
+
+
+	def generate_function(self, name="opti", save=True, codegen=True):
+		# TODO
+		# [stage.value(a) for a in args]
+		print(self.get_states)
+		print(self.get_controls)
+		print(self.get_parameters)
+
+		print(self.ocp._method.opti.x)
+		# primal_sol =
+		# dual_sol =
+		# input = [tc.get_parameters+ primal_sol + dual_sol + ]
+		# output = [self.ocp.sample(vehicle.x, grid='integrator', refine=self.refine)[0]] + [vehicle.get_output_states(self.ocp, self.refine)] + \
+        #     [vehicle.get_output_controls(self.ocp, self.refine)] + [T, states, controls, V_states]
+		#
+		#
+		# func = self.ocp.to_function(name, input, output);
+		#
+		# if save == True:
+		# 	func.save(name+'.casadi');
+		# if codegen == True:
+		# 	func.generate(name+'.c',{"with_header": True});
+		# self.ocp_fun = self.ocp.to_function('ocp_fun', \
+        #         [param_X0, param_obst, param_v_safe, param_xy_last, param_xy, param_theta, T, states, controls, V_states], output)
+		print("opti not available in OCP @ Rockit. Will change this soon")
+
+	@property
+	def get_states(self):
+		states = cs.vertcat()
+		for st in self.states.values():
+			states = cs.vertcat(states, st)
+		return states
+
+	@property
+	def get_controls(self):
+		controls = cs.vertcat()
+		for co in self.controls.values():
+			controls = cs.vertcat(controls, co)
+		return controls
+
+	@property
+	def get_parameters(self):
+		parameters = cs.vertcat()
+		for par in self.parameters.values():
+			parameters = cs.vertcat(parameters, par)
+		return parameters
+
+	# TODO
+	# def get_output_states(self, ocp, refine):
+    #     return vertcat(ocp.sample(self.x, grid='integrator', refine=refine)[1], ocp.sample(self.y, grid='integrator', refine=refine)[1], \
+    #         ocp.sample(self.theta, grid='integrator', refine=refine)[1])
+	#
+    # def get_output_controls(self, ocp, refine):
+    #     return vertcat(ocp.sample(self.delta, grid='integrator', refine=refine)[1], ocp.sample(self.V, grid='integrator', refine=refine)[1])
+	#
 
 
 # if __name__ == '__main__':

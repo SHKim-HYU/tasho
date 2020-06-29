@@ -38,7 +38,7 @@ sol = tc.solve_ocp() #to configure the monitors
 
 #create opti function
 # TODO: Remove opti dependencie
-opti = tc.opti
+opti = tc.ocp._method.opti
 
 
 for i in range(30):
