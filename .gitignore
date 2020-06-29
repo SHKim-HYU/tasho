@@ -2,6 +2,7 @@
 __pycache__/
 tasho.egg-info/
 docs/build/
+c_generated_code/
 
 # Editor settings
 .vscode/

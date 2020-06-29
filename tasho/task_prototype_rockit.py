@@ -37,7 +37,7 @@ class task_context:
 		self.constraints = {}
 		self.monitors = {}
 		self.monitors_configured = False
-		self.opti = ocp.opti
+		# self.opti = ocp.opti # Removed from Rockit
 		self.t_ocp = None
 
 		self.robots = {}
@@ -205,13 +205,17 @@ class task_context:
 				print('ERROR: unknown type of path constraint added')
 
 	def generate_function(self, name="opti", save=True, codegen=True):
-		opti = self.opti
-		func = opti.to_function(name, [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
+		# opti = self.opti
+		# func = opti.to_function(name, [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
+		#
+		# if save == True:
+		# 	func.save(name+'.casadi');
+		# if codegen == True:
+		# 	func.generate(name+'.c',{"with_header": True});
+		# self.ocp_fun = self.ocp.to_function('ocp_fun', \
+        #         [param_X0, param_obst, param_v_safe, param_xy_last, param_xy, param_theta, T, states, controls, V_states], output)
+		print("opti not available in OCP @ Rockit. Will change this soon")
 
-		if save == True:
-			func.save(name+'.casadi');
-		if codegen == True:
-			func.generate(name+'.c',{"with_header": True});
 
 	def set_ocp_solver(self, solver, options={}):
 
@@ -271,7 +275,7 @@ class task_context:
 	#Add monitors to the task context
 	def add_monitor(self, task_monitor):
 
-		""" Adds the monitor to the task context. 
+		""" Adds the monitor to the task context.
 
 		:param task_monitor: A dictionary specifying the monitor
 		:type task_monitor: monitor dictionary
