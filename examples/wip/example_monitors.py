@@ -1,5 +1,5 @@
 # An example file demonstrating the usage of monitors
-# shall simulate a mass-spring-damper and put a monitor 
+# shall simulate a mass-spring-damper and put a monitor
 # on it's mechanical energy. There would be no control action
 
 
@@ -36,7 +36,8 @@ tc.add_monitor({"name":"always", "expression":ke, "reference":0.1, "lower":True,
 
 sol = tc.solve_ocp() #to configure the monitors
 
-#create opti function 
+#create opti function
+# TODO: Remove opti dependencie
 opti = tc.opti
 
 
