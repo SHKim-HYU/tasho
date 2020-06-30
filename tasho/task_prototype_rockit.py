@@ -412,27 +412,30 @@ class task_context:
 	def generate_function(self, name="opti", save=True, codegen=True):
 		# TODO
 		# [stage.value(a) for a in args]
-		print(self.get_states)
-		print(self.get_controls)
-		print(self.get_parameters)
+		# print(self.get_states)
+		# print(self.get_controls)
+		# print(self.get_parameters)
 
-		print(self.ocp._method.opti.x)
-		# primal_sol =
-		# dual_sol =
-		# input = [tc.get_parameters+ primal_sol + dual_sol + ]
+		# print(self.ocp._method.opti.x)
+		# CHECK IF THERE'S A BETTER WAY TO CALL primal sol and dual sol than the one below
+		primal_sol = self.ocp._method.opti.x
+		dual_sol = self.ocp._method.opti.lam_g
+		opti_params = self.ocp._method.opti.p
+		opti_cost = self.ocp._method.opti.p
+		# input = [tc.get_parameters + primal_sol + dual_sol + ]
 		# output = [self.ocp.sample(vehicle.x, grid='integrator', refine=self.refine)[0]] + [vehicle.get_output_states(self.ocp, self.refine)] + \
         #     [vehicle.get_output_controls(self.ocp, self.refine)] + [T, states, controls, V_states]
 		#
 		#
+		func = self.ocp._method.opti.to_function(name, [opti_params, primal_sol, dual_sol], [primal_sol, dual_sol, opti_cost]);
 		# func = self.ocp.to_function(name, input, output);
 		#
-		# if save == True:
-		# 	func.save(name+'.casadi');
-		# if codegen == True:
-		# 	func.generate(name+'.c',{"with_header": True});
+		if save == True:
+			func.save(name+'.casadi');
+		if codegen == True:
+			func.generate(name+'.c',{"with_header": True});
 		# self.ocp_fun = self.ocp.to_function('ocp_fun', \
         #         [param_X0, param_obst, param_v_safe, param_xy_last, param_xy, param_theta, T, states, controls, V_states], output)
-		print("opti not available in OCP @ Rockit. Will change this soon")
 
 	@property
 	def get_states(self):
