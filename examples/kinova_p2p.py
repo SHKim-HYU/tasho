@@ -51,3 +51,10 @@ if __name__ == '__main__':
 	ts, q_sol = sol.sample(q, grid="control")
 	print(q_sol)
 	print(robot.fk(q_sol[-1,:])[7])
+
+	# print(tc.ocp._method.opti.x)
+ 	# print(tc.ocp._method.opti.lam_g)
+	# print(tc.ocp._method.opti.p)
+	print(tc.get_states)
+	print(tc.get_output_states())
+	print(tc.states['q'])

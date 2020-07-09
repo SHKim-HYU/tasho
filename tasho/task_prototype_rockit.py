@@ -416,19 +416,24 @@ class task_context:
 		# print(self.get_controls)
 		# print(self.get_parameters)
 
-		# print(self.ocp._method.opti.x)
 		# CHECK IF THERE'S A BETTER WAY TO CALL primal sol and dual sol than the one below
-		primal_sol = self.ocp._method.opti.x
-		dual_sol = self.ocp._method.opti.lam_g
-		opti_params = self.ocp._method.opti.p
-		opti_cost = self.ocp._method.opti.p
+		opti = self.ocp._method.opti
+
+		primal_sol = opti.x
+		dual_sol = opti.lam_g
+		opti_params = opti.p
+		opti_cost = opti.f
+
+		input = [opti_params, primal_sol, dual_sol]
+		output = [primal_sol, dual_sol, opti_cost]
+		# output = [self.get_output_states()]
 		# input = [tc.get_parameters + primal_sol + dual_sol + ]
 		# output = [self.ocp.sample(vehicle.x, grid='integrator', refine=self.refine)[0]] + [vehicle.get_output_states(self.ocp, self.refine)] + \
         #     [vehicle.get_output_controls(self.ocp, self.refine)] + [T, states, controls, V_states]
 		#
 		#
-		func = self.ocp._method.opti.to_function(name, [opti_params, primal_sol, dual_sol], [primal_sol, dual_sol, opti_cost]);
-		# func = self.ocp.to_function(name, input, output);
+		# func = self.ocp._method.opti.to_function(name, [opti_params, primal_sol, dual_sol], [primal_sol, dual_sol, opti_cost]);
+		func = self.ocp.to_function(name, input, output);
 		#
 		if save == True:
 			func.save(name+'.casadi');
@@ -458,14 +463,15 @@ class task_context:
 			parameters = cs.vertcat(parameters, par)
 		return parameters
 
-	# TODO
-	# def get_output_states(self, ocp, refine):
-    #     return vertcat(ocp.sample(self.x, grid='integrator', refine=refine)[1], ocp.sample(self.y, grid='integrator', refine=refine)[1], \
-    #         ocp.sample(self.theta, grid='integrator', refine=refine)[1])
+	def get_output_states(self):
+		states = self.get_states
+		return self.ocp.sample(states, grid='control')[1]
+		# return cs.vertcat(self.ocp.sample(self.get_states, grid='integrator', refine=refine)[1], self.ocp.sample(self.get_controls, grid='integrator', refine=refine)[1],)
 	#
-    # def get_output_controls(self, ocp, refine):
-    #     return vertcat(ocp.sample(self.delta, grid='integrator', refine=refine)[1], ocp.sample(self.V, grid='integrator', refine=refine)[1])
-	#
+	def get_output_controls(self):
+		controls = self.get_controls
+		return self.ocp.sample(controls, grid='control')[1]
+
 
 
 # if __name__ == '__main__':

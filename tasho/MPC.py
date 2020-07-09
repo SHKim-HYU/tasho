@@ -21,7 +21,7 @@ class MPC:
         self.type = sim_type
         self.parameters = parameters
         #Create a list of the MPC states, variables, controls and parameters in a fixed order
-        self.params_names = tc.parameters.keys() 
+        self.params_names = tc.parameters.keys()
         self.states_names = tc.states.keys()
         self.controls_names = tc.controls.keys()
         self.variables_names = tc.variables.keys()
@@ -151,7 +151,7 @@ class MPC:
         self._create_mpc_fun_casadi()
         self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         #print(sol_controls['s_ddot'])
-        
+
     #internal function to create the MPC function using casadi's opti.to_function capability
     def _create_mpc_fun_casadi(self):
 
@@ -274,7 +274,7 @@ class MPC:
                 # tc.ocp.set_initial(tc.controls[control], sol_controls[control].T)
                 # print(control)
                 # print(sol_controls[control][1:-1].shape)
-                zeros_np = np.zeros(sol_controls[control][-1:].shape) 
+                zeros_np = np.zeros(sol_controls[control][-1:].shape)
                 # print(zeros_np.shape)
                 tc.ocp.set_initial(tc.controls[control], cs.vertcat(sol_controls[control][1:-1], zeros_np, zeros_np).T)
 
@@ -282,7 +282,7 @@ class MPC:
             for variable in tc.variables:
                 tc.ocp.set_initial(tc.variables[variable], sol_variables[variable])
 
-        
+
         else:
 
             raise Exception('Invalid MPC restart option ' + options)
@@ -321,7 +321,7 @@ class MPC:
 
             sol_controls = sol_ocp[1]
             for control in tc.controls:
-                zeros_np = np.zeros(sol_controls[control][-1:].shape) 
+                zeros_np = np.zeros(sol_controls[control][-1:].shape)
                 sol[i] = cs.vertcat(sol_controls[control][1:], zeros_np).T
                 i += 1
 
@@ -329,13 +329,13 @@ class MPC:
             for variable in tc.variables:
                 sol[i] = sol_variables[variable]
                 i += 1
-        
+
         else:
 
             raise Exception('Invalid MPC restart option ' + options)
 
     def _sim_dynamics_update_params(self, params_val, sol_states, sol_controls):
-        """ 
+        """
         Internal function to simulate the dynamics by one time step to predict the states of the MPC
         when the first control input is applied.
         """
@@ -368,7 +368,7 @@ class MPC:
                 params_val[state+"0"] = np.array(next_X[start:start+state_len])
 
             start = state_len + start
-        
+
         #print("After printing system dynamics")
         #print(params_val)
     #Continuous running of the MPC
@@ -411,7 +411,7 @@ class MPC:
                     except:
                         tc.ocp.show_infeasibilities(0.5*1e-6)
                         raise Exception("Solver crashed")
-                    
+
 
                 else:
                     #print("before calling printing system dynamics function")
@@ -427,7 +427,7 @@ class MPC:
                     #Monitors
                     opti_form = self._opti_xplam_to_optiform(*sol)
                     #checking the termination criteria
-                    
+
                     #print(opti_form)
                     print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
                     if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
@@ -437,10 +437,10 @@ class MPC:
                         break;
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
-                
+
                 self.mpc_ran = True
 
-                old_params_val = params_val #to debug how the prediction varies from the actual plant after one step of 
+                old_params_val = params_val #to debug how the prediction varies from the actual plant after one step of
                 #control is applied
                 # Apply the control action to bullet environment
                 #self._apply_control_nrbullet(sol_mpc) #uncomment if the simulation of system to predict future is not done
@@ -497,9 +497,9 @@ class MPC:
             # print(sol_mpc[0]['s_dot'])
             # print(sol_mpc[0]['s'])
 
-            
+
             self.world.run_simulation(control_info['no_samples'])
-            
+
 
         elif self.parameters['control_type'] == 'joint_torque':
 
@@ -518,11 +518,11 @@ class MPC:
 
             #compute joint torques using inverse dynamics functions from pybullet
             joint_torques = self.world.computeInverseDynamics(control_info['robotID'], list(params_val['q0']), list(params_val['q_dot0']), list(control_action))
-            
+
             if 'force_control' in control_info:
                 #compute the feedforward torque needed to apply the desired EE force
-                #print(control_info['jac_fun']([0]*7))   
-                torque_forces = cs.mtimes(control_info['jac_fun'](params_val['q0']).T, params_val['f_des']) 
+                #print(control_info['jac_fun']([0]*7))
+                torque_forces = cs.mtimes(control_info['jac_fun'](params_val['q0']).T, params_val['f_des'])
                 joint_torques = np.array(cs.vec(joint_torques) + cs.vec(torque_forces))
 
             print(joint_torques)
@@ -538,7 +538,7 @@ class MPC:
         else:
 
             raise Exception('[Error] Unknown control type for bullet environment initialized')
-        
+
 
     # Internal function to read the values of the parameter variables from the bullet simulation environment
     # in non realtime case
@@ -554,7 +554,7 @@ class MPC:
 
             if param_info['type'] == 'joint_position':
 
-                
+
                 jointsInfo = self.world.readJointState(param_info['robotID'], param_info['joint_indices'])
                 for jointInfo in jointsInfo:
                     param_val.append(jointInfo[0])

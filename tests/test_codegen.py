@@ -39,7 +39,7 @@ class TestTask(unittest.TestCase):
         loaded_func = cs.Function.load('opti_o.casadi')
         final_x = loaded_func(0.9,cs.vertcat(0,0,0,0,0,0,0,0,0,0,0),cs.vertcat(0,0,0,0,0,0,0))[0][-1]
         self.assertAlmostEqual( final_x, x_val[-1], 10, "Function save/load - final position test failed")
-        
+
         remove('opti_o.casadi')
 
 
