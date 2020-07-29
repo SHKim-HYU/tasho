@@ -8,6 +8,8 @@ from numbers import Real
 import matplotlib.pyplot as plt
 import json
 import casadi as cs
+import numpy as np
+from tasho.utils import geometry
 
 #TODO: If input resolution has already been set for a previous task, you don't need to set it again
 
@@ -84,9 +86,22 @@ class Robot:
         #computing the jacobian
         fk = self.fk(q_sym)[q]
         jac = cs.jacobian(fk[0:3,3], q_sym)
+        jac_rot = cs.jacobian(fk[0:3, 0:3], q_sym)
+
+        flag = False
+        for i in range(self.ndof):
+            jac_rot_mat = cs.mtimes(cs.reshape(jac_rot[:,i], 3, 3), fk[0:3, 0:3].T)
+
+            if flag:
+                jac_rot_vec = cs.horzcat(jac_rot_vec, geometry.cross_mat2vec(jac_rot_mat))
+
+            else:
+                jac_rot_vec = geometry.cross_mat2vec(jac_rot_mat)
+                flag = True
+
 
         #constructing and returning the function
-        jac_fun = cs.Function(name, [q_sym], [jac])
+        jac_fun = cs.Function(name, [q_sym], [jac, jac_rot_vec])
         self.trans_jacobian = jac_fun
         return jac_fun
 
@@ -127,7 +142,7 @@ class Robot:
         self.joint_ub = _ub
         self.joint_lb = _lb
 
-    def set_torque_limits(self, lb = None, ub = None):
+    def set_joint_torque_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
         # TODO: Print some warning/error when size of lb and ub doesn't correspond to ndof
         ndof = self.ndof
@@ -159,8 +174,8 @@ class Robot:
             else:
                 _lb = lb
 
-        self.torque_ub = _ub
-        self.torque_lb = _lb
+        self.joint_torque_ub = _ub
+        self.joint_torque_lb = _lb
 
     def set_joint_velocity_limits(self, lb = None, ub = None):
         # TODO: This should come from our Pinocchio's interface
@@ -320,6 +335,17 @@ class Robot:
 
     def set_robot_input_resolution(self, input_resolution = "acceleration"):
         self.input_resolution = input_resolution
+
+    def generate_random_configuration(self):
+        """ Returns a random configuration of the robot that respects the joint
+        limits."""
+
+        n = self.ndof
+        joint_ub = np.array(self.joint_ub).T
+        joint_lb = np.array(self.joint_lb).T
+        rand_joint_val = np.random.rand(n)*(joint_ub - joint_lb) + joint_lb       
+
+        return list(rand_joint_val[0])
 
     # def transcribe(self, task_context):
     #

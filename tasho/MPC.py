@@ -5,6 +5,7 @@
 
 import casadi as cs
 import numpy as np
+from time import time
 
 
 class MPC:
@@ -27,6 +28,7 @@ class MPC:
         self.variables_names = tc.variables.keys()
 
         #casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
+        self.mpc_debug = False
         self._mpc_fun = None
         self._opti_xplam = [] #list of all the decision variables, parameters and lagrange multipliers
         #casadi function to take list of variables and convert to opti.x and opti.p form
@@ -35,6 +37,9 @@ class MPC:
         #casadi function to take opti.x and opti.p and convert to list of states, controls and variables
         self._optip_to_paramlist = None
         self._optix_to_statecontrolvariablelist = None
+        self._solver_time = [] #array to keep track of the time taken by the solver in every MPC step
+        self.torque_effort_sumsqr = 0
+        self.max_mpc_iter = 100 #limit on the number of MPC iterations
 
 
         if sim_type == "bullet_notrealtime":
@@ -138,7 +143,7 @@ class MPC:
 
                 ipopt_options = {'tol': ipopt_tol, 'tiny_step_tol': tiny_step_tol, 'fixed_variable_treatment': 'make_constraint', 'hessian_constant': 'yes', 'jac_c_constant': 'yes', 'jac_d_constant': 'yes', 'accept_every_trial_step': 'yes', 'mu_init': mu_init, 'print_level': 0, 'linear_solver': linear_solver}
                 nlpsol_options = {'ipopt': ipopt_options, 'print_time': False}
-                qpsol_options = {'nlpsol': 'ipopt', 'nlpsol_options': nlpsol_options, 'print_time': False, 'verbose': False}
+                qpsol_options = {'nlpsol': 'ipopt', 'nlpsol_options': nlpsol_options, 'print_time': False, 'verbose': False, 'error_on_fail':False}
                 solver_options = {'qpsol': 'nlpsol', 'qpsol_options': qpsol_options, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
                 tc.set_ocp_solver('sqpmethod', solver_options)
 
@@ -148,7 +153,8 @@ class MPC:
             print("Using IPOPT with LBFGS as the default solver")
             tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
-        self._create_mpc_fun_casadi()
+        if self.mpc_debug is not True:
+            self._create_mpc_fun_casadi()
         self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         #print(sol_controls['s_ddot'])
 
@@ -212,7 +218,7 @@ class MPC:
 
             for control in tc.controls:
                 _, sol_control = sol.sample(tc.controls[control], grid = 'control')
-                sol_controls[control] = sol_control
+                sol_controls[control] = sol_control[0:-1]
 
             for variable in tc.variables:
                 _, sol_variable = sol.sample(tc.variables[variable], grid = 'control')
@@ -356,7 +362,7 @@ class MPC:
         #update the params_val with this info
         start = 0
         for state in self.states_names:
-            # print(self.tc.states[state].shape)
+            # print(state)
             state_shape = self.tc.states[state].shape
             state_len = state_shape[0]*state_shape[1]
             if state == 'q_dot' and self.parameters['control_type'] == 'joint_velocity':
@@ -366,7 +372,7 @@ class MPC:
                 params_val[state+"0"] = 0.5*(np.array(params_val[state+'0']) + np.array(next_X[start:start+state_len].T)).T
             else:
                 params_val[state+"0"] = np.array(next_X[start:start+state_len])
-
+            # print(params_val[state+"0"])
             start = state_len + start
 
         #print("After printing system dynamics")
@@ -382,12 +388,12 @@ class MPC:
         sol = [0]*len(self._opti_xplam)
         par_start_element = len(self.states_names) + len(self.controls_names) + len(self.variables_names)
         #TODO: change by adding termination criteria
-        for mpc_iter in range(1000):
+        for mpc_iter in range(self.max_mpc_iter):
 
             if self.type == "bullet_notrealtime":
 
                 #reading and setting the latest parameter values and applying MPC action
-                params_val = self._read_params_nrbullet()
+                params_val = self._read_params_nrbullet() 
                 # if self.mpc_ran:
                     # for param in params_val:
                     #     print("Abs error in "+ param)
@@ -395,10 +401,11 @@ class MPC:
                 sol_mpc = [sol_states, sol_controls, sol_variables]
                 self.sol_mpc = sol_mpc
                 self._apply_control_nrbullet(sol_mpc, params_val)
+                self.mpc_ran = True
 
                 # simulate to predict the future state when the first control input is applied
                 # to use that as the starting state for the MPC and accordingly update the params_val
-                self._sim_dynamics_update_params(params_val, sol_states, sol_controls)
+                self._sim_dynamics_update_params(params_val, sol_states, sol_controls) 
 
                 #When the mpc_fun is not initialized as codegen or .casadi function
                 if self._mpc_fun == None:
@@ -422,19 +429,30 @@ class MPC:
                     for params_name in self.params_names:
                         sol[i] = params_val[params_name]
                         i += 1
+                    tic = time()
                     sol = list(self._mpc_fun(*sol))
-
+                    toc = time() - tic
+                    self._solver_time.append(toc)
                     #Monitors
                     opti_form = self._opti_xplam_to_optiform(*sol)
+                    #computing the primal feasibility of the solution
+                    fun_pr = tc.function_primal_residual()
+                    residual_max = fun_pr(*opti_form)
+                    print("primal residual is : " + str(residual_max.full()))
+
+                    if residual_max.full() >= 1e-3:
+                        print("Solver infeasible")
+                        return 'MPC_FAILED'
+
                     #checking the termination criteria
 
                     #print(opti_form)
                     print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
                     if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
-                        print("MPC termination criteria reached. Exiting MPC loop.")
+                        print("MPC termination criteria reached after " + str(mpc_iter) + " number of MPC samples. Exiting MPC loop.")
                         control_info = self.parameters['control_info']
                         self.world.setController(control_info['robotID'], 'velocity', control_info['joint_indices'], targetVelocities = [0]*len(control_info['joint_indices']))
-                        break;
+                        return 'MPC_SUCCEEDED'
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
 
@@ -452,6 +470,10 @@ class MPC:
             else:
 
                 print("[ERROR] Unknown simulation type")
+
+            if mpc_iter == self.max_mpc_iter - 1:
+                print("MPC timeout")
+                return 'MPC_TIMEOUT'
 
     # Internal function to apply the output of the MPC to the non-realtime bullet environment
     def _apply_control_nrbullet(self, sol_mpc, params_val):
@@ -479,14 +501,14 @@ class MPC:
                  print('qdot force is ')
                  print(q_dot_force)
                  #cap the magnitude of q_dot_force
-                 max_q_dot_force_norm = 0.01
-                 norm_q_dot_force = cs.norm_1(q_dot_force)
-                 if norm_q_dot_force > max_q_dot_force_norm:
-                    print("norm of q_dot_force:")
-                    print(norm_q_dot_force)
-                    q_dot_force = q_dot_force/norm_q_dot_force*max_q_dot_force_norm
-                    print("q dot force after normalization")
-                    print(q_dot_force)
+                 # max_q_dot_force_norm = 0.1
+                 # norm_q_dot_force = cs.norm_1(q_dot_force)
+                 # if norm_q_dot_force > max_q_dot_force_norm:
+                 #    print("norm of q_dot_force:")
+                 #    print(norm_q_dot_force)
+                 #    q_dot_force = q_dot_force/norm_q_dot_force*max_q_dot_force_norm
+                 #    print("q dot force after normalization")
+                 #    print(q_dot_force)
                  control_action = np.array(cs.vec(control_action) + q_dot_force)
 
             #control_action = control_action[0]
@@ -503,7 +525,14 @@ class MPC:
 
         elif self.parameters['control_type'] == 'joint_torque':
 
-            print("Not implemented")
+            control_info = self.parameters['control_info']
+            joint_indices = control_info['joint_indices']
+            control_action = sol_mpc[1]['tau'][0,:].T
+            robot = self.parameters['params']['robots'][control_info['robotID']]
+
+            for i in range(control_info['no_samples']):
+                self.world.setController(control_info['robotID'], 'torque', joint_indices, targetTorques = control_action)
+                self.world.run_simulation(1)
 
         elif self.parameters['control_type'] == 'joint_acceleration':
             #implemented using the inverse dynamics solver and applying joint torques
@@ -512,6 +541,7 @@ class MPC:
             joint_indices = control_info['joint_indices']
             control_action = sol_mpc[1]['q_ddot'][0,:].T
             robot = self.parameters['params']['robots'][control_info['robotID']]
+
 
             #compute joint torques through inverse dynamics of casadi model
             #joint_torques = np.array(robot.id(params_val['q0'], params_val['q_dot0'], control_action))
@@ -528,8 +558,14 @@ class MPC:
             print(joint_torques)
 
             for i in range(control_info['no_samples']):
+                self.torque_effort_sumsqr += cs.sumsqr(joint_torques)*self.world.physics_ts
                 self.world.setController(control_info['robotID'], 'torque', joint_indices, targetTorques = joint_torques)
                 self.world.run_simulation(1)
+
+                if not 'force_control' in control_info:
+                    #computing the joint torque to apply at the same frequency as bullet simulation
+                    params_innerloop = self._read_params_nrbullet()
+                    joint_torques = self.world.computeInverseDynamics(control_info['robotID'], list(params_innerloop['q0']), list(params_innerloop['q_dot0']), list(control_action))
 
         elif self.parameters['control_type'] == 'joint_position':
 
@@ -607,6 +643,12 @@ class MPC:
 
                 params_val[params_name] = param_info['value']
 
+            elif param_info['type'] == 'function_of_s':
+                if self.mpc_ran:
+                    _, normal = param_info['function'](self.sol_mpc[0]['s'][0])
+                    params_val[params_name] = normal*param_info['gain']
+                else:
+                    params_val[params_name] = np.array([0,0,0]).T
             else:
 
                 print("[ERROR] Invalid type of parameter to be read from the simulation environment")

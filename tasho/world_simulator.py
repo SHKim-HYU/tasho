@@ -10,18 +10,23 @@ import time
 
 class world_simulator:
 
-	def __init__(self):
+	def __init__(self, plane_spawn = True, bullet_gui = True):
 
 		self.verbose = True
 		self.physics_ts = 1.0/240.0 #Time step for the bullet environment for physics simulation
-		physicsClient = p.connect(p.GUI)#or p.DIRECT for non-graphical version
+		if bullet_gui:
+			physicsClient = p.connect(p.GUI)
+		else:
+			physicsClient = p.connect(p.DIRECT)
 		p.configureDebugVisualizer(p.COV_ENABLE_GUI,0)
 		p.setAdditionalSearchPath(pybullet_data.getDataPath()) #optionally
 		p.setGravity(0,0,-9.81)
-		planeId = p.loadURDF("plane.urdf")
+		if plane_spawn:
+			planeId = p.loadURDF("plane.urdf")
 		self.robotIDs = []
 		self.objectIDs = []
 		self.torque_control_mode = False
+		self.visualization_realtime = True
 
 		# Add button for
 		p.addUserDebugParameter("Disconnect",1,0,1)
@@ -123,9 +128,9 @@ class world_simulator:
 	def computeInverseDynamics(self, robotID, positions, velocities, accelerations):
 		""" Use pybullet function to compute the inverse dynamics of the given robot
 		"""
-		print("computing inverse dynamics")
+		# print("computing inverse dynamics")
 		jointTorques = p.calculateInverseDynamics(robotID, positions, velocities, accelerations)
-		print("Finished computing inverse dynamics")
+		# print("Finished computing inverse dynamics")
 		return jointTorques
 
 
@@ -133,9 +138,9 @@ class world_simulator:
 
 		if controller_type == 'velocity':
 			if targetPositions[0] != None:
-				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)#, forces = [50]*len(targetVelocities))
+				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities, velocityGains = np.array([1,1,1,1,1,1,1]))#, forces = [50]*len(targetVelocities))
 			else:
-				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetVelocities = targetVelocities)
+				p.setJointMotorControlArray(robotID, joint_indices, p.VELOCITY_CONTROL, targetVelocities = targetVelocities) #, velocityGains = np.array([1,1,1,1,1,1,1])*1)
 		elif controller_type == 'position':
 			p.setJointMotorControlArray(robotID, joint_indices, p.POSITION_CONTROL, targetPositions = targetPositions, targetVelocities = targetVelocities)
 		elif controller_type == 'torque':
@@ -157,7 +162,8 @@ class world_simulator:
 		for i in range(N):
 
 			p.stepSimulation()
-			time.sleep(self.physics_ts)
+			if self.visualization_realtime:
+				time.sleep(self.physics_ts)
 
 	def run_continouous_simulation(self):
 		run_sim = True
@@ -171,7 +177,8 @@ class world_simulator:
 					print("Pressed Enter. Exit")
 
 			p.stepSimulation()
-			time.sleep(self.physics_ts)
+			if self.visualization_realtime:
+				time.sleep(self.physics_ts)
 
 	## end_simulation()
 	# Ends the simulation, disconnects the bullet environment.

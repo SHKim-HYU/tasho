@@ -29,10 +29,10 @@ class TestRobot(unittest.TestCase):
         self.assertEqual(rob_kinova.joint_ub, ub[0], "Kinova Gen3 - joint_ub assert failed")
         self.assertEqual(rob_kinova.joint_lb, lb[0], "Kinova Gen3 - joint_ub assert failed")
         # print(rob_kinova.joint_ub)
-        rob_kinova.set_torque_limits()
-        rob_kinova.set_torque_limits(lb,ub)
-        rob_kinova.set_torque_limits(lb[0:4],ub[0:4])
-        rob_kinova.set_torque_limits(lb[0],ub[0])
+        rob_kinova.set_joint_torque_limits()
+        rob_kinova.set_joint_torque_limits(lb,ub)
+        rob_kinova.set_joint_torque_limits(lb[0:4],ub[0:4])
+        rob_kinova.set_joint_torque_limits(lb[0],ub[0])
         # TODO: add asserts for rest of set_*_limits
 
         rob_kinova.set_joint_velocity_limits()

@@ -3,6 +3,10 @@ __pycache__/
 tasho.egg-info/
 docs/build/
 c_generated_code/
+build/
+dist/
+tasho/tasho_orocos_ros_bridge/build
+tasho/tasho_orocos_ros_bridge/devel
 
 # Editor settings
 .vscode/
