@@ -252,8 +252,10 @@ class task_context:
 			elif 'lub' in path_con:
 
 				if path_con['hard']:
-					ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'])
-
+					if "exclude_first" not in path_con:
+						ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'])
+					elif path_con["exclude_first"] == False:
+						ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'], include_first = False)
 				else:
 					con_violation = cs.f_max(path_con['expression'] - path_con['upper_limits'], 0)
 					con_violation = con_violation + cs.f_max(path_con['lower_limits'] - path_con['expression'], 0)

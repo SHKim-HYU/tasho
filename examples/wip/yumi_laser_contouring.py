@@ -31,8 +31,8 @@ if __name__ == '__main__':
 	visualizationBullet = False #toggle visualization with PyBullet option
 	bullet_mpc_nr = True
 
-	horizon_size = 10
-	t_mpc = 0.3 #the MPC sampling time
+	horizon_size = 30
+	t_mpc = 0.2 #the MPC sampling time
 	max_joint_vel = 30*3.14159/180
 	max_joint_acc = 30*3.14159/180
 
@@ -118,7 +118,7 @@ if __name__ == '__main__':
 		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':3.0, 'gain':1.0, 'norm':'L2'}
 	else:
 		s_regularization = {'hard': False, 'expression':s, 'reference':6.29, 'gain':0.1, 'norm':'L1'} #push towards contour tracing
-		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.0, 'gain':0.0, 'norm':'L2'}
+		s_dot_regularization = {'hard': False, 'expression':s_dot, 'reference':0.0, 'gain':0.1, 'norm':'L2'}
 	s_ddot_regularization = {'hard': False, 'expression':s_ddot, 'reference':0, 'gain':0.1}
 	s_con = {'hard':True, 'lub':True, 'expression':s, 'upper_limits':6.28, 'lower_limits':0}
 	s_dotcon = {'hard':True, 'lub':True, 'expression':s_dot, 'upper_limits':3, 'lower_limits':0}
@@ -132,7 +132,7 @@ if __name__ == '__main__':
 	angle_limit = cos(10*3.14159/180)
 	angle_constraint = {'hard':True, 'inequality':True, 'expression':-dot_prod_ee_workpiece, 'upper_limits':-angle_limit}
 	#constraint on the distance between laser pointer and the workpiece
-	distance_constraint = {'hard':True, 'lub':True, 'expression':a, 'upper_limits':0.02, 'lower_limits':0.0}
+	distance_constraint = {'hard':True, 'lub':True, 'expression':a, 'upper_limits':0.03, 'lower_limits':0.01, 'exclude_first':True}
 	task_objective['path_constraints'].append(angle_constraint)
 	task_objective['path_constraints'].append(distance_constraint)
 
@@ -235,7 +235,7 @@ if __name__ == '__main__':
 		q_dot0_params_info = {'type':'joint_velocity', 'joint_indices':joint_indices, 'robotID':yumiID}
 		s0_params_info = {'type':'progress_variable', 'state':True}
 		s_dot0_params_info = {'type':'progress_variable', 'state':True}
-		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info}
+		mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info, 'robots':{yumiID:robot}}
 		mpc_params['disc_settings'] = disc_settings
 		# mpc_params['solver_name'] = 'ipopt'
 		# mpc_params['solver_params'] = {'lbfgs':True}

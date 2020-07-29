@@ -59,9 +59,9 @@ if __name__ == '__main__':
 	
 	results = {}
 
-	horizon_sizes = [2,3,4,5,6,7,8,9,10,12,14,16,18,20, 24, 28, 32, 36, 40, 50]
-	# horizon_sizes = [40]
-	for i in range(50):
+	# horizon_sizes = [2,3,4,5,6,7,8,9,10,12,14,16,18,20, 24, 28, 32, 36, 40, 50]
+	horizon_sizes = [5, 20, 40]
+	for i in range(6,7):
 		for horizon_size in horizon_sizes:
 			#obj.run_simulation(1000)
 			print(robot.joint_torque_lb)
@@ -69,8 +69,8 @@ if __name__ == '__main__':
 			# horizon_size = 40
 			t_mpc = 0.05
 
-			obj = world_simulator.world_simulator(plane_spawn = False, bullet_gui = False)
-			obj.visualization_realtime = False
+			obj = world_simulator.world_simulator(plane_spawn = True, bullet_gui = True)
+			obj.visualization_realtime = True
 
 			kukaID = obj.add_robot(position, orientation, 'iiwa7')
 		
@@ -88,11 +88,11 @@ if __name__ == '__main__':
 			T_goal = robot.fk(q_destination_array[i])[6].full()
 
 			final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
-			# final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
-			final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L2'}
+			final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
+			# final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L2'}
 	
-			# terminal_cost = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
-			terminal_cost = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L2'}
+			terminal_cost = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
+			# terminal_cost = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L2'}
 			# final_constraints = {'final_constraints':[final_pos]}
 			# final_constraints = {'final_constraints':[final_vel]}
 			tc.add_task_constraint({'final_constraints':[terminal_cost]})
