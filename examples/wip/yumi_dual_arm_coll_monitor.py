@@ -6,6 +6,7 @@
 
 
 from tasho import task_prototype_rockit as tp
+import numpy as np
 
 
 tc = tp.task_context(1.0)
