@@ -74,6 +74,8 @@ class world_simulator:
 				print("not implemented")
 			elif robot_name == 'iiwa7':
 				robotID = p.loadURDF("kuka_iiwa/model.urdf", position, orientation, useFixedBase=fixedBase)
+			elif robot_name == 'kr60':
+				robotID = p.loadURDF("models/robots/KUKA/kr60/kr60_description/kr60ha.urdf", position, orientation, useFixedBase=fixedBase)
 			else:
 				print("[Error] No valid robot for the given robot name")
 		elif robot_urdf != None:
