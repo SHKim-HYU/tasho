@@ -1,0 +1,1 @@
+Generated from MATLAB by Ajay. Takes as input the 7 joint values of kuka and returns the balls enveloping the robot. Each column represents a ball. The first three elements of each column are the position of the ball wrt to the robot base, the last element is the radius of the ball.
