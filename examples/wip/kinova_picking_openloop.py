@@ -117,10 +117,12 @@ def create_approach_task(robot, time_step, horizon_size, q_init, q_dot_init, goa
     q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
 
     # computing the expression for the final frame
-    fk_vals = robot.fk(q)[7]
+    fk_vals = robot.fk(q)[6]
 
     # add constraint of goal pose and speed and acc penalties
-    tc.add_task_constraint(create_pose_constraint(goal_pose, fk_vals, 0, q_dot))
+    print(goal_pose)
+    # tc.add_task_constraint({"final_constraints": [{"hard":False, 'trans_gain':20, 'rot_gain':20, 'norm':'L1', 'type':'Frame', 'expression':fk_vals, 'reference':goal_pose}]})
+    tc.add_task_constraint({"final_constraints": [{"hard":True, 'type':'Frame', 'expression':fk_vals, 'reference':goal_pose}]})
     tc.add_task_constraint(create_path_constraint(q_dot, 0, q_ddot, 0))
 
     # initial values and settings
@@ -194,15 +196,15 @@ if __name__ == "__main__":
     #     ]
     # )
 
-    # T_goal = np.array(
-    #     [
-    #         [0.0, 0.0, -1.0, 0.0],
-    #         [0.0, 1.0, 0.0, -0.5],
-    #         [1.0, 0.0, 0.0, 0.4],
-    #         [0.0, 0.0, 0.0, 1.0],
-    #     ]
-    # )
-    T_goal = pick_poses[pick_pose_name]["T"]
+    T_goal = np.array(
+        [
+            [-1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, -0.5],
+            [0.0, 0.0, -1.0, 0.4],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    )
+    #T_goal = pick_poses[pick_pose_name]["T"]
 
     tc, q, q_dot, q_ddot, q0, q_dot0 = create_approach_task(
         robot, T_MPC, HORIZON_SIZE, q_init, q_dot_init, T_goal
@@ -223,11 +225,12 @@ if __name__ == "__main__":
     # T_drop = np.array(
     #     [[0, 1, 0, 0.5], [1, 0, 0, 0], [0, 0, -1, 0.4], [0, 0, 0, 1]]
     # )
+    print(robot.fk(q_init_pickup))
     T_drop = np.array(
         [
-            [0.0, 0.0, -1.0, 0.5],
-            [0.0, 1.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0, 0.5],
+            [-1.0, 0.0, 0.0, 0.5],
+            [0.0, 1.0, 0.0, -0.0],
+            [1.0, 0.0, -1.0, 0.5],
             [0.0, 0.0, 0.0, 1.0],
         ]
     )
@@ -242,7 +245,7 @@ if __name__ == "__main__":
     ) = create_approach_task(
         robot, T_MPC, HORIZON_SIZE_PICKUP, q_init_pickup, q_dot_init, T_drop
     )
-
+    tc_pickup.ocp.set_initial(q_pickup, q_init_pickup)
     sol_pickup = tc_pickup.solve_ocp()
 
     ts_pickup, q_sol_pickup = sol_pickup.sample(q_pickup, grid="control")
@@ -319,16 +322,16 @@ if __name__ == "__main__":
         )
         obj.run_simulation(100)  # Here, the robot is just waiting to start the task
 
-        p.createConstraint(
-            robotID,
-            6,
-            picked_cube_id,
-            -1,
-            p.JOINT_FIXED,
-            [0.0, 0.0, 1.0],
-            [0.0, 0, 0.1],
-            [0.0, 0.0, 0.1],
-        )
+        # p.createConstraint(
+        #     robotID,
+        #     6,
+        #     picked_cube_id,
+        #     -1,
+        #     p.JOINT_FIXED,
+        #     [0.0, 0.0, 1.0],
+        #     [0.0, 0, 0.1],
+        #     [0.0, 0.0, 0.1],
+        # )
 
         for i in range(HORIZON_SIZE):
             q_vel_current_pickup = 0.5 * (q_dot_sol_pickup[i] + q_dot_sol_pickup[i + 1])

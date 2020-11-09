@@ -20,12 +20,12 @@ def dist_sphere_box(sphere, box, vector = False):
 	""" A function to compute the distance between a sphere and a box """
 
 	#convert the sphere center to the box coordinates
-	sphere_box_coord = geometry.inv_T_matrix(box["tf"])@cs.vercat(sphere["center"], cs.DM.ones(1))
-	diff = box['center'] - sphere['center']
+	sphere_box_coord = geometry.inv_T_matrix(box["tf"])@cs.vertcat(sphere["center"], cs.DM.ones(1))
+	diff = sphere_box_coord[0:3]
 
 	mins = diff - box['xyz_len']
 	maxs = -box['xyz_len'] - diff
-	dist_surfaces = cs.vercat(mins, maxs)
+	dist_surfaces = cs.vertcat(mins, maxs)
 
 	dist = cs.mmax(dist_surfaces)
 
