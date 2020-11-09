@@ -131,6 +131,16 @@ class task_context:
 		# then add this as constraint to opti
 		print("Not implemented")
 
+	def add_objective(self, obj):
+
+		""" Add an objective function to the OCP
+
+		:param obj: A casadi expression of the objective
+		:type state: state expression
+
+		"""
+
+		self.ocp.add_objective(obj)
 
 
 	def add_task_constraint(self, task_spec):
@@ -233,7 +243,9 @@ class task_context:
 						ocp.add_objective(ocp.integral(cs.sumsqr(path_con['expression'] - path_con['reference']))*path_con['gain'])
 					elif path_con['norm'] == 'L1':
 						# print("L1 norm added")
-						ocp.add_objective(ocp.integral( cs.fabs(path_con['reference'] - path_con['expression']))*path_con['gain'])
+						slack_variable = self.create_expression('slack_path_con', 'control', path_con['expression'].shape)
+						ocp.subject_to(-slack_variable <= (path_con['reference'] - path_con['expression'] <= slack_variable))
+						ocp.add_objective(ocp.integral(slack_variable)*path_con['gain'])
 				elif path_con['hard']:
 
 					ocp.subject_to(path_con['expression'] == path_con['reference'])
@@ -348,7 +360,7 @@ class task_context:
 
 		""" Returns a function to compute the primal residual of the output of the solver"""
 
-		opti = self.ocp.opti
+		opti = self.ocp._method.opti
 		residual = cs.fmax(opti.g - opti.ubg, 0) + cs.fmax(-opti.g + opti.lbg, 0)
 		residual_max = cs.mmax(residual)
 		fun_pr = cs.Function('fun_pr', [opti.x, opti.p, opti.lam_g], [residual_max])
