@@ -7,12 +7,11 @@ def dist_spheres(sphere1, sphere2):
 
 	""" A function to compute the signed-distance between two spheres """
 
-	dist = sphere1['center'] - sphere2['center'] - (sphere1['radius'] + sphere2['radius'])
+	dist = cs.sumsqr(sphere1['center'] - sphere2['center'])**0.5 - (sphere1['radius'] + sphere2['radius'])
 
-	dist_measure = cs.sumsqr(dist)**0.5
-	dist_vector = dist/cs.norm_1(dist)
+	# dist_vector = dist/cs.norm_1(dist)
 
-	return dist_measure, dist_vector
+	return dist
 
 
 def dist_sphere_box(sphere, box, vector = False):
@@ -22,6 +21,8 @@ def dist_sphere_box(sphere, box, vector = False):
 	#convert the sphere center to the box coordinates
 	sphere_box_coord = geometry.inv_T_matrix(box["tf"])@cs.vertcat(sphere["center"], cs.DM.ones(1))
 	diff = sphere_box_coord[0:3]
+
+	diff = box["tf"][0:3,0] - sphere["center"]
 
 	mins = diff - box['xyz_len']
 	maxs = -box['xyz_len'] - diff
