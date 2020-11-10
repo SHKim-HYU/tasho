@@ -31,17 +31,20 @@ if __name__ == '__main__':
 
 	results = {}
 
-	horizon_size = 20;
-	t_ocp = 0.05
+	horizon_size = 10;
+	t_ocp = 0.1
 	obj = world_simulator.world_simulator(plane_spawn = True, bullet_gui = True)
 	obj.visualization_realtime = True
 
 	kukaID = obj.add_robot(position, orientation, 'iiwa7')
+	# obj.add_object_urdf(position, orientation, '/home/ajay/Desktop/master_thesis/octinion/rubion.urdf')
 		
 	obj.add_cube({'position':[0.5, 0.0, 0.15], 'orientation':[0,0,0,1]}, scale = 0.3)
 	cube = {}
 	cube['tf'] = np.array([[1, 0, 0, 0.5], [0, 1, 0, 0], [0, 0, 1, 0.15], [0, 0, 0, 1]])
-	cube['xyz_len'] = np.array([0.2, 0.2, 0.25])
+	cube['xyz_len'] = np.array([0.15, 0.15, 0.15])
+
+	ball_obs = {'center':[0.5, 0.0, 0.15], 'radius':0.15}
 
 	tc = tp.task_context(horizon_size*t_ocp)
 	# q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(tc, robot, {'forward_dynamics_constraints': False})
@@ -51,7 +54,7 @@ if __name__ == '__main__':
 	#load the function that computes the envelope of the robot
 	kuka_envelope_fun = cs.Function.load('./models/robots/KUKA/iiwa7/kuka_ball_envelope.casadi')
 
-	T_goal = np.array([[-1., 0., 0., 0.5], [0., 1., 0., -0.5], [0.0, 0., -1.0, 0.3], [0.0, 0.0, 0.0, 1.0]])
+	T_goal = np.array([[-1., 0., 0., 0.5], [0., 1., 0., -0.5], [0.0, 0., -1.0, 0.2], [0.0, 0.0, 0.0, 1.0]])
 
 
 	# final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
@@ -66,13 +69,15 @@ if __name__ == '__main__':
 
 	#Add collision avoidance constraint
 	envelopes = kuka_envelope_fun(q)
-	for i in range(2,6):
+	for i in range(4,6):
 		ball = {'center':envelopes[0:3, i], 'radius':envelopes[3,i]}
 		distance = dist_computation.dist_sphere_box(ball, cube)
-		tc.add_task_constraint({'path_constraints':[{'hard':True, 'inequality':True, 'expression':-distance, 'upper_limits':-0.00}]})
-
-	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.1, 'norm':'L2'}
-	acc_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':0.1, 'norm':'L2'}
+		# distance = dist_computation.dist_spheres(ball_obs, ball)
+		# tc.add_task_constraint({'path_constraints':[{'hard':True, 'inequality':True, 'expression':-distance, 'upper_limits':-0.05}]})
+		# tc.ocp.subject_to(distance >= 0.02, grid = 'control')
+		tc.add_task_constraint({'path_constraints':[{'inequality':True, 'hard':False, 'expression':-distance, 'upper_limits':-0.02, 'gain':50, 'norm':'L1'}]})
+	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.01, 'norm':'L2'}
+	acc_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':0.01, 'norm':'L2'}
 	# torque_regularization = {'hard': False, 'expression':tau, 'reference':0, 'gain':0.01}
 	# tc.add_task_constraint({'path_constraints':[torque_regularization]})
 	# task_objective = {'path_constraints':[final_pos, vel_regularization, acc_regularization]}
@@ -87,7 +92,8 @@ if __name__ == '__main__':
 	tc.ocp.set_value(q_dot0, [0]*7)
 	tc.ocp.set_initial(q, q0_val)
 
-	tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-9}})
+	# tc.set_ocp_solver('ipopt')
+	tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
 	tc.set_discretization_settings(disc_settings)
 	sol = tc.solve_ocp()
@@ -108,6 +114,9 @@ if __name__ == '__main__':
 	print(q_dot_sol)
 	obj.resetJointState(kukaID, joint_indices, q0_val)
 	obj.setController(kukaID, "velocity", joint_indices, targetVelocities = q_dot_sol[0])
+
+	_, dist_sol = sol.sample(distance, grid="integrator")
+	print(dist_sol)
 	
 
 

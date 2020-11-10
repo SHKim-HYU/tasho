@@ -2,6 +2,7 @@
 
 import casadi as cs
 from tasho.utils import geometry
+import numpy as np
 
 def dist_spheres(sphere1, sphere2):
 
@@ -22,10 +23,10 @@ def dist_sphere_box(sphere, box, vector = False):
 	sphere_box_coord = geometry.inv_T_matrix(box["tf"])@cs.vertcat(sphere["center"], cs.DM.ones(1))
 	diff = sphere_box_coord[0:3]
 
-	diff = box["tf"][0:3,0] - sphere["center"]
+	# diff = box["tf"][0:3,3] - sphere["center"]
 
-	mins = diff - box['xyz_len']
-	maxs = -box['xyz_len'] - diff
+	mins = diff - (box['xyz_len'] + sphere['radius'])
+	maxs = -(box['xyz_len'] + sphere['radius']) - diff
 	dist_surfaces = cs.vertcat(mins, maxs)
 
 	dist = cs.mmax(dist_surfaces)
@@ -55,5 +56,17 @@ def dist_sphere_box(sphere, box, vector = False):
 if __name__ == '__main__':
 
 	print("no syntax errors")
+
+	#Adding some tests
+	cube = {}
+	cube['tf'] = np.array([[1, 0, 0, 0.5], [0, 1, 0, 0], [0, 0, 1, 0.15], [0, 0, 0, 1]])
+	cube['xyz_len'] = np.array([0.15, 0.15, 0.15])
+	ball = {'center': np.array([0.5, 0.35, 0.15]), 'radius': 0.1}
+	assert cs.fabs(dist_sphere_box(ball, cube) - 0.1) <= 1e-12
+
+	ball2 = {'center': np.array([0.5, 0.25, 0.15]), 'radius': 0.1}
+	assert cs.fabs(dist_spheres(ball, ball2) + 0.1) <= 1e-12
+
+	
 
 

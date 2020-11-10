@@ -2,7 +2,7 @@
 #returns a COP
 from sys import path
 path.insert(0,r"/home/ajay/Desktop/motion_planning_libraries/rockit")
-from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting
+from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting, DirectCollocation
 import numpy as np
 import casadi as cs
 
@@ -255,11 +255,14 @@ class task_context:
 				if path_con['hard']:
 					ocp.subject_to(path_con['expression'] <= path_con['upper_limits'])
 				else:
-					con_violation = cs.f_max(path_con['expression'] - path_con['upper_limits'], 0)
+					con_violation = cs.fmax(path_con['expression'] - path_con['upper_limits'], 0)
 					if 'norm' not in path_con or path_con['norm'] == 'L2':
 						ocp.add_objective(ocp.integral(con_violation**2)*path_con['gain'])
 					elif path_con['norm'] == 'L1':
-						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
+						slack_variable = self.create_expression('slack_path_con', 'control', path_con['expression'].shape)
+						ocp.subject_to(path_con['expression'] - path_con['upper_limits'] <= slack_variable)
+						ocp.subject_to(0 >= -slack_variable)
+						ocp.add_objective(ocp.integral(slack_variable)*path_con['gain'])
 
 			elif 'lub' in path_con:
 
@@ -319,6 +322,8 @@ class task_context:
 			ocp.method(MultipleShooting(N = N, M = M, intg = settings['integration']))
 		elif disc_method == 'single shooting':
 			ocp.method(SingleShooting(N = N, M = M, intg = settings['integration']))
+		elif disc_method == 'direct collocation':
+			ocp.method(DirectCollocation(N = N, M = M))
 		else:
 			print("ERROR: discretization with " + settings['discretization_method'] + " is not defined")
 
