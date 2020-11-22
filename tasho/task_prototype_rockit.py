@@ -209,7 +209,11 @@ class task_context:
 						else:
 							raise Exception("Unknown type " + final_con['type'] + " selected for a constraint")
 					elif 'norm' not in final_con or final_con['norm'] == 'L2':
-						ocp.add_objective(cs.sumsqr(final_con['expression'] - final_con['reference'])*final_con['gain'])
+						ocp.add_objective(ocp.at_tf(cs.sumsqr(final_con['expression'] - final_con['reference']))*final_con['gain'])
+					elif final_con['norm'] == 'L1':
+						slack_variable = self.create_expression('slack_variable', 'variable', final_con['expression'].shape)
+						ocp.subject_to(-slack_variable <= (ocp.at_tf(final_con['expression'] - final_con['reference']) <= slack_variable))
+						ocp.add_objective(cs.DM.ones(final_con['expression'].shape).T@slack_variable)
 
 		if not 'path_constraints' in task_spec:
 			return
