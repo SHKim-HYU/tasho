@@ -15,14 +15,16 @@ if __name__ == '__main__':
 
 	print("Random bin picking with KUKA Iiwa")
 
-	visualizationBullet = False
+	visualizationBullet = True
 	horizon_size = 10
 	t_mpc = 0.5
 	max_joint_acc = 30*3.14159/180
+	max_joint_vel = 30*3.14159/180
 
 	robot = rob.Robot('iiwa7')
 	
 	robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
+	robot.set_joint_velocity_limits(lb = -max_joint_vel, ub = max_joint_vel)
 	print(robot.joint_name)
 	print(robot.joint_ub)
 	tc = tp.task_context(horizon_size*t_mpc)
@@ -30,10 +32,10 @@ if __name__ == '__main__':
 	q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
 
 	#computing the expression for the final frame
-	print(robot.fk)
-	fk_vals = robot.fk(q)[7]
+	fk_vals = robot.fk(q)[6]
+	# fk_vals[0:3,3] = fk_vals[0:3,3] + fk_vals[0:3, 0:3]@np.array([0.0, 0.0, 0.17])
 
-	T_goal = np.array([[0.0, 0., -1., 0.5], [0., 1., 0., 0.], [1.0, 0., 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]])
+	T_goal = np.array([[-1., 0., 0., 0.6], [0., 1., 0.0, -0.2], [0.0, 0., -1.0, 0.25], [0.0, 0.0, 0.0, 1.0]])
 	final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
 	final_vel = {'hard':True, 'expression':q_dot, 'reference':0}
 	final_constraints = {'final_constraints':[final_pos, final_vel]}
@@ -48,6 +50,11 @@ if __name__ == '__main__':
 
 	tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 	q0_val = [0]*7
+	q0_val = [-0.23081576,  0.90408998,  0.02868817, -1.20917942, -0.03413408,  1.05074694, -0.19664998]
+	#Next two values are initial points used for Yudha's dual arm task
+	q0_val = [-5.53636820e-01, 1.86726808e-01, -1.32319806e-01, -2.06761360e+00, 3.12421835e-02,  8.89043596e-01, -7.03329152e-01]
+	q0_val = [ 0.36148756, 0.19562711, 0.34339407,-2.06759027, -0.08427634, 0.89133467, 0.75131025]
+	tc.ocp.set_initial(q, q0_val)
 	tc.ocp.set_value(q0, q0_val)
 	tc.ocp.set_value(q_dot0, [0]*7)
 	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}

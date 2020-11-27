@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
 	results = {}
 
-	horizon_size = 10;
+	horizon_size = 20;
 	t_ocp = 0.1
 	obj = world_simulator.world_simulator(plane_spawn = True, bullet_gui = True)
 	obj.visualization_realtime = True
@@ -75,13 +75,13 @@ if __name__ == '__main__':
 		# distance = dist_computation.dist_spheres(ball_obs, ball)
 		# tc.add_task_constraint({'path_constraints':[{'hard':True, 'inequality':True, 'expression':-distance, 'upper_limits':-0.05}]})
 		# tc.ocp.subject_to(distance >= 0.02, grid = 'control')
-		tc.add_task_constraint({'path_constraints':[{'inequality':True, 'hard':False, 'expression':-distance, 'upper_limits':-0.02, 'gain':50, 'norm':'L1'}]})
+		tc.add_task_constraint({'path_constraints':[{'inequality':True, 'hard':False, 'expression':-distance, 'upper_limits':-0.02, 'gain':100, 'norm':'L1'}]})
 	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.01, 'norm':'L2'}
 	acc_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':0.01, 'norm':'L2'}
 	# torque_regularization = {'hard': False, 'expression':tau, 'reference':0, 'gain':0.01}
 	# tc.add_task_constraint({'path_constraints':[torque_regularization]})
-	# task_objective = {'path_constraints':[final_pos, vel_regularization, acc_regularization]}
-	task_objective = {'path_constraints':[vel_regularization, acc_regularization]}
+	task_objective = {'path_constraints':[final_pos, vel_regularization, acc_regularization]}
+	# task_objective = {'path_constraints':[vel_regularization, acc_regularization]}
 	tc.add_task_constraint(task_objective)
 
 	# q0_val = [0]*7

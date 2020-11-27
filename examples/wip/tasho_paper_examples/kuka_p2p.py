@@ -61,6 +61,7 @@ if __name__ == '__main__':
 
 	# horizon_sizes = [2,3,4,5,6,7,8,9,10,12,14,16,18,20, 24, 28, 32, 36, 40, 50]
 	horizon_sizes = [5, 20, 40]
+	horizon_sizes = [20]
 	for i in range(6,7):
 		for horizon_size in horizon_sizes:
 			#obj.run_simulation(1000)
@@ -80,12 +81,13 @@ if __name__ == '__main__':
 			q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
 			fk_vals = robot.fk(q)[6]
 
-			# T_goal = np.array([[-1., 0., 0., -0.24], [0., 1., 0., -0.37], [0.0, 0., -1.0, 0.5], [0.0, 0.0, 0.0, 1.0]])
+			T_goal = np.array([[-1., 0., 0., -0.24], [0., 1., 0., -0.37], [0.0, 0., -1.0, 0.5], [0.0, 0.0, 0.0, 1.0]])
+			T_goal = np.array([[1., 0., 0., 0.44], [0., 1., 0., -0.0], [0.0, 0., 1.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) #finding out a starting pose for the kuka SVC
 			rand_conf = robot.generate_random_configuration()
 			print("Random goal pose at the configuration")
 			print(rand_conf)
 			# T_goal = robot.fk(rand_conf)[6].full()
-			T_goal = robot.fk(q_destination_array[i])[6].full()
+			# T_goal = robot.fk(q_destination_array[i])[6].full()
 
 			final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
 			final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':1, 'trans_gain':10, 'norm':'L1'}
@@ -156,9 +158,9 @@ if __name__ == '__main__':
 			# mpc_params['solver_params'] = {'lbfgs':True}
 			mpc_params['solver_name'] = 'sqpmethod'
 			# mpc_params['solver_params'] = {'qpoases':True}
-			# mpc_params['solver_params'] = {'qrqp':True}
+			mpc_params['solver_params'] = {'qrqp':True}
 			# mpc_params['solver_params'] = {'osqp':True}
-			mpc_params['solver_params'] = {'ipopt':True}
+			# mpc_params['solver_params'] = {'ipopt':True}
 			mpc_params['t_mpc'] = t_mpc
 			mpc_params['control_type'] = 'joint_acceleration' #'joint_velocity' #
 			mpc_params['control_info'] = { 'robotID':kukaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}

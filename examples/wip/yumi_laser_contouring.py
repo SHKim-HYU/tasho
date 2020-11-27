@@ -31,7 +31,7 @@ if __name__ == '__main__':
 	visualizationBullet = False #toggle visualization with PyBullet option
 	bullet_mpc_nr = True
 
-	horizon_size = 30
+	horizon_size = 15
 	t_mpc = 0.2 #the MPC sampling time
 	max_joint_vel = 30*3.14159/180
 	max_joint_acc = 30*3.14159/180
@@ -151,7 +151,7 @@ if __name__ == '__main__':
   5.30517837e-01, -2.69960026e+00, -8.14070355e-01,  1.17172289e+00,
   2.06459136e-03,  2.06462524e-03]).T
 
-	tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+	# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 	# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'tol':1e-3}})
 	tc.ocp.set_value(q0, q0_contour)
 	tc.ocp.set_value(q_dot0, [0]*18)
@@ -160,18 +160,18 @@ if __name__ == '__main__':
 	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
 	tc.set_discretization_settings(disc_settings)
 	#sol = tc.solve_ocp()
-	try:
-		sol = tc.solve_ocp()
-		#print(sol.sample(q, grid="control"))
-	except:
-		tc.ocp.show_infeasibilities(1e-3)
-		sol = tc.ocp.debug
-		sol = tc.ocp.opti.debug
-		# print(sol.value(tc.ocp._method.eval_at_control(tc.ocp, q, 0)))
+	# try:
+	# 	sol = tc.solve_ocp()
+	# 	#print(sol.sample(q, grid="control"))
+	# except:
+	# 	tc.ocp.show_infeasibilities(1e-3)
+	# 	sol = tc.ocp.debug
+	# 	sol = tc.ocp.opti.debug
+	# 	# print(sol.value(tc.ocp._method.eval_at_control(tc.ocp, q, 0)))
 
-	print(sol.sample(Ps - p_des, grid="control"))
-	print(sol.sample(-dot_prod_ee_workpiece, grid="control"))
-	print(sol.sample(s, grid="control"))
+	# print(sol.sample(Ps - p_des, grid="control"))
+	# print(sol.sample(-dot_prod_ee_workpiece, grid="control"))
+	# print(sol.sample(s, grid="control"))
 
 	if visualizationBullet:
 
@@ -240,7 +240,7 @@ if __name__ == '__main__':
 		# mpc_params['solver_name'] = 'ipopt'
 		# mpc_params['solver_params'] = {'lbfgs':True}
 		mpc_params['solver_name'] = 'sqpmethod'
-		mpc_params['solver_params'] = {'ipopt':True}
+		mpc_params['solver_params'] = {'qrqp':True}
 		mpc_params['t_mpc'] = t_mpc
 		mpc_params['control_type'] = 'joint_velocity'
 		mpc_params['control_info'] = {'robotID':yumiID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}

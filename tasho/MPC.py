@@ -194,14 +194,14 @@ class MPC:
         # print(opti_xplam[4])
         # print(opti_xplam[5])
         # print(opti_xplam[6])
-        opti_xplam.append(tc.ocp.opti.lam_g)
+        opti_xplam.append(tc.ocp._method.opti.lam_g)
 
         #setting the MPC function!
         #opti = tc.ocp.opti
         #self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
-        self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', opti_xplam, opti_xplam)
+        self._mpc_fun = tc.ocp._method.opti.to_function('mpc_fun', opti_xplam, opti_xplam)
         self._opti_xplam = opti_xplam
-        opti = tc.ocp.opti
+        opti = tc.ocp._method.opti
         self._opti_xplam_to_optiform = cs.Function("opti_xplam_to_optiform", opti_xplam, [opti.x, opti.p, opti.lam_g])
     ## obtain the solution of the ocp
     def _read_solveroutput(self, sol):
