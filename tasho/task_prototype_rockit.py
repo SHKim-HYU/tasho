@@ -112,17 +112,53 @@ class task_context:
 		ocp = self.ocp
 		ocp.set_der(state, state_der)
 
-	def acceleration_resolved(self):
+	def add_regularization(self, expression, weight, norm = 'L2', variable_type = 'state', reference = 0):
 
-		print("Not yet implemented")
+		""" Add regularization to states or controls or variables
 
-	def torque_resolved(self):
+		:param expression: expression of the variable on which the regularization is \n
+		to be added
+		:type expression: casadi expression
 
-		print("Not implemented")
+		:param weight: The regularization weight
+		:type weight: Floating point number or parameter
+		
+		:param type: 'L2' for L2 regularization. 'L1' for L1 regularization. L1 regularization creates \n
+		slack variables to avoid the non-smoothness in the optimization problem.
+		:type type: String
 
-	def add_regularization(self, expression, gain, reference = 0):
+		:param variable_type: 'state' for a state variable, 'control' for a control variable, 'variable' \n
+		for a variable
+		:type type: String
 
-		print("Not yet implemented")
+		:param reference: The reference for regularization. 0 by default.
+		:type reference: Floating point number
+		"""
+
+		ocp = self.ocp
+		if norm == 'L2':
+
+			if variable_type == 'state' or variable_type == 'control':
+				ocp.add_objective(ocp.integral(cs.sumsqr(expression - reference))*weight)
+			elif variable_type == 'variable':
+				ocp.add_objective(ocp.at_t0(cs.sumsqr(expression - reference))*weight)
+			else:
+				raise Exception("invalid variable type. Must be 'state', 'control' or 'variable")
+
+		elif norm == 'L1':
+
+			if variable_type == 'state' or variable_type == 'control':
+				slack_variable = self.create_expression('slack_path_con', 'control', expression.shape)
+				ocp.subject_to(-slack_variable <= (expression - reference <= slack_variable))
+				ocp.add_objective(ocp.integral(slack_variable)*weight)
+			elif variable_type == 'variable':
+				slack_variable = self.create_expression('slack', 'variable', expression.shape)
+				ocp.subject_to(-slack_variable <= (expression - reference <= slack_variable))
+				ocp.add_objective(ocp.at_t0(slack_variable)*weight)
+			else:
+				raise Exception("invalid variable type. Must be 'state', 'control' or 'variable")
+
+
 
 	## Turn on collision avoidance for robot links
 	def collision_avoidance_hyperplanes(self, toggle):
@@ -276,8 +312,8 @@ class task_context:
 					elif path_con["exclude_first"] == False:
 						ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'], include_first = False)
 				else:
-					con_violation = cs.f_max(path_con['expression'] - path_con['upper_limits'], 0)
-					con_violation = con_violation + cs.f_max(path_con['lower_limits'] - path_con['expression'], 0)
+					con_violation = cs.fmax(path_con['expression'] - path_con['upper_limits'], 0)
+					con_violation = con_violation + cs.fmax(path_con['lower_limits'] - path_con['expression'], 0)
 					if 'norm' not in path_con or path_con['norm'] == 'L2':
 						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
 
