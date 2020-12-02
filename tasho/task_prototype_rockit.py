@@ -114,25 +114,22 @@ class task_context:
 
 	def add_regularization(self, expression, weight, norm = 'L2', variable_type = 'state', reference = 0):
 
-		""" Add regularization to states or controls or variables
+		""" Add regularization to states or controls or variables. L1 regularization creates slack variables to avoid the non-smoothness in the optimization problem.
 
-		:param expression: expression of the variable on which the regularization is \n
-		to be added
+		:param expression: expression of the variable on which the regularization is to be added
 		:type expression: casadi expression
 
 		:param weight: The regularization weight
-		:type weight: Floating point number or parameter
+		:type weight: float or parameter
 		
-		:param type: 'L2' for L2 regularization. 'L1' for L1 regularization. L1 regularization creates \n
-		slack variables to avoid the non-smoothness in the optimization problem.
-		:type type: String
+		:param norm: 'L2' for L2 regularization. 'L1' for L1 regularization.
+		:type norm: String
 
-		:param variable_type: 'state' for a state variable, 'control' for a control variable, 'variable' \n
-		for a variable
-		:type type: String
+		:param variable_type: 'state' for a state variable, 'control' for a control variable, 'variable' for a variable
+		:type variable_type: String
 
 		:param reference: The reference for regularization. 0 by default.
-		:type reference: Floating point number
+		:type reference: float or parameter
 		"""
 
 		ocp = self.ocp
@@ -188,7 +185,7 @@ class task_context:
 				#Made an assumption that the initial constraint is always hard
 				ocp.subject_to(ocp.at_t0(init_con['expression']) == init_con['reference'])
 
-		if 'final_constraints' in task_spec:
+		elif 'final_constraints' in task_spec:
 			for final_con in task_spec['final_constraints']:
 
 				if final_con['hard']:
@@ -251,74 +248,75 @@ class task_context:
 						ocp.subject_to(-slack_variable <= (ocp.at_tf(final_con['expression'] - final_con['reference']) <= slack_variable))
 						ocp.add_objective(cs.DM.ones(final_con['expression'].shape).T@slack_variable)
 
-		if not 'path_constraints' in task_spec:
-			return
-		for path_con in task_spec['path_constraints']:
+		elif 'path_constraints' in task_spec:
+			for path_con in task_spec['path_constraints']:
 
-			if not 'inequality' in path_con and not 'lub' in path_con:
-				if not path_con['hard']:
-					if 'type' in path_con:
-						if 'Frame' in path_con['type']:
-							expression = path_con['expression']
-							reference = path_con['reference']
-							#hard constraint on the translational componenet
-							trans_error = expression[0:3, 3] - reference[0:3, 3]
-							rot_error = cs.mtimes(expression[0:3, 0:3].T, reference[0:3, 0:3])
-							if 'norm' not in path_con or path_con['norm'] == 'L2':
-								ocp.add_objective(ocp.integral(cs.sumsqr(trans_error))*path_con['trans_gain'])
-								# ocp.add_objective(ocp.integral((rot_error[0,0] - 1)**2 + (rot_error[1,1] - 1)**2 + (rot_error[2,2] - 1)**2)*path_con['rot_gain'])
-								#the rotational error chosen is proportional to the square of (cos(theta_error) - 1)
-								ocp.add_objective(ocp.integral(((rot_error[0,0] + rot_error[1,1] + rot_error[2,2] - 1)/2-1)**2)*3*path_con['rot_gain'])
-							elif path_con['norm'] == 'L1':
-								cos_theta_error = (rot_error[0,0] +  rot_error[1,1] + rot_error[2,2] - 2)*0.5
-								slack_variable = self.create_expression('slack_final_frame', 'control', (4,1))
-								ocp.subject_to(-slack_variable[0:3] <= (trans_error <= slack_variable[0:3]))
-								ocp.subject_to(-slack_variable[3] <= (cos_theta_error - 1 <= slack_variable[3]))
-								ocp.add_objective(ocp.integral((slack_variable[0] + slack_variable[1] + slack_variable[2]))*path_con['trans_gain'])
-								ocp.add_objective(ocp.integral(slack_variable[3])*3*path_con['rot_gain'])
-							else:
-								raise Exception("Error")
-					elif 'norm' not in path_con or path_con['norm'] == 'L2':
-						# print('L2 norm added')
-						ocp.add_objective(ocp.integral(cs.sumsqr(path_con['expression'] - path_con['reference']))*path_con['gain'])
-					elif path_con['norm'] == 'L1':
-						# print("L1 norm added")
-						slack_variable = self.create_expression('slack_path_con', 'control', path_con['expression'].shape)
-						ocp.subject_to(-slack_variable <= (path_con['reference'] - path_con['expression'] <= slack_variable))
-						ocp.add_objective(ocp.integral(slack_variable)*path_con['gain'])
-				elif path_con['hard']:
+				if not 'inequality' in path_con and not 'lub' in path_con:
+					if not path_con['hard']:
+						if 'type' in path_con:
+							if 'Frame' in path_con['type']:
+								expression = path_con['expression']
+								reference = path_con['reference']
+								#hard constraint on the translational componenet
+								trans_error = expression[0:3, 3] - reference[0:3, 3]
+								rot_error = cs.mtimes(expression[0:3, 0:3].T, reference[0:3, 0:3])
+								if 'norm' not in path_con or path_con['norm'] == 'L2':
+									ocp.add_objective(ocp.integral(cs.sumsqr(trans_error))*path_con['trans_gain'])
+									# ocp.add_objective(ocp.integral((rot_error[0,0] - 1)**2 + (rot_error[1,1] - 1)**2 + (rot_error[2,2] - 1)**2)*path_con['rot_gain'])
+									#the rotational error chosen is proportional to the square of (cos(theta_error) - 1)
+									ocp.add_objective(ocp.integral(((rot_error[0,0] + rot_error[1,1] + rot_error[2,2] - 1)/2-1)**2)*3*path_con['rot_gain'])
+								elif path_con['norm'] == 'L1':
+									cos_theta_error = (rot_error[0,0] +  rot_error[1,1] + rot_error[2,2] - 2)*0.5
+									slack_variable = self.create_expression('slack_final_frame', 'control', (4,1))
+									ocp.subject_to(-slack_variable[0:3] <= (trans_error <= slack_variable[0:3]))
+									ocp.subject_to(-slack_variable[3] <= (cos_theta_error - 1 <= slack_variable[3]))
+									ocp.add_objective(ocp.integral((slack_variable[0] + slack_variable[1] + slack_variable[2]))*path_con['trans_gain'])
+									ocp.add_objective(ocp.integral(slack_variable[3])*3*path_con['rot_gain'])
+								else:
+									raise Exception("Error")
+						elif 'norm' not in path_con or path_con['norm'] == 'L2':
+							# print('L2 norm added')
+							ocp.add_objective(ocp.integral(cs.sumsqr(path_con['expression'] - path_con['reference']))*path_con['gain'])
+						elif path_con['norm'] == 'L1':
+							# print("L1 norm added")
+							slack_variable = self.create_expression('slack_path_con', 'control', path_con['expression'].shape)
+							ocp.subject_to(-slack_variable <= (path_con['reference'] - path_con['expression'] <= slack_variable))
+							ocp.add_objective(ocp.integral(slack_variable)*path_con['gain'])
+					elif path_con['hard']:
 
-					ocp.subject_to(path_con['expression'] == path_con['reference'])
+						ocp.subject_to(path_con['expression'] == path_con['reference'])
 
-			elif 'inequality' in path_con:
+				elif 'inequality' in path_con:
 
-				if path_con['hard']:
-					ocp.subject_to(path_con['expression'] <= path_con['upper_limits'])
+					if path_con['hard']:
+						ocp.subject_to(path_con['expression'] <= path_con['upper_limits'])
+					else:
+						con_violation = cs.fmax(path_con['expression'] - path_con['upper_limits'], 0)
+						if 'norm' not in path_con or path_con['norm'] == 'L2':
+							ocp.add_objective(ocp.integral(con_violation**2)*path_con['gain'])
+						elif path_con['norm'] == 'L1':
+							slack_variable = self.create_expression('slack_path_con', 'control', path_con['expression'].shape)
+							ocp.subject_to(path_con['expression'] - path_con['upper_limits'] <= slack_variable)
+							ocp.subject_to(0 >= -slack_variable)
+							ocp.add_objective(ocp.integral(slack_variable)*path_con['gain'])
+
+				elif 'lub' in path_con:
+
+					if path_con['hard']:
+						if "exclude_first" not in path_con:
+							ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'])
+						elif path_con["exclude_first"] == False:
+							ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'], include_first = False)
+					else:
+						con_violation = cs.fmax(path_con['expression'] - path_con['upper_limits'], 0)
+						con_violation = con_violation + cs.fmax(path_con['lower_limits'] - path_con['expression'], 0)
+						if 'norm' not in path_con or path_con['norm'] == 'L2':
+							ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
+
 				else:
-					con_violation = cs.fmax(path_con['expression'] - path_con['upper_limits'], 0)
-					if 'norm' not in path_con or path_con['norm'] == 'L2':
-						ocp.add_objective(ocp.integral(con_violation**2)*path_con['gain'])
-					elif path_con['norm'] == 'L1':
-						slack_variable = self.create_expression('slack_path_con', 'control', path_con['expression'].shape)
-						ocp.subject_to(path_con['expression'] - path_con['upper_limits'] <= slack_variable)
-						ocp.subject_to(0 >= -slack_variable)
-						ocp.add_objective(ocp.integral(slack_variable)*path_con['gain'])
-
-			elif 'lub' in path_con:
-
-				if path_con['hard']:
-					if "exclude_first" not in path_con:
-						ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'])
-					elif path_con["exclude_first"] == False:
-						ocp.subject_to((path_con['lower_limits'] <= path_con['expression']) <= path_con['upper_limits'], include_first = False)
-				else:
-					con_violation = cs.fmax(path_con['expression'] - path_con['upper_limits'], 0)
-					con_violation = con_violation + cs.fmax(path_con['lower_limits'] - path_con['expression'], 0)
-					if 'norm' not in path_con or path_con['norm'] == 'L2':
-						ocp.add_objective(ocp.integral(con_violation)*path_con['gain'])
-
-			else:
-				print('ERROR: unknown type of path constraint added')
+					raise Exception('ERROR: unknown type of path constraint added')
+		else:
+			raise Exception("Unknown type of constraint added. Not 'path_constraints', 'final_constraints' or 'initial_constraints'")
 
 	def set_ocp_solver(self, solver, options={}):
 
@@ -496,48 +494,6 @@ class task_context:
 		self.set_input_resolution(robot)
 
 		# self.sim_system_dyn = robot.sim_system_dyn(self.task_context)
-
-	def set_input_resolution(self, robot):
-
-		if robot.input_resolution == "velocity":
-
-			raise Exception("ERROR: Not implemented and probably not recommended")
-
-		elif robot.input_resolution == "acceleration":
-
-			q = self.create_expression('q', 'state', (robot.ndof, 1)) #joint positions over the trajectory
-			q_dot = self.create_expression('q_dot', 'state', (robot.ndof, 1)) #joint velocities
-			q_ddot = self.create_expression('q_ddot', 'control', (robot.ndof, 1))
-
-			#expressions for initial joint position and joint velocity
-			q0 = self.create_expression('q0', 'parameter', (robot.ndof, 1))
-			q_dot0 = self.create_expression('q_dot0', 'parameter', (robot.ndof, 1))
-
-			self.set_dynamics(q, q_dot)
-			self.set_dynamics(q_dot, q_ddot)
-
-			#add joint position, velocity and acceleration limits
-			pos_limits = {'lub':True, 'hard': True, 'expression':q, 'upper_limits':robot.joint_ub, 'lower_limits':robot.joint_lb}
-			vel_limits = {'lub':True, 'hard': True, 'expression':q_dot, 'upper_limits':robot.joint_vel_ub, 'lower_limits':robot.joint_vel_lb}
-			acc_limits = {'lub':True, 'hard': True, 'expression':q_ddot, 'upper_limits':robot.joint_acc_ub, 'lower_limits':robot.joint_acc_lb}
-			joint_constraints = {'path_constraints':[pos_limits, vel_limits, acc_limits]}
-			self.add_task_constraint(joint_constraints)
-
-			#adding the initial constraints on joint position and velocity
-			joint_init_con = {'expression':q, 'reference':q0}
-			joint_vel_init_con = {'expression':q_dot, 'reference':q_dot0}
-			init_constraints = {'initial_constraints':[joint_init_con, joint_vel_init_con]}
-			self.add_task_constraint(init_constraints)
-
-			self.OCPvars = _OCPvars(q, q_dot, q_ddot, q0, q_dot0)
-
-		elif input_resolution == "torque":
-
-			raise Exception("ERROR: Not implemented")
-
-		else:
-
-			raise Exception("ERROR: Only available options for input_resolution are: \"velocity\", \"acceleration\" or \"torque\".")
 
 
 	def generate_function(self, name="opti", save=True, codegen=True):
