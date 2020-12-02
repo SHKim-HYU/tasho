@@ -4,6 +4,7 @@
 import sys
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution, world_simulator, MPC
+from rockit.acados_interface import AcadosInterface
 from tasho import robot as rob
 import casadi as cs
 from casadi import pi, cos, sin
@@ -69,13 +70,13 @@ if __name__ == '__main__':
 
 	#Add collision avoidance constraint
 	envelopes = kuka_envelope_fun(q)
-	for i in range(4,6):
-		ball = {'center':envelopes[0:3, i], 'radius':envelopes[3,i]}
-		distance = dist_computation.dist_sphere_box(ball, cube)
+	# for i in range(4,6):
+		# ball = {'center':envelopes[0:3, i], 'radius':envelopes[3,i]}
+		# distance = dist_computation.dist_sphere_box(ball, cube)
 		# distance = dist_computation.dist_spheres(ball_obs, ball)
 		# tc.add_task_constraint({'path_constraints':[{'hard':True, 'inequality':True, 'expression':-distance, 'upper_limits':-0.05}]})
 		# tc.ocp.subject_to(distance >= 0.02, grid = 'control')
-		tc.add_task_constraint({'path_constraints':[{'inequality':True, 'hard':False, 'expression':-distance, 'upper_limits':-0.02, 'gain':100, 'norm':'L1'}]})
+		# tc.add_task_constraint({'path_constraints':[{'inequality':True, 'hard':False, 'expression':-distance, 'upper_limits':-0.02, 'gain':100, 'norm':'L1'}]})
 	vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':0.01, 'norm':'L2'}
 	acc_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':0.01, 'norm':'L2'}
 	# torque_regularization = {'hard': False, 'expression':tau, 'reference':0, 'gain':0.01}
@@ -93,9 +94,11 @@ if __name__ == '__main__':
 	tc.ocp.set_initial(q, q0_val)
 
 	# tc.set_ocp_solver('ipopt')
-	tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
-	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
-	tc.set_discretization_settings(disc_settings)
+	# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
+	# disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
+	# tc.set_discretization_settings(disc_settings)
+	acados_interface = AcadosInterface(N=100,qp_solver='PARTIAL_CONDENSING_HPIPM',nlp_solver_max_iter=200,hessian_approx='EXACT',regularize_method = 'CONVEXIFY',integrator_type='ERK',nlp_solver_type='SQP',qp_solver_cond_N=20)
+	tc.ocp.method(acados_interface)
 	sol = tc.solve_ocp()
 
 	joint_indices = [0, 1, 2, 3, 4, 5, 6]
