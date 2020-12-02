@@ -5,7 +5,7 @@ path.insert(0,r"/home/ajay/Desktop/motion_planning_libraries/rockit")
 from rockit import Ocp, DirectMethod, MultipleShooting, FreeTime, SingleShooting, DirectCollocation
 import numpy as np
 import casadi as cs
-
+from tasho import input_resolution
 
 # This may be replaced by some method get_ocp_variables, which calls self.states, self.controls, ...
 from collections import namedtuple
@@ -185,7 +185,7 @@ class task_context:
 				#Made an assumption that the initial constraint is always hard
 				ocp.subject_to(ocp.at_t0(init_con['expression']) == init_con['reference'])
 
-		elif 'final_constraints' in task_spec:
+		if 'final_constraints' in task_spec:
 			for final_con in task_spec['final_constraints']:
 
 				if final_con['hard']:
@@ -211,27 +211,13 @@ class task_context:
 							trans_error = expression[0:3, 3] - reference[0:3, 3]
 							rot_error = cs.mtimes(expression[0:3, 0:3].T, reference[0:3, 0:3])
 							if 'norm' not in final_con or final_con['norm'] == 'L2':
-								# ocp.add_objective(ocp.at_tf(cs.sumsqr(trans_error))*final_con['trans_gain'])
-								# ocp.add_objective(ocp.at_tf((rot_error[0,0] - 1)**2 + (rot_error[1,1] - 1)**2 + (rot_error[2,2] - 1)**2)*final_con['rot_gain'])
 								ocp.add_objective(ocp.at_tf(cs.sumsqr(trans_error))*final_con['trans_gain'])
 								ocp.add_objective(ocp.at_tf(((rot_error[0,0] + rot_error[1,1] + rot_error[2,2] - 1)/2-1)**2)*3*final_con['rot_gain'])
 							elif final_con['norm'] == 'L1':
-								# trans_error_sum = cs.fabs(trans_error[0]) + cs.fabs(trans_error[1]) + cs.fabs(trans_error[2])
-								# ocp.add_objective(ocp.at_tf(trans_error_sum)*final_con['trans_gain'])
-								# rot_error_sum = cs.fabs(rot_error[0,0] - 1) + cs.fabs(rot_error[1,1] - 1) + cs.fabs(rot_error[2,2] - 1)
-								# ocp.add_objective(ocp.at_tf(rot_error_sum)*final_con['rot_gain'])
 
-								#using instead slack variables to achieve this
-								# rot_error = cs.vertcat(rot_error[0,0], rot_error[1,1], rot_error[2,2])
 								cos_theta_error = (rot_error[0,0] +  rot_error[1,1] + rot_error[2,2] - 2)*0.5
 								rot_error = cs.vertcat(cos_theta_error, cos_theta_error, cos_theta_error)
-								# w_unnormalized = 0.5*cs.vertcat(rot_error[2,1] - rot_error[1,2], rot_error[0,2] - rot_error[2,0], rot_error[1,0] - rot_error[0,1])
-								# rot_error = w_unnormalized
-								# slack_variable = self.create_expression('slack_final_frame', 'variable', (6,1))
-								# ocp.subject_to(-slack_variable[0:3] <= (ocp.at_tf(trans_error) <= slack_variable[0:3]))
-								# ocp.subject_to(-slack_variable[3:6] <= (ocp.at_tf(rot_error - 1) <= slack_variable[3:6]))
-								# ocp.add_objective((slack_variable[0] + slack_variable[1] + slack_variable[2])*final_con['trans_gain'])
-								# ocp.add_objective((slack_variable[3] + slack_variable[4] + slack_variable[5])*final_con['rot_gain'])
+
 								slack_variable = self.create_expression('slack_final_frame', 'variable', (6,1))
 								ocp.subject_to(-slack_variable[0:3] <= (ocp.at_tf(trans_error) <= slack_variable[0:3]))
 								ocp.subject_to(-slack_variable[3:6] <= (ocp.at_tf(rot_error) - 1 <= slack_variable[3:6]))
@@ -246,9 +232,9 @@ class task_context:
 					elif final_con['norm'] == 'L1':
 						slack_variable = self.create_expression('slack_variable', 'variable', final_con['expression'].shape)
 						ocp.subject_to(-slack_variable <= (ocp.at_tf(final_con['expression'] - final_con['reference']) <= slack_variable))
-						ocp.add_objective(cs.DM.ones(final_con['expression'].shape).T@slack_variable)
+						ocp.add_objective(ocp.at_tf(cs.DM.ones(final_con['expression'].shape).T@slack_variable))
 
-		elif 'path_constraints' in task_spec:
+		if 'path_constraints' in task_spec:
 			for path_con in task_spec['path_constraints']:
 
 				if not 'inequality' in path_con and not 'lub' in path_con:
@@ -262,8 +248,7 @@ class task_context:
 								rot_error = cs.mtimes(expression[0:3, 0:3].T, reference[0:3, 0:3])
 								if 'norm' not in path_con or path_con['norm'] == 'L2':
 									ocp.add_objective(ocp.integral(cs.sumsqr(trans_error))*path_con['trans_gain'])
-									# ocp.add_objective(ocp.integral((rot_error[0,0] - 1)**2 + (rot_error[1,1] - 1)**2 + (rot_error[2,2] - 1)**2)*path_con['rot_gain'])
-									#the rotational error chosen is proportional to the square of (cos(theta_error) - 1)
+									
 									ocp.add_objective(ocp.integral(((rot_error[0,0] + rot_error[1,1] + rot_error[2,2] - 1)/2-1)**2)*3*path_con['rot_gain'])
 								elif path_con['norm'] == 'L1':
 									cos_theta_error = (rot_error[0,0] +  rot_error[1,1] + rot_error[2,2] - 2)*0.5
@@ -315,7 +300,7 @@ class task_context:
 
 				else:
 					raise Exception('ERROR: unknown type of path constraint added')
-		else:
+		if 'path_constraints' not in task_spec and 'initial_constraints' not in task_spec and 'final_constraints' not in task_spec:
 			raise Exception("Unknown type of constraint added. Not 'path_constraints', 'final_constraints' or 'initial_constraints'")
 
 	def set_ocp_solver(self, solver, options={}):
@@ -486,6 +471,25 @@ class task_context:
 		monitor["monitor_fun"] = monitor_fun
 
 
+	def set_input_resolution(self, robot):
+
+		if robot.input_resolution == "velocity":
+
+			raise Exception("ERROR: Not implemented and probably not recommended")
+
+		elif robot.input_resolution == "acceleration":
+
+			q, q_dot, q_ddot, q0, q_dot0 =  input_resolution.acceleration_resolved(self, robot, {})
+
+			self.OCPvars = _OCPvars(q, q_dot, q_ddot, q0, q_dot0)
+
+		elif input_resolution == "torque":
+
+			raise Exception("ERROR: Not implemented")
+
+		else:
+
+			raise Exception("ERROR: Only available options for input_resolution are: \"velocity\", \"acceleration\" or \"torque\".")
 
 
 	def add_robot(self, robot):
