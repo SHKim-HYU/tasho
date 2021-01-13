@@ -1,4 +1,22 @@
+<?xml version="1.0" ?>
 <robot name="drc_skeleton">
+  <link name="l_foot">
+      <inertial>
+          <mass value="2.05" />
+          <origin xyz="0.027 0 -0.067" rpy="0 -0 0" />
+          <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.007" iyz="0" izz="0.008" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="urdf/meshes_unplugged/l_foot.obj"/>
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="urdf/meshes_unplugged/l_foot.obj"/>
+        </geometry>
+      </collision>
+  </link>
     <link name="head">
         <inertial>
             <mass value="3.751" />
@@ -12,14 +30,18 @@
             <origin xyz="0 0.048 -0.084" rpy="0 -0 0" />
             <inertia ixx="0.011" ixy="0" ixz="0" iyy="0.009" iyz="-0.004" izz="0.004" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_clav.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_clav.obj"/>
+          </geometry>
+        </collision>
     </link>
-    <link name="l_foot">
-        <inertial>
-            <mass value="2.05" />
-            <origin xyz="0.027 0 -0.067" rpy="0 -0 0" />
-            <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.007" iyz="0" izz="0.008" />
-        </inertial>
-    </link>
+
     <link name="l_hand">
         <inertial>
             <mass value="0.53" />
@@ -33,6 +55,16 @@
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <inertia ixx="0.00265" ixy="0" ixz="0" iyy="0.00446" iyz="0" izz="0.00446" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_larm.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_larm.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="l_lfarm">
         <inertial>
@@ -40,6 +72,16 @@
             <origin xyz="0 -0.07 0" rpy="0 -0 0" />
             <inertia ixx="0.007" ixy="0" ixz="0" iyy="0.004" iyz="0" izz="0.007" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_hand.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_hand.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="l_lglut">
         <inertial>
@@ -47,6 +89,16 @@
             <origin xyz="0.0133341 0.0170484 -0.0312052" rpy="0 -0 0" />
             <inertia ixx="0.000691326" ixy="-2.24344e-05" ixz="2.50508e-06" iyy="0.00126856" iyz="0.000137862" izz="0.00106487" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_lglut.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_lglut.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="l_lleg">
         <inertial>
@@ -54,6 +106,16 @@
             <origin xyz="0.001 0 -0.187" rpy="0 -0 0" />
             <inertia ixx="0.077" ixy="0" ixz="-0.003" iyy="0.076" iyz="0" izz="0.01" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_lleg.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_lleg.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="l_scap">
         <inertial>
@@ -61,6 +123,16 @@
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <inertia ixx="0.00319" ixy="0" ixz="0" iyy="0.00583" iyz="0" izz="0.00583" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_scap.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_scap.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="l_talus">
         <inertial>
@@ -68,6 +140,16 @@
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <inertia ixx="1.01674e-05" ixy="0" ixz="0" iyy="8.42775e-06" iyz="0" izz="1.30101e-05" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_talus.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_talus.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="l_uarm">
         <inertial>
@@ -75,6 +157,16 @@
             <origin xyz="0 -0.065 0" rpy="0 -0 0" />
             <inertia ixx="0.00656" ixy="0" ixz="0" iyy="0.00358" iyz="0" izz="0.00656" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_uarm.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_uarm.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="l_ufarm">
         <inertial>
@@ -82,6 +174,16 @@
             <origin xyz="0 -0.2 0" rpy="0 -0 0" />
             <inertia ixx="0.006" ixy="0" ixz="0" iyy="0.003" iyz="0" izz="0.006" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_farm.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_farm.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="l_uglut">
         <inertial>
@@ -89,6 +191,16 @@
             <origin xyz="0.00529262 -0.00344732 0.00313046" rpy="0 -0 0" />
             <inertia ixx="0.00074276" ixy="-3.79607e-08" ixz="-2.79549e-05" iyy="0.000688179" iyz="-3.2735e-08" izz="0.00041242" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_uglut.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_uglut.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="l_uleg">
         <inertial>
@@ -96,6 +208,16 @@
             <origin xyz="0 0 -0.21" rpy="0 -0 0" />
             <inertia ixx="0.09" ixy="0" ixz="0" iyy="0.09" iyz="0" izz="0.02" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_uleg.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/l_uleg.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="ltorso">
         <inertial>
@@ -103,6 +225,16 @@
             <origin xyz="-0.0112984 -3.15366e-06 0.0746835" rpy="0 -0 0" />
             <inertia ixx="0.0039092" ixy="-5.04491e-08" ixz="-0.000342157" iyy="0.00341694" iyz="4.87119e-07" izz="0.00174492" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/ltorso.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/ltorso.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="mtorso">
         <inertial>
@@ -110,6 +242,16 @@
             <origin xyz="-0.00816266 -0.0131245 0.0305974" rpy="0 -0 0" />
             <inertia ixx="0.000454181" ixy="-6.10764e-05" ixz="3.94009e-05" iyy="0.000483282" iyz="5.27463e-05" izz="0.000444215" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/mtorso.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/mtorso.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="pelvis">
         <inertial>
@@ -117,6 +259,16 @@
             <origin xyz="0.0111 0 0.0271" rpy="0 -0 0" />
             <inertia ixx="0.1244" ixy="0.0008" ixz="-0.0007" iyy="0.0958" iyz="-0.0005" izz="0.1167" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/pelvis.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/pelvis.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_clav">
         <inertial>
@@ -124,6 +276,16 @@
             <origin xyz="0 -0.048 -0.084" rpy="0 -0 0" />
             <inertia ixx="0.011" ixy="0" ixz="0" iyy="0.009" iyz="0.004" izz="0.004" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_clav.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_clav.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_foot">
         <inertial>
@@ -131,6 +293,16 @@
             <origin xyz="0.027 0 -0.067" rpy="0 -0 0" />
             <inertia ixx="0.002" ixy="0" ixz="0" iyy="0.007" iyz="0" izz="0.008" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_foot.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_foot.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_hand">
         <inertial>
@@ -145,6 +317,16 @@
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <inertia ixx="0.00265" ixy="0" ixz="0" iyy="0.00446" iyz="0" izz="0.00446" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_larm.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_larm.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_lfarm">
         <inertial>
@@ -152,6 +334,16 @@
             <origin xyz="0 0.07 0" rpy="0 -0 0" />
             <inertia ixx="0.007" ixy="0" ixz="0" iyy="0.004" iyz="0" izz="0.007" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_hand.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_hand.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_lglut">
         <inertial>
@@ -159,6 +351,16 @@
             <origin xyz="0.0133341 -0.0170484 -0.0312052" rpy="0 -0 0" />
             <inertia ixx="0.000691326" ixy="2.24344e-05" ixz="2.50508e-06" iyy="0.00126856" iyz="-0.000137862" izz="0.00106487" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_lglut.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_lglut.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_lleg">
         <inertial>
@@ -166,6 +368,16 @@
             <origin xyz="0.001 0 -0.187" rpy="0 -0 0" />
             <inertia ixx="0.077" ixy="-0" ixz="-0.003" iyy="0.076" iyz="-0" izz="0.01" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_lleg.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_lleg.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_scap">
         <inertial>
@@ -173,6 +385,16 @@
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <inertia ixx="0.00319" ixy="0" ixz="0" iyy="0.00583" iyz="0" izz="0.00583" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_scap.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_scap.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_talus">
         <inertial>
@@ -180,6 +402,16 @@
             <origin xyz="0 0 0" rpy="0 -0 0" />
             <inertia ixx="1.01674e-05" ixy="0" ixz="0" iyy="8.42775e-06" iyz="0" izz="1.30101e-05" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_talus.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_talus.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_uarm">
         <inertial>
@@ -187,6 +419,16 @@
             <origin xyz="0 0.065 0" rpy="0 -0 0" />
             <inertia ixx="0.00656" ixy="0" ixz="0" iyy="0.00358" iyz="0" izz="0.00656" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_uarm.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_uarm.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_ufarm">
         <inertial>
@@ -194,6 +436,16 @@
             <origin xyz="0 0.2 0" rpy="0 -0 0" />
             <inertia ixx="0.006" ixy="0" ixz="0" iyy="0.003" iyz="0" izz="0.006" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_farm.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_farm.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_uglut">
         <inertial>
@@ -201,6 +453,16 @@
             <origin xyz="0.00529262 0.00344732 0.00313046" rpy="0 -0 0" />
             <inertia ixx="0.00074276" ixy="3.79607e-08" ixz="-2.79549e-05" iyy="0.000688179" iyz="3.2735e-08" izz="0.00041242" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_uglut.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_uglut.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="r_uleg">
         <inertial>
@@ -208,6 +470,16 @@
             <origin xyz="0 0 -0.21" rpy="0 -0 0" />
             <inertia ixx="0.09" ixy="0" ixz="0" iyy="0.09" iyz="0" izz="0.02" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_uleg.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/r_uleg.obj"/>
+          </geometry>
+        </collision>
     </link>
     <link name="utorso">
         <inertial>
@@ -215,6 +487,16 @@
             <origin xyz="-0.0581 0 0.3056" rpy="0 -0 0" />
             <inertia ixx="1.466" ixy="0.00362" ixz="0.336" iyy="1.51" iyz="0.001" izz="1.3" />
         </inertial>
+        <visual>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/utorso.obj"/>
+          </geometry>
+        </visual>
+        <collision>
+          <geometry>
+            <mesh filename="urdf/meshes_unplugged/utorso.obj"/>
+          </geometry>
+        </collision>
     </link>
     <joint name="back_bkx" type="revolute">
         <origin xyz="0 0 0.05" rpy="0 -0 0" />
