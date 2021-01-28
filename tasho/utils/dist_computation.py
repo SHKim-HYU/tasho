@@ -28,8 +28,9 @@ def dist_sphere_box(sphere, box, vector = False):
 	mins = diff - (box['xyz_len'] + sphere['radius'])
 	maxs = -(box['xyz_len'] + sphere['radius']) - diff
 	dist_surfaces = cs.vertcat(mins, maxs)
-
-	dist = cs.mmax(dist_surfaces)
+	dist = -100 #a ridiculously small number
+	for i in range(6):
+		dist = cs.fmax(dist_surfaces[i], dist)
 
 	if not vector:
 		return dist
@@ -49,8 +50,8 @@ def dist_sphere_box(sphere, box, vector = False):
 					dist_vector = cs.vcat([0, 1, 0])
 				else:
 					dist_vector = cs.vcat([0, 0, 1])
-				
-				return dist, dist_vector 
+
+				return dist, dist_vector
 
 
 if __name__ == '__main__':
@@ -66,7 +67,3 @@ if __name__ == '__main__':
 
 	ball2 = {'center': np.array([0.5, 0.25, 0.15]), 'radius': 0.1}
 	assert cs.fabs(dist_spheres(ball, ball2) + 0.1) <= 1e-12
-
-	
-
-
