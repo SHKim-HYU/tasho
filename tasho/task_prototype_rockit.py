@@ -121,7 +121,7 @@ class task_context:
 
 		:param weight: The regularization weight
 		:type weight: float or parameter
-		
+
 		:param norm: 'L2' for L2 regularization. 'L1' for L1 regularization.
 		:type norm: String
 
@@ -198,7 +198,16 @@ class task_context:
 							ocp.subject_to(ocp.at_tf(expression[0:3, 3]) == reference[0:3, 3])
 							#hard constraint on the rotational component
 							rot_error = cs.mtimes(expression[0:3, 0:3].T, reference[0:3, 0:3])
-							ocp.subject_to(ocp.at_tf(cs.vertcat(rot_error[0,0], rot_error[1,1], rot_error[2,2])) == 1)
+
+							#better suited for L-BFGS ipopt, numerically better compared to full hessian during LCQ issue
+							# ocp.subject_to(ocp.at_tf(cs.vertcat(rot_error[0,0], rot_error[1,1], rot_error[2,2])) == 1)
+
+							#Better suited for full Hessian ipopt because no LICQ issue
+							s = ocp.variable()
+							ocp.subject_to(ocp.at_tf(rot_error[0,0]) - 1 >= s)
+							ocp.subject_to(ocp.at_tf(rot_error[1,1]) - 1 >= s)
+							ocp.subject_to(ocp.at_tf(rot_error[2,2]) - 1 >= s)
+							ocp.subject_to(s == 0)
 					else:
 						ocp.subject_to(ocp.at_tf(final_con['expression']) == final_con['reference'])
 
@@ -248,7 +257,7 @@ class task_context:
 								rot_error = cs.mtimes(expression[0:3, 0:3].T, reference[0:3, 0:3])
 								if 'norm' not in path_con or path_con['norm'] == 'L2':
 									ocp.add_objective(ocp.integral(cs.sumsqr(trans_error))*path_con['trans_gain'])
-									
+
 									ocp.add_objective(ocp.integral(((rot_error[0,0] + rot_error[1,1] + rot_error[2,2] - 1)/2-1)**2)*3*path_con['rot_gain'])
 								elif path_con['norm'] == 'L1':
 									cos_theta_error = (rot_error[0,0] +  rot_error[1,1] + rot_error[2,2] - 2)*0.5
@@ -302,6 +311,16 @@ class task_context:
 					raise Exception('ERROR: unknown type of path constraint added')
 		if 'path_constraints' not in task_spec and 'initial_constraints' not in task_spec and 'final_constraints' not in task_spec:
 			raise Exception("Unknown type of constraint added. Not 'path_constraints', 'final_constraints' or 'initial_constraints'")
+
+	def minimize_time(self, weight):
+
+		""" Add a cost on minimizing the time of the OCP to provide time-optimal
+		solutions.
+
+		:param weight: A weight factor on cost penalizing the total time of the ocp horizon.
+		:type weight: float
+		"""
+		self.ocp.add_objective(weight*self.ocp.T)
 
 	def set_ocp_solver(self, solver, options={}):
 
@@ -469,7 +488,6 @@ class task_context:
 
 		#Assign the monitor function to the dictionary element of the the task context that defines the monitor
 		monitor["monitor_fun"] = monitor_fun
-
 
 	def set_input_resolution(self, robot):
 

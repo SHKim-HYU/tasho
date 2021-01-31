@@ -76,6 +76,8 @@ class world_simulator:
 				robotID = p.loadURDF("kuka_iiwa/model.urdf", position, orientation, useFixedBase=fixedBase)
 			elif robot_name == 'kr60':
 				robotID = p.loadURDF("models/robots/KUKA/kr60/kr60_description/kr60ha.urdf", position, orientation, useFixedBase=fixedBase)
+			elif robot_name == 'atlas':
+				robotID = p.loadURDF("models/robots/Atlas/Atlas_description/urdf/atlas.urdf", position, orientation, useFixedBase=fixedBase)
 			else:
 				print("[Error] No valid robot for the given robot name")
 		elif robot_urdf != None:
