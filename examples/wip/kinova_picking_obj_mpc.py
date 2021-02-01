@@ -13,8 +13,8 @@ if __name__ == "__main__":
     print("Random bin picking with Kinova Gen3")
 
     visualizationBullet = True
-    horizon_size = 10
-    t_mpc = 0.5
+    horizon_size = 40
+    t_mpc = 0.1
     max_joint_acc = 30 * 3.14159 / 180
 
     robot = rob.Robot("kinova")
@@ -41,17 +41,17 @@ if __name__ == "__main__":
     T_goal = np.array([[0, 1, 0, 0.5], [1, 0, 0, 0], [0, 0, -1, 0.25], [0, 0, 0, 1]])
     # T_goal = np.array([[0, 1, 0, 0], [1, 0, 0, -0.5], [0, 0, -1, 0.5], [0, 0, 0, 1]])
     final_pos = {
-        "hard": True,
+        "hard": False,
         "type": "Frame",
         "expression": fk_vals,
-        "reference": T_goal,
+        "reference": T_goal, 'rot_gain':10, 'trans_gain':10, 'norm':'L1'
     }
     final_vel = {"hard": True, "expression": q_dot, "reference": 0}
     final_constraints = {"final_constraints": [final_pos, final_vel]}
     tc.add_task_constraint(final_constraints)
 
     # adding penality terms on joint velocity and position
-    vel_regularization = {"hard": False, "expression": q_dot, "reference": 0, "gain": 1}
+    vel_regularization = {"hard": False, "expression": q_dot, "reference": 0, "gain": 1e-3}
     acc_regularization = {
         "hard": False,
         "expression": q_ddot,
@@ -62,17 +62,18 @@ if __name__ == "__main__":
     task_objective = {"path_constraints": [vel_regularization, acc_regularization]}
     tc.add_task_constraint(task_objective)
 
-    tc.set_ocp_solver(
-        "ipopt",
-        {
-            "ipopt": {
-                "max_iter": 1000,
-                "hessian_approximation": "limited-memory",
-                "limited_memory_max_history": 5,
-                "tol": 1e-3,
-            }
-        },
-    )
+    tc.set_ocp_solver("ipopt")
+    # tc.set_ocp_solver(
+    #     "ipopt",
+    #     {
+    #         "ipopt": {
+    #             "max_iter": 1000,
+    #             "hessian_approximation": "limited-memory",
+    #             "limited_memory_max_history": 5,
+    #             "tol": 1e-3,
+    #         }
+    #     },
+    # )
     # q0_val = [0]*7
     # q0_val = [0, -3.1416/6, 0, 3*3.1416/6, 0, 3.1416/6, 0]
     # q0_val = [0, 3.1416/6, 0, 4*3.1416/6, 0, -2*3.1416/6, -1.5708]
@@ -117,10 +118,13 @@ if __name__ == "__main__":
         # cylID = obj.add_cylinder(0.15, 0.5, 0.5, {'position':[0.5, 0.0, 0.25], 'orientation':[0.0, 0.0, 0.0, 1.0]})
         cylID = p.loadURDF(
             "models/objects/cube_small.urdf",
-            [0.5, 0, 0.35],
+            [0.5, -0.2, 0.35],
             [0.0, 0.0, 0.0, 1.0],
             globalScaling=1.0,
         )
+
+        p.resetBaseVelocity(cylID, linearVelocity= [0,0.5,0])
+
         tbStartOrientation = p.getQuaternionFromEuler([0, 0, 1.5708])
         tbID = p.loadURDF(
             "models/objects/table.urdf",
@@ -147,7 +151,7 @@ if __name__ == "__main__":
         obj.setController(
             kinovaID, "velocity", joint_indices, targetVelocities=q_dot_sol[0]
         )
-        obj.run_simulation(100)  # Here, the robot is just waiting to start the task
+        #obj.run_simulation(100)  # Here, the robot is just waiting to start the task
 
         for i in range(horizon_size * 100):
             # Update control signal
@@ -156,6 +160,8 @@ if __name__ == "__main__":
             sol = tc.solve_ocp()
             ts, q_sol = sol.sample(q, grid="control")
             ts, q_dot_sol = sol.sample(q_dot, grid="control")
+            tc.ocp.set_initial(q, q_sol.T)
+            tc.ocp.set_initial(q_dot, q_dot_sol.T)
 
             # Set control signal
             obj.setController(
@@ -168,4 +174,3 @@ if __name__ == "__main__":
         obj.run_simulation(100)  # Here, the robot is just waiting to start the task
 
         obj.end_simulation()
-
