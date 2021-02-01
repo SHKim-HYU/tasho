@@ -64,7 +64,13 @@ if __name__ == "__main__":
     task_objective = {"path_constraints": [vel_regularization, acc_regularization]}
     tc.add_task_constraint(task_objective)
 
-    tc.set_ocp_solver("ipopt")
+    tc.set_ocp_solver("ipopt",
+        {
+            "ipopt": {
+                "print_level":0,
+                "tol": 1e-3,
+                }
+            })
     # tc.set_ocp_solver(
     #     "ipopt",
     #     {
@@ -125,7 +131,7 @@ if __name__ == "__main__":
             globalScaling=1.0,
         )
 
-        p.resetBaseVelocity(cylID, linearVelocity= [0,0.5,0])
+        p.resetBaseVelocity(cylID, linearVelocity= [0,0.8,0])
 
         tbStartOrientation = p.getQuaternionFromEuler([0, 0, 1.5708])
         tbID = p.loadURDF(
@@ -165,6 +171,16 @@ if __name__ == "__main__":
             tc.ocp.set_initial(q, q_sol.T)
             tc.ocp.set_initial(q_dot, q_dot_sol.T)
 
+            lin_vel, ang_vel = p.getBaseVelocity(cylID)
+            lin_vel = cs.DM(lin_vel)
+            lin_pos, _ = p.getBasePositionAndOrientation(cylID)
+            lin_pos = cs.DM(lin_pos)
+            time_to_stop = cs.norm_1(lin_vel)/0.5
+            predicted_pos = cs.DM(lin_pos) + cs.DM(lin_vel)*time_to_stop - 0.5*0.5*lin_vel/(cs.norm_1(lin_vel) +1e-3)*time_to_stop**2
+            print("predicted position")
+            print(predicted_pos)
+            predicted_pos[2] += 0.03 #cube height
+            tc.ocp.set_value(cube_pos, predicted_pos)
             # Set control signal
             obj.setController(
                 kinovaID, "velocity", joint_indices, targetVelocities=q_dot_sol[0]
