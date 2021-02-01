@@ -13,9 +13,9 @@ if __name__ == "__main__":
     print("Random bin picking with Kinova Gen3")
 
     visualizationBullet = True
-    horizon_size = 40
+    horizon_size = 20
     t_mpc = 0.1
-    max_joint_acc = 30 * 3.14159 / 180
+    max_joint_acc = 60 * 3.14159 / 180
 
     robot = rob.Robot("kinova")
     robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
@@ -38,8 +38,10 @@ if __name__ == "__main__":
     # T_goal = np.array([[0.0, 0., -1., 0.5], [0., 1., 0., 0.], [1.0, 0., 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]])
     # T_goal = np.array([[0., 0., -1., 0.5], [-1., 0., 0., 0.], [0., 1., 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]])
     # T_goal = np.array([[0., 1., 0., 0.5], [1., 0., 0., 0.], [0., 0., -1.0, 0.5], [0.0, 0.0, 0.0, 1.0]])
-    T_goal = np.array([[0, 1, 0, 0.5], [1, 0, 0, 0], [0, 0, -1, 0.25], [0, 0, 0, 1]])
+    cube_pos = tc.create_expression("cube_pos", 'parameter', (3,1))
+    T_goal = cs.vertcat(cs.hcat([0, 1, 0, cube_pos[0]]), cs.hcat([1, 0, 0, cube_pos[1]]), cs.hcat([0, 0, -1, cube_pos[2]]), cs.hcat([0, 0, 0, 1]))
     # T_goal = np.array([[0, 1, 0, 0], [1, 0, 0, -0.5], [0, 0, -1, 0.5], [0, 0, 0, 1]])
+    tc.ocp.set_value(cube_pos, [0.5, 0, 0.25])
     final_pos = {
         "hard": False,
         "type": "Frame",
@@ -56,7 +58,7 @@ if __name__ == "__main__":
         "hard": False,
         "expression": q_ddot,
         "reference": 0,
-        "gain": 1,
+        "gain": 1e-3,
     }
 
     task_objective = {"path_constraints": [vel_regularization, acc_regularization]}
