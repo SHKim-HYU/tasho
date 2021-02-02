@@ -219,14 +219,64 @@ if __name__ == "__main__":
     tc.set_discretization_settings(disc_settings)
     sol = tc.solve_ocp()
 
+    # ts, q_sol = sol.sample(q, grid="control")
+    # ts, q_dot_sol = sol.sample(q_dot, grid="control")
+    # ts, s_sol = sol.sample(s, grid="control")
+    # ts, s_dot_sol = sol.sample(s_dot, grid="control")
+
+    # # Define solve for online execution (MPC)
+    # kkt_tol_pr = 1e-5  # 1e-3
+    # kkt_tol_du = 1e-5  # 1e-1
+    # min_step_size = 1e-16  # 1e-6
+    # max_iter = 2  # 1
+    # max_iter_ls = 3  # 0
+    # qpsol_options = {
+    #     "constr_viol_tol": kkt_tol_pr,
+    #     "dual_inf_tol": kkt_tol_du,
+    #     "verbose": False,
+    #     "print_iter": False,
+    #     # "print_header": False,
+    # }
+    # solver_options = {
+    #     "qpsol": "qrqp",
+    #     "qpsol_options": qpsol_options,
+    #     "verbose": False,
+    #     "tol_pr": kkt_tol_pr,
+    #     "tol_du": kkt_tol_du,
+    #     # "hessian_approximation": "limited-memory",
+    #     # "lbfgs_memory": 5,
+    #     "min_step_size": min_step_size,
+    #     "max_iter": max_iter,
+    #     "max_iter_ls": max_iter_ls,
+    #     "print_iteration": True,
+    #     "print_header": True,
+    #     "print_status": True,
+    #     "print_time": True,
+    # }
+    # tc.set_ocp_solver("sqpmethod", solver_options)
+
+    # tc.set_discretization_settings(disc_settings)
+
+    # tc.ocp.set_value(q0, q_sol[1])
+    # tc.ocp.set_value(q_dot0, q_dot_sol[1])
+    # tc.ocp.set_value(s0, s_sol[1])
+    # tc.ocp.set_value(s_dot0, s_dot_sol[1])
+
+    # tc.ocp.set_initial(q, q_sol.T)
+    # tc.ocp.set_initial(q_dot, q_dot_sol.T)
+    # tc.ocp.set_initial(s, s_sol.T)
+    # tc.ocp.set_initial(s_dot, s_dot_sol.T)
+
+    # sol = tc.solve_ocp()
+
     # --------------------------------------------------------------------------
     # Demo simulation
     # --------------------------------------------------------------------------
-    visualizationBullet = True
+    visualizationBullet = False
 
     if not visualizationBullet:
 
-        for i in range(horizon_size * 100):
+        for i in range(horizon_size * 10000):
             # Update robot state
             ts, q_sol = sol.sample(q, grid="control")
             ts, q_dot_sol = sol.sample(q_dot, grid="control")
