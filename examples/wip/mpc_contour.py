@@ -200,7 +200,8 @@ if __name__ == "__main__":
                 "compl_inf_tol": 1e-3,
                 "constr_viol_tol": 1e-3,
                 "acceptable_tol": 1e-3,
-            }
+            },
+            # "print_time": False,
         },
     )
 
@@ -242,7 +243,11 @@ if __name__ == "__main__":
             tc.ocp.set_initial(s, s_sol.T)
             tc.ocp.set_initial(s_dot, s_dot_sol.T)
 
-            # print("########### ---> ", s_sol[0])
+            print("\n------- Solution --------")
+            print("s: ", s_sol[0])
+            print("s_dot: ", s_dot_sol[0], "\n")
+            ts, pos_err_sol = sol.sample(cs.sumsqr(pos_err(q, s)), grid="control")
+            print("Position error: ", pos_err_sol[0], "\n")
 
             # Solve the ocp again
             sol = tc.solve_ocp()
@@ -252,7 +257,7 @@ if __name__ == "__main__":
         from tasho import world_simulator
         import pybullet as p
 
-        obj = world_simulator.world_simulator()
+        obj = world_simulator.world_simulator(bullet_gui=False)
 
         position = [0.0, 0.0, 0.0]
         orientation = [0.0, 0.0, 0.0, 1.0]
