@@ -293,6 +293,11 @@ class task_context:
 							ocp.subject_to(path_con['expression'] - path_con['upper_limits'] <= slack_variable)
 							ocp.subject_to(0 >= -slack_variable)
 							ocp.add_objective(ocp.integral(slack_variable)*path_con['gain'])
+						elif path_con['norm'] == 'squaredL2':
+							slack_variable = self.create_expression('slack_path_con', 'control', (1, 1))
+							ocp.subject_to(cs.sumsqr(path_con['expression']) - path_con['upper_limits'] <= slack_variable)
+							ocp.subject_to(0 >= -slack_variable)
+							ocp.add_objective(ocp.integral(slack_variable)*path_con['gain'])
 
 				elif 'lub' in path_con:
 
