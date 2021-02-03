@@ -1,4 +1,4 @@
-## OCP for point-to-point motion and visualization of a KUKA robot arm
+### OCP for point-to-point motion and visualization of a KUKA robot arm
 
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution, world_simulator
@@ -9,28 +9,26 @@ from casadi import pi, cos, sin, acos
 import casadi as cs
 import numpy as np
 import matplotlib.pyplot as plt
-import pybullet as p
-
 
 print("Task specification and visualization of contour-following example with MPC")
-
-horizon_size = 16
-t_mpc = 0.02
 
 ##########################################
 # Define robot and initial joint angles
 ##########################################
-
+# Import the robot object from the robot's repository (includes functions for FD, ID, FK, joint limits, etc)
 robot_choice = "kinova"
 ocp_control = "torque_resolved"  #'acceleration_resolved' #'torque_resolved'
 
 robot = rob.Robot(robot_choice)
 
+# Update robot's parameters if needed
 if ocp_control == "acceleration_resolved":
     max_joint_acc = 240 * pi / 180
     robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
 
+# Define initial conditions of the robot
 q_init = [0, pi / 6, 0, 4 * pi / 6, 0, -2 * pi / 6, -pi / 2]
+q_dot_init = [0] * robot.ndof
 
 ##########################################
 # Define contour
@@ -63,15 +61,22 @@ def contour_path(s):
 
 
 ##########################################
-# Task spacification
+# Task spacification - Contour following
 ##########################################
+
+# Select prediction horizon and sample time for the MPC execution
+horizon_size = 16
+t_mpc = 0.02
+
+# Initialize the task context object
 tc = tp.task_context(horizon_size * t_mpc)
 
+# Define the input type of the robot (torque or acceleration)
 if ocp_control == "acceleration_resolved":
     q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
 elif ocp_control == "torque_resolved":
     q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(
-        tc, robot, {"forward_dynamics_constraints": True}
+        tc, robot, {"forward_dynamics_constraints": False}
     )
 
 # Define augmented dynamics based on path-progress variable s
@@ -82,8 +87,6 @@ s_ddot = tc.create_expression("s_ddot", "control", (1, 1))
 tc.set_dynamics(s, s_dot)
 tc.set_dynamics(s_dot, s_ddot)
 
-pos_path, rot_path, sdot_path = contour_path(s)
-
 # Set s(0) and s_dot(0) as parameters
 s0 = tc.create_expression("s0", "parameter", (1, 1))
 s_dot0 = tc.create_expression("s_dot0", "parameter", (1, 1))
@@ -93,6 +96,7 @@ s_dot_init_con = {"expression": s_dot, "reference": s_dot0}
 init_constraints = {"initial_constraints": [s_init_con, s_dot_init_con]}
 tc.add_task_constraint(init_constraints)
 
+# Add constraints for path-progress variable (0 <= s <= 1, s_dot >= 0)
 s_con = {
     "hard": True,
     "lub": True,
@@ -109,7 +113,10 @@ s_dotcon = {
 s_path_constraints = {"path_constraints": [s_con, s_dotcon]}
 tc.add_task_constraint(s_path_constraints)
 
-# Set tunnel constraints
+# Define contour/path based on the path-progress variable s
+pos_path, rot_path, sdot_path = contour_path(s)
+
+# Define end-effector position and orientation error
 def pos_err(q, s):
     ee_fk = robot.fk(q)[7]
     return ee_fk[:3, 3] - pos_path
@@ -132,8 +139,8 @@ def rot_err(q, s):
     )
 
 
-# pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
-pos_tunnel_con = {
+# Set tunnel constraints to allow a deviation from the path
+pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
     "hard": False,
     "inequality": True,
     "expression": pos_err(q, s),
@@ -144,6 +151,24 @@ pos_tunnel_con = {
 tunnel_constraints = {"path_constraints": [pos_tunnel_con]}
 tc.add_task_constraint(tunnel_constraints)
 
+# Define objective
+tc.add_objective(
+    tc.ocp.at_tf(
+        1e-5
+        * cs.sumsqr(
+            cs.vertcat(
+                1e-2 * q,
+                10 * q_dot,
+                1e-2 * (1 - s),
+                10 * s_dot,
+                10 * pos_err(q, s),
+                10 * rot_err(q, s),
+            )
+        )
+    )
+)
+
+# Add regularization terms to the objective
 tc.add_regularization(expression=(s_dot - sdot_path), weight=20, norm="L2")
 tc.add_regularization(expression=pos_err(q, s), weight=1e-1, norm="L2")
 tc.add_regularization(expression=rot_err(q, s), weight=1e-1, norm="L2")
@@ -166,27 +191,11 @@ tc.add_regularization(
 tc.add_regularization(
     expression=q_dot, weight=1e-2, norm="L2", variable_type="state", reference=0
 )
-tc.add_objective(
-    tc.ocp.at_tf(
-        1e-5
-        * cs.sumsqr(
-            cs.vertcat(
-                1e-2 * q,
-                10 * q_dot,
-                1e-2 * (1 - s),
-                10 * s_dot,
-                10 * pos_err(q, s),
-                10 * rot_err(q, s),
-            )
-        )
-    )
-)
-tc.set_ocp_solver("ipopt")
 
-tc.ocp.set_value(q0, q_init)
-tc.ocp.set_value(q_dot0, [0] * 7)
-tc.ocp.set_value(s0, 0)
-tc.ocp.set_value(s_dot0, 0)
+################################################
+# Set solver and discretization options
+################################################
+tc.set_ocp_solver("ipopt")
 
 disc_settings = {
     "discretization method": "multiple shooting",
@@ -195,34 +204,53 @@ disc_settings = {
     "integration": "rk",
 }
 tc.set_discretization_settings(disc_settings)
+
+################################################
+# Set parameter values
+################################################
+tc.ocp.set_value(q0, q_init)
+tc.ocp.set_value(q_dot0, [0] * 7)
+tc.ocp.set_value(s0, 0)
+tc.ocp.set_value(s_dot0, 0)
+
+################################################
+# Solve the OCP that describes the task
+################################################
 sol = tc.solve_ocp()
 
+################################################
+# MPC Simulation
+################################################
 use_MPC_class = True
 
 if use_MPC_class:
 
+    # Create world simulator based on pybullet
     from tasho import world_simulator
     import pybullet as p
 
     obj = world_simulator.world_simulator(bullet_gui=True)
 
+    # Add robot to the world environment
     position = [0.0, 0.0, 0.0]
     orientation = [0.0, 0.0, 0.0, 1.0]
-
     kinovaID = obj.add_robot(position, orientation, "kinova")
 
+    # Determine number of samples that the simulation should be executed
     no_samples = int(t_mpc / obj.physics_ts)
-
     if no_samples != t_mpc / obj.physics_ts:
         print("[ERROR] MPC sampling time not integer multiple of physics sampling time")
 
-    # correspondence between joint numbers in bullet and OCP determined after reading joint info of YUMI
-    # from the world simulator
+    # Correspondence between joint numbers in bullet and OCP
     joint_indices = [0, 1, 2, 3, 4, 5, 6]
-    obj.resetJointState(kinovaID, joint_indices, q_init)
-    obj.setController(kinovaID, "velocity", joint_indices, targetVelocities=[0] * 7)
 
+    # Begin the visualization by applying the initial control signal
+    obj.resetJointState(kinovaID, joint_indices, q_init)
+    obj.setController(kinovaID, "velocity", joint_indices, targetVelocities=q_dot_init)
+
+    # Define MPC parameters
     mpc_params = {"world": obj}
+
     q0_params_info = {
         "type": "joint_position",
         "joint_indices": joint_indices,
@@ -235,6 +263,7 @@ if use_MPC_class:
     }
     s0_params_info = {"type": "progress_variable", "state": True}
     s_dot0_params_info = {"type": "progress_variable", "state": True}
+
     mpc_params["params"] = {
         "q0": q0_params_info,
         "q_dot0": q_dot0_params_info,
@@ -253,8 +282,8 @@ if use_MPC_class:
         "joint_indices": joint_indices,
         "no_samples": no_samples,
     }
-    # set the joint positions in the simulator
-    sim_type = "bullet_notrealtime"
+
+    # Create monitor to check some termination criteria
     tc.add_monitor(
         {
             "name": "termination_criteria",
@@ -264,6 +293,9 @@ if use_MPC_class:
             "initial": True,
         }
     )
+
+    # Initialize MPC object
+    sim_type = "bullet_notrealtime"
 
     mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
     mpc_obj.max_mpc_iter = 400

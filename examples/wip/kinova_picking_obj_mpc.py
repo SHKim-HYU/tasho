@@ -1,3 +1,5 @@
+### OCP for point-to-point motion and visualization of a KUKA robot arm
+
 import sys
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution
@@ -8,7 +10,7 @@ from rockit import MultipleShooting, Ocp
 import numpy as np
 import matplotlib.pyplot as plt
 
-print("Random bin picking with Kinova Gen3")
+print("Moving-object picking with Kinova Gen3")
 
 ################################################
 # Define robot and initial joint angles
@@ -161,6 +163,7 @@ if visualizationBullet:
         kinovaID, "velocity", joint_indices, targetVelocities=q_dot_sol[0]
     )
 
+    # Execute the MPC loop
     for i in range(horizon_size * 100):
         print("----------- MPC execution -----------")
 
@@ -199,6 +202,13 @@ if visualizationBullet:
 
         # Simulate
         obj.run_simulation(no_samples)
+
+        # Termination criteria
+        T_ee_sol = robot.fk(q_sol[0])[7]
+        pos_ee_sol = T_ee_sol[:3, 3]
+        dist_to_cube_sq = cs.sumsqr(pos_ee_sol - predicted_pos)
+        if dist_to_cube_sq <= 1.5e-2 ** 2:
+            break
 
     obj.run_simulation(100)
 
