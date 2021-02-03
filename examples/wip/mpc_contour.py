@@ -22,9 +22,9 @@ if __name__ == "__main__":
     ocp_control = "torque_resolved"  #'acceleration_resolved' #"torque_resolved"  #
 
     robot = rob.Robot(robot_choice)
-    if ocp_control == 'acceleration_resolved':
-        max_joint_acc = 240*3.14159/180
-        robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
+    if ocp_control == "acceleration_resolved":
+        max_joint_acc = 240 * 3.14159 / 180
+        robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
 
     print(robot.joint_name)
     print(robot.joint_ub)
@@ -167,7 +167,11 @@ if __name__ == "__main__":
         )
     if ocp_control == "acceleration_resolved":
         tc.add_regularization(
-            expression=q_ddot, weight=1e-3, norm="L2", variable_type="control", reference=0
+            expression=q_ddot,
+            weight=1e-3,
+            norm="L2",
+            variable_type="control",
+            reference=0,
         )
     tc.add_regularization(
         expression=s_ddot, weight=4e-5, norm="L2", variable_type="control", reference=0
@@ -194,7 +198,7 @@ if __name__ == "__main__":
             )
         )
     )
-    tc.set_ocp_solver('ipopt')
+    tc.set_ocp_solver("ipopt")
     # tc.set_ocp_solver(
     #     "ipopt",
     #     {
@@ -384,7 +388,7 @@ if __name__ == "__main__":
         from tasho import world_simulator
         import pybullet as p
 
-        obj = world_simulator.world_simulator(bullet_gui=False)
+        obj = world_simulator.world_simulator(bullet_gui=True)
 
         position = [0.0, 0.0, 0.0]
         orientation = [0.0, 0.0, 0.0, 1.0]
@@ -404,25 +408,52 @@ if __name__ == "__main__":
         obj.resetJointState(kinovaID, joint_indices, q_init)
         obj.setController(kinovaID, "velocity", joint_indices, targetVelocities=[0] * 7)
 
-        mpc_params = {'world':obj}
-        q0_params_info = {'type':'joint_position', 'joint_indices':joint_indices, 'robotID':kinovaID}
-        q_dot0_params_info = {'type':'joint_velocity', 'joint_indices':joint_indices, 'robotID':kinovaID}
-        s0_params_info = {'type':'progress_variable', 'state':True}
-        s_dot0_params_info = {'type':'progress_variable', 'state':True}
-        mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info, 'robots':{kinovaID:robot}}
-        mpc_params['disc_settings'] = disc_settings
+        mpc_params = {"world": obj}
+        q0_params_info = {
+            "type": "joint_position",
+            "joint_indices": joint_indices,
+            "robotID": kinovaID,
+        }
+        q_dot0_params_info = {
+            "type": "joint_velocity",
+            "joint_indices": joint_indices,
+            "robotID": kinovaID,
+        }
+        s0_params_info = {"type": "progress_variable", "state": True}
+        s_dot0_params_info = {"type": "progress_variable", "state": True}
+        mpc_params["params"] = {
+            "q0": q0_params_info,
+            "q_dot0": q_dot0_params_info,
+            "s0": s0_params_info,
+            "s_dot0": s_dot0_params_info,
+            "robots": {kinovaID: robot},
+        }
+        mpc_params["disc_settings"] = disc_settings
         # mpc_params['solver_name'] = 'ipopt'
         # mpc_params['solver_params'] = {'lbfgs':True}
-        mpc_params['solver_name'] = 'sqpmethod'
-        mpc_params['solver_params'] = {'qrqp':True}
-        mpc_params['t_mpc'] = t_mpc
-        mpc_params['control_type'] = 'joint_velocity' #'joint_torque'
-        mpc_params['control_info'] = {'robotID':kinovaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
+        mpc_params["solver_name"] = "sqpmethod"
+        mpc_params["solver_params"] = {"qrqp": True}
+        mpc_params["t_mpc"] = t_mpc
+        mpc_params["control_type"] = "joint_velocity"  #'joint_torque'
+        mpc_params["control_info"] = {
+            "robotID": kinovaID,
+            "discretization": "constant_acceleration",
+            "joint_indices": joint_indices,
+            "no_samples": no_samples,
+        }
         # set the joint positions in the simulator
         sim_type = "bullet_notrealtime"
-        tc.add_monitor({"name":"termination_criteria", "expression":s, "reference":0.98, "greater":True, "initial":True})
+        tc.add_monitor(
+            {
+                "name": "termination_criteria",
+                "expression": s,
+                "reference": 0.98,
+                "greater": True,
+                "initial": True,
+            }
+        )
         mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
         mpc_obj.max_mpc_iter = 400
-        #run the ocp with IPOPT to get a good initial guess for the MPC
+        # run the ocp with IPOPT to get a good initial guess for the MPC
         mpc_obj.configMPC_fromcurrent()
         mpc_obj.runMPC()
