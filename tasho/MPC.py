@@ -98,7 +98,7 @@ class MPC:
                 kkt_tol_pr = 1e-3
                 kkt_tol_du = 1e-1
                 min_step_size = 1e-6
-                max_iter = 2
+                max_iter = 5
                 max_iter_ls = 3
                 qpsol_options = {'constr_viol_tol': kkt_tol_pr, 'dual_inf_tol': kkt_tol_du, 'verbose' : False, 'print_iter': False, 'print_header': False, 'dump_in': False, "error_on_fail" : False}
                 solver_options = {'qpsol': 'qrqp', 'qpsol_options': qpsol_options, 'verbose': False, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
@@ -147,6 +147,11 @@ class MPC:
                 solver_options = {'qpsol': 'nlpsol', 'qpsol_options': qpsol_options, 'tol_pr': kkt_tol_pr, 'tol_du': kkt_tol_du, 'min_step_size': min_step_size, 'max_iter': max_iter, 'max_iter_ls': max_iter_ls, 'print_iteration': True, 'print_header': False, 'print_status': False, 'print_time': True} # "convexify_strategy":"regularize"
                 tc.set_ocp_solver('sqpmethod', solver_options)
 
+            tc.set_discretization_settings(self.parameters['disc_settings'])
+            tc.ocp._method.main_transcribe(tc.ocp)
+            self._warm_start(self.sol_ocp)
+            print("Solving with the SQP method")
+            sol = tc.solve_ocp()
 
         else:
             # Set ipopt as default solver
@@ -180,12 +185,12 @@ class MPC:
         #obtain the opti variables related for variables
         for variable in self.variables_names:
             temp = tc.ocp._method.eval_at_control(tc.ocp, tc.variables[variable], 0)
-            print(temp)
+            # print(temp)
             opti_xplam.append(temp)
 
         for parameter in self.params_names:
             temp = tc.ocp._method.eval_at_control(tc.ocp, tc.parameters[parameter], 0)#tc.ocp.sample(tc.parameters[parameter])
-            print(temp)
+            # print(temp)
             opti_xplam.append(temp)
 
         #adding the lagrange multiplier terms as well
@@ -393,7 +398,7 @@ class MPC:
             if self.type == "bullet_notrealtime":
 
                 #reading and setting the latest parameter values and applying MPC action
-                params_val = self._read_params_nrbullet() 
+                params_val = self._read_params_nrbullet()
                 # if self.mpc_ran:
                     # for param in params_val:
                     #     print("Abs error in "+ param)
@@ -405,7 +410,7 @@ class MPC:
 
                 # simulate to predict the future state when the first control input is applied
                 # to use that as the starting state for the MPC and accordingly update the params_val
-                self._sim_dynamics_update_params(params_val, sol_states, sol_controls) 
+                self._sim_dynamics_update_params(params_val, sol_states, sol_controls)
 
                 #When the mpc_fun is not initialized as codegen or .casadi function
                 if self._mpc_fun == None:

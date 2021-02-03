@@ -183,7 +183,7 @@ class task_context:
 		if 'initial_constraints' in task_spec:
 			for init_con in task_spec['initial_constraints']:
 				#Made an assumption that the initial constraint is always hard
-				ocp.subject_to(ocp.at_t0(init_con['expression']) == init_con['reference'])
+				ocp.subject_to(ocp.at_t0(init_con['expression']) == init_con['reference'], include_first=False)
 
 		if 'final_constraints' in task_spec:
 			for final_con in task_spec['final_constraints']:

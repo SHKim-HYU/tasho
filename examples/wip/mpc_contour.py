@@ -16,12 +16,15 @@ if __name__ == "__main__":
     print("Task specification and visualization of P2P OCP")
 
     horizon_size = 16
-    t_mpc = 0.005
+    t_mpc = 0.02
 
     robot_choice = "kinova"
-    ocp_control = "torque_resolved"  #'acceleration_resolved' #torque_resolved
+    ocp_control = "torque_resolved"  #'acceleration_resolved' #
 
     robot = rob.Robot(robot_choice)
+    if ocp_control == 'acceleration_resolved':
+        max_joint_acc = 240*3.14159/180
+        robot.set_joint_acceleration_limits(lb = -max_joint_acc, ub = max_joint_acc)
 
     print(robot.joint_name)
     print(robot.joint_ub)
@@ -39,7 +42,7 @@ if __name__ == "__main__":
         ee_pos_init = ee_fk_init[:3, 3]
         ee_rot_init = ee_fk_init[:3, :3]
 
-        sdotref = 0.1
+        sdotref = 0.2
         sdot_path = sdotref * (
             5.777783e-13 * s ** 5
             - 34.6153846154 * s ** 4
@@ -158,9 +161,14 @@ if __name__ == "__main__":
     tc.add_regularization(expression=pos_err(q, s), weight=1e-1, norm="L2")
     tc.add_regularization(expression=rot_err(q, s), weight=1e-1, norm="L2")
 
-    tc.add_regularization(
-        expression=tau, weight=4e-5, norm="L2", variable_type="control", reference=0
-    )
+    if ocp_control == "torque_resolved":
+        tc.add_regularization(
+            expression=tau, weight=4e-5, norm="L2", variable_type="control", reference=0
+        )
+    if ocp_control == "acceleration_resolved":
+        tc.add_regularization(
+            expression=q_ddot, weight=1e-3, norm="L2", variable_type="control", reference=0
+        )
     tc.add_regularization(
         expression=s_ddot, weight=4e-5, norm="L2", variable_type="control", reference=0
     )
@@ -186,24 +194,24 @@ if __name__ == "__main__":
             )
         )
     )
-
-    tc.set_ocp_solver(
-        "ipopt",
-        {
-            "ipopt": {
-                "print_level": 0,
-                "max_iter": 1000,
-                "hessian_approximation": "limited-memory",
-                "limited_memory_max_history": 5,
-                "tol": 1e-3,
-                "dual_inf_tol": 1e-3,
-                "compl_inf_tol": 1e-3,
-                "constr_viol_tol": 1e-3,
-                "acceptable_tol": 1e-3,
-            },
-            # "print_time": False,
-        },
-    )
+    tc.set_ocp_solver('ipopt')
+    # tc.set_ocp_solver(
+    #     "ipopt",
+    #     {
+    #         "ipopt": {
+    #             "print_level": 0,
+    #             "max_iter": 1000,
+    #             "hessian_approximation": "limited-memory",
+    #             "limited_memory_max_history": 5,
+    #             "tol": 1e-3,
+    #             "dual_inf_tol": 1e-3,
+    #             "compl_inf_tol": 1e-3,
+    #             "constr_viol_tol": 1e-3,
+    #             "acceptable_tol": 1e-3,
+    #         },
+    #         # "print_time": False,
+    #     },
+    # )
 
     tc.ocp.set_value(q0, q_init)
     tc.ocp.set_value(q_dot0, [0] * 7)
@@ -272,42 +280,111 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
     # Demo simulation
     # --------------------------------------------------------------------------
-    visualizationBullet = False
+    # visualizationBullet = False
+    #
+    # if not visualizationBullet:
+    #
+    #     for i in range(horizon_size * 10000):
+    #         # Update robot state
+    #         ts, q_sol = sol.sample(q, grid="control")
+    #         ts, q_dot_sol = sol.sample(q_dot, grid="control")
+    #         ts, s_sol = sol.sample(s, grid="control")
+    #         ts, s_dot_sol = sol.sample(s_dot, grid="control")
+    #
+    #         tc.ocp.set_value(q0, q_sol[1])
+    #         tc.ocp.set_value(q_dot0, q_dot_sol[1])
+    #         tc.ocp.set_value(s0, s_sol[1])
+    #         tc.ocp.set_value(s_dot0, s_dot_sol[1])
+    #
+    #         tc.ocp.set_initial(q, q_sol.T)
+    #         tc.ocp.set_initial(q_dot, q_dot_sol.T)
+    #         tc.ocp.set_initial(s, s_sol.T)
+    #         tc.ocp.set_initial(s_dot, s_dot_sol.T)
+    #
+    #         print("\n------- Solution --------")
+    #         print("s: ", s_sol[0])
+    #         print("s_dot: ", s_dot_sol[0], "\n")
+    #         ts, pos_err_sol = sol.sample(cs.sumsqr(pos_err(q, s)), grid="control")
+    #         print("Position error: ", pos_err_sol[0], "\n")
+    #
+    #         # Solve the ocp again
+    #         sol = tc.solve_ocp()
+    #
+    # else:
+    #
+    #     from tasho import world_simulator
+    #     import pybullet as p
+    #
+    #     obj = world_simulator.world_simulator(bullet_gui=False)
+    #
+    #     position = [0.0, 0.0, 0.0]
+    #     orientation = [0.0, 0.0, 0.0, 1.0]
+    #
+    #     kinovaID = obj.add_robot(position, orientation, "kinova")
+    #
+    #     no_samples = int(t_mpc / obj.physics_ts)
+    #
+    #     if no_samples != t_mpc / obj.physics_ts:
+    #         print(
+    #             "[ERROR] MPC sampling time not integer multiple of physics sampling time"
+    #         )
+    #
+    #     # correspondence between joint numbers in bullet and OCP determined after reading joint info of YUMI
+    #     # from the world simulator
+    #     joint_indices = [0, 1, 2, 3, 4, 5, 6]
+    #
+    #     # begin the visualization of applying OCP solution in open loop
+    #     # ts, q_sol = sol.sample(q, grid="control")
+    #     # ts, q_dot_sol = sol.sample(q_dot, grid="control")
+    #     obj.resetJointState(kinovaID, joint_indices, q_init)
+    #     obj.setController(kinovaID, "velocity", joint_indices, targetVelocities=[0] * 7)
+    #     # obj.run_simulation(100)  # Here, the robot is just waiting to start the task
+    #
+    #     for i in range(horizon_size * 100):
+    #
+    #         # Update robot state
+    #         ts, q_sol = sol.sample(q, grid="control")
+    #         ts, q_dot_sol = sol.sample(q_dot, grid="control")
+    #         ts, s_sol = sol.sample(s, grid="control")
+    #         ts, s_dot_sol = sol.sample(s_dot, grid="control")
+    #
+    #         tc.ocp.set_value(q0, q_sol[1])
+    #         tc.ocp.set_value(q_dot0, q_dot_sol[1])
+    #         tc.ocp.set_value(s0, s_sol[1])
+    #         tc.ocp.set_value(s_dot0, s_dot_sol[1])
+    #
+    #         tc.ocp.set_initial(q, q_sol.T)
+    #         tc.ocp.set_initial(q_dot, q_dot_sol.T)
+    #         tc.ocp.set_initial(s, s_sol.T)
+    #         tc.ocp.set_initial(s_dot, s_dot_sol.T)
+    #
+    #         # print("########### ---> ", s_sol[0])
+    #
+    #         # Solve the ocp again
+    #         sol = tc.solve_ocp()
+    #
+    #         # Set control signal
+    #         obj.setController(
+    #             kinovaID, "velocity", joint_indices, targetVelocities=q_dot_sol[0]
+    #         )
+    #         # Simulate
+    #         obj.run_simulation(no_samples)
+    #
+    #     obj.run_simulation(100)  # Here, the robot is just waiting to start the task
+    #
+    #     obj.end_simulation()
 
-    if not visualizationBullet:
+    # print(q_sol)
+    # print(robot.fk(q_sol[-1, :])[7])
 
-        for i in range(horizon_size * 10000):
-            # Update robot state
-            ts, q_sol = sol.sample(q, grid="control")
-            ts, q_dot_sol = sol.sample(q_dot, grid="control")
-            ts, s_sol = sol.sample(s, grid="control")
-            ts, s_dot_sol = sol.sample(s_dot, grid="control")
+    use_MPC_class = True
 
-            tc.ocp.set_value(q0, q_sol[1])
-            tc.ocp.set_value(q_dot0, q_dot_sol[1])
-            tc.ocp.set_value(s0, s_sol[1])
-            tc.ocp.set_value(s_dot0, s_dot_sol[1])
-
-            tc.ocp.set_initial(q, q_sol.T)
-            tc.ocp.set_initial(q_dot, q_dot_sol.T)
-            tc.ocp.set_initial(s, s_sol.T)
-            tc.ocp.set_initial(s_dot, s_dot_sol.T)
-
-            print("\n------- Solution --------")
-            print("s: ", s_sol[0])
-            print("s_dot: ", s_dot_sol[0], "\n")
-            ts, pos_err_sol = sol.sample(cs.sumsqr(pos_err(q, s)), grid="control")
-            print("Position error: ", pos_err_sol[0], "\n")
-
-            # Solve the ocp again
-            sol = tc.solve_ocp()
-
-    else:
+    if use_MPC_class:
 
         from tasho import world_simulator
         import pybullet as p
 
-        obj = world_simulator.world_simulator(bullet_gui=False)
+        obj = world_simulator.world_simulator(bullet_gui=True)
 
         position = [0.0, 0.0, 0.0]
         orientation = [0.0, 0.0, 0.0, 1.0]
@@ -324,52 +401,28 @@ if __name__ == "__main__":
         # correspondence between joint numbers in bullet and OCP determined after reading joint info of YUMI
         # from the world simulator
         joint_indices = [0, 1, 2, 3, 4, 5, 6]
-
-        # begin the visualization of applying OCP solution in open loop
-        # ts, q_sol = sol.sample(q, grid="control")
-        # ts, q_dot_sol = sol.sample(q_dot, grid="control")
         obj.resetJointState(kinovaID, joint_indices, q_init)
         obj.setController(kinovaID, "velocity", joint_indices, targetVelocities=[0] * 7)
-        # obj.run_simulation(100)  # Here, the robot is just waiting to start the task
 
-        for i in range(horizon_size * 100):
-
-            # Update robot state
-            ts, q_sol = sol.sample(q, grid="control")
-            ts, q_dot_sol = sol.sample(q_dot, grid="control")
-            ts, s_sol = sol.sample(s, grid="control")
-            ts, s_dot_sol = sol.sample(s_dot, grid="control")
-
-            tc.ocp.set_value(q0, q_sol[1])
-            tc.ocp.set_value(q_dot0, q_dot_sol[1])
-            tc.ocp.set_value(s0, s_sol[1])
-            tc.ocp.set_value(s_dot0, s_dot_sol[1])
-
-            tc.ocp.set_initial(q, q_sol.T)
-            tc.ocp.set_initial(q_dot, q_dot_sol.T)
-            tc.ocp.set_initial(s, s_sol.T)
-            tc.ocp.set_initial(s_dot, s_dot_sol.T)
-
-            # print("########### ---> ", s_sol[0])
-
-            # Solve the ocp again
-            sol = tc.solve_ocp()
-
-            # Set control signal
-            obj.setController(
-                kinovaID, "velocity", joint_indices, targetVelocities=q_dot_sol[0]
-            )
-            # Simulate
-            obj.run_simulation(no_samples)
-
-        obj.run_simulation(100)  # Here, the robot is just waiting to start the task
-
-        obj.end_simulation()
-
-    # print(q_sol)
-    # print(robot.fk(q_sol[-1, :])[7])
-
-    # mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
-    # mpc_obj.max_mpc_iter = 200
-    # #run the ocp with IPOPT to get a good initial guess for the MPC
-    # mpc_obj.configMPC_fromcurrent()
+        mpc_params = {'world':obj}
+        q0_params_info = {'type':'joint_position', 'joint_indices':joint_indices, 'robotID':kinovaID}
+        q_dot0_params_info = {'type':'joint_velocity', 'joint_indices':joint_indices, 'robotID':kinovaID}
+        s0_params_info = {'type':'progress_variable', 'state':True}
+        s_dot0_params_info = {'type':'progress_variable', 'state':True}
+        mpc_params['params'] = {'q0':q0_params_info, 'q_dot0':q_dot0_params_info, 's0':s0_params_info, 's_dot0':s_dot0_params_info, 'robots':{kinovaID:robot}}
+        mpc_params['disc_settings'] = disc_settings
+        # mpc_params['solver_name'] = 'ipopt'
+        # mpc_params['solver_params'] = {'lbfgs':True}
+        mpc_params['solver_name'] = 'sqpmethod'
+        mpc_params['solver_params'] = {'qrqp':True}
+        mpc_params['t_mpc'] = t_mpc
+        mpc_params['control_type'] = 'joint_torque'
+        mpc_params['control_info'] = {'robotID':kinovaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
+        # set the joint positions in the simulator
+        sim_type = "bullet_notrealtime"
+        tc.add_monitor({"name":"termination_criteria", "expression":s, "reference":0.98, "greater":True, "initial":True})
+        mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
+        mpc_obj.max_mpc_iter = 2000
+        #run the ocp with IPOPT to get a good initial guess for the MPC
+        mpc_obj.configMPC_fromcurrent()
+        mpc_obj.runMPC()
