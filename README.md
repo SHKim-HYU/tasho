@@ -10,4 +10,17 @@
 </div>
 
 ## Description
+
 **Tasho** stands for "TAsk Specification with receding HOrizon control".
+
+### Installing
+
+To install the toolbox (ideally into a virtual environment) just run the setup.py script with the install parameter. It will install your application into the virtualenv site-packages folder and also download and install all dependencies:
+
+```
+python setup.py install
+```
+
+### Submitting an issue
+
+Please submit an issue if you want to report a bug or propose new features.
