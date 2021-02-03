@@ -19,7 +19,7 @@ if __name__ == "__main__":
     t_mpc = 0.02
 
     robot_choice = "kinova"
-    ocp_control = "torque_resolved"  #'acceleration_resolved' #
+    ocp_control = "torque_resolved"  #'acceleration_resolved' #"torque_resolved"  #
 
     robot = rob.Robot(robot_choice)
     if ocp_control == 'acceleration_resolved':
@@ -74,7 +74,7 @@ if __name__ == "__main__":
         )
     elif ocp_control == "torque_resolved":
         q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(
-            tc, robot, {"forward_dynamics_constraints": True}
+            tc, robot, {"forward_dynamics_constraints": False}
         )
 
     # Define augmented dynamics based on path-progress variable s
@@ -384,7 +384,7 @@ if __name__ == "__main__":
         from tasho import world_simulator
         import pybullet as p
 
-        obj = world_simulator.world_simulator(bullet_gui=True)
+        obj = world_simulator.world_simulator(bullet_gui=False)
 
         position = [0.0, 0.0, 0.0]
         orientation = [0.0, 0.0, 0.0, 1.0]
@@ -416,13 +416,13 @@ if __name__ == "__main__":
         mpc_params['solver_name'] = 'sqpmethod'
         mpc_params['solver_params'] = {'qrqp':True}
         mpc_params['t_mpc'] = t_mpc
-        mpc_params['control_type'] = 'joint_torque'
+        mpc_params['control_type'] = 'joint_velocity' #'joint_torque'
         mpc_params['control_info'] = {'robotID':kinovaID, 'discretization':'constant_acceleration', 'joint_indices':joint_indices, 'no_samples':no_samples}
         # set the joint positions in the simulator
         sim_type = "bullet_notrealtime"
         tc.add_monitor({"name":"termination_criteria", "expression":s, "reference":0.98, "greater":True, "initial":True})
         mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
-        mpc_obj.max_mpc_iter = 2000
+        mpc_obj.max_mpc_iter = 400
         #run the ocp with IPOPT to get a good initial guess for the MPC
         mpc_obj.configMPC_fromcurrent()
         mpc_obj.runMPC()

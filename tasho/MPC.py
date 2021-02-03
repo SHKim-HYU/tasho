@@ -159,12 +159,12 @@ class MPC:
             tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 
         if self.mpc_debug is not True:
-            self._create_mpc_fun_casadi()
+            self._create_mpc_fun_casadi(codeGen = True)
         self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         #print(sol_controls['s_ddot'])
 
     #internal function to create the MPC function using casadi's opti.to_function capability
-    def _create_mpc_fun_casadi(self):
+    def _create_mpc_fun_casadi(self, codeGen = False):
 
         tc = self.tc
         #create a list of ocp decision variables in the following order
@@ -204,10 +204,16 @@ class MPC:
         #setting the MPC function!
         #opti = tc.ocp.opti
         #self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
-        self._mpc_fun = tc.ocp._method.opti.to_function('mpc_fun', opti_xplam, opti_xplam)
+        self._mpc_fun = tc.ocp._method.opti.to_function('f', opti_xplam, opti_xplam)
         self._opti_xplam = opti_xplam
         opti = tc.ocp._method.opti
         self._opti_xplam_to_optiform = cs.Function("opti_xplam_to_optiform", opti_xplam, [opti.x, opti.p, opti.lam_g])
+        if codeGen:
+            print("Code generating the MPC function")
+            self._mpc_fun.generate("f"+'.c',{"with_header": True, "main":True});
+            # C = cs.Importer('f.c', 'clang')
+            # self._mpc_fun = cs.external('f', C)
+            # self._mpc_fun = cs.external('f', './mpc_fun.so')
     ## obtain the solution of the ocp
     def _read_solveroutput(self, sol):
 
@@ -454,6 +460,7 @@ class MPC:
                     #print(opti_form)
                     print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
                     if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
+                        print(self._solver_time)
                         print("MPC termination criteria reached after " + str(mpc_iter) + " number of MPC samples. Exiting MPC loop.")
                         control_info = self.parameters['control_info']
                         self.world.setController(control_info['robotID'], 'velocity', control_info['joint_indices'], targetVelocities = [0]*len(control_info['joint_indices']))
@@ -478,7 +485,9 @@ class MPC:
 
             if mpc_iter == self.max_mpc_iter - 1:
                 print("MPC timeout")
+                print(self._solver_time)
                 return 'MPC_TIMEOUT'
+
 
     # Internal function to apply the output of the MPC to the non-realtime bullet environment
     def _apply_control_nrbullet(self, sol_mpc, params_val):
