@@ -250,27 +250,31 @@ class task_context:
                                 expression[0:3, 0:3].T, reference[0:3, 0:3]
                             )
                             if "norm" not in final_con or final_con["norm"] == "L2":
-                                obj_trans = ocp.at_tf(cs.sumsqr(trans_error))
-                                * final_con["trans_gain"]
-                                obj_rot = ocp.at_tf(
-                                    (
+                                obj_trans = (
+                                    ocp.at_tf(cs.sumsqr(trans_error))
+                                    * final_con["trans_gain"]
+                                )
+                                obj_rot = (
+                                    ocp.at_tf(
                                         (
-                                            rot_error[0, 0]
-                                            + rot_error[1, 1]
-                                            + rot_error[2, 2]
+                                            (
+                                                rot_error[0, 0]
+                                                + rot_error[1, 1]
+                                                + rot_error[2, 2]
+                                                - 1
+                                            )
+                                            / 2
                                             - 1
                                         )
-                                        / 2
-                                        - 1
+                                        ** 2
                                     )
-                                    ** 2
+                                    * 3
+                                    * final_con["rot_gain"]
                                 )
-                                *3
-                                * final_con["rot_gain"]
                                 ocp.add_objective(obj_trans)
                                 ocp.add_objective(obj_rot)
                                 if "name" in final_con:
-                                    self.constraints["name"] = {
+                                    self.constraints[final_con["name"]] = {
                                         "obj": obj_trans + obj_rot
                                     }
                             elif final_con["norm"] == "L1":
@@ -305,7 +309,7 @@ class task_context:
                                 ocp.add_objective(trans_gain)
                                 ocp.add_objective(obj_rot)
                                 if "name" in final_con:
-                                    self.constraints["name"] = {
+                                    self.constraints[final_con["name"]] = {
                                         "obj": obj_trans + obj_rot
                                     }
 
@@ -318,7 +322,7 @@ class task_context:
                                 + " selected for a constraint"
                             )
                     elif "norm" not in final_con or final_con["norm"] == "L2":
-                        ocp.add_objective(
+                        obj_con = (
                             ocp.at_tf(
                                 cs.sumsqr(
                                     final_con["expression"] - final_con["reference"]
@@ -326,6 +330,9 @@ class task_context:
                             )
                             * final_con["gain"]
                         )
+                        ocp.add_objective(obj_con)
+                        if "name" in final_con:
+                            self.constraints[final_con["name"]] = {"obj": obj_con}
                     elif final_con["norm"] == "L1":
                         slack_variable = self.create_expression(
                             "slack_variable", "variable", final_con["expression"].shape
@@ -339,12 +346,12 @@ class task_context:
                                 <= slack_variable
                             )
                         )
-                        ocp.add_objective(
-                            ocp.at_tf(
-                                cs.DM.ones(final_con["expression"].shape).T
-                                @ slack_variable
-                            )
+                        obj_con = ocp.at_tf(
+                            cs.DM.ones(final_con["expression"].shape).T @ slack_variable
                         )
+                        ocp.add_objective(obj_con)
+                        if "name" in final_con:
+                            self.constraints[final_con["name"]] = {"obj": obj_con}
 
         if "path_constraints" in task_spec:
             for path_con in task_spec["path_constraints"]:
@@ -361,12 +368,7 @@ class task_context:
                                     expression[0:3, 0:3].T, reference[0:3, 0:3]
                                 )
                                 if "norm" not in path_con or path_con["norm"] == "L2":
-                                    ocp.add_objective(
-                                        ocp.integral(cs.sumsqr(trans_error))
-                                        * path_con["trans_gain"]
-                                    )
-
-                                    ocp.add_objective(
+                                    obj_rot = (
                                         ocp.integral(
                                             (
                                                 (
@@ -383,6 +385,15 @@ class task_context:
                                         * 3
                                         * path_con["rot_gain"]
                                     )
+                                    obj_trans = (
+                                        ocp.integral(cs.sumsqr(trans_error))
+                                        * path_con["trans_gain"]
+                                    )
+                                    ocp.add_objective(obj_trans + obj_rot)
+                                    if "name" in path_con:
+                                        self.constraints[path_con["name"]] = {
+                                            "obj": obj_rot + obj_trans
+                                        }
                                 elif path_con["norm"] == "L1":
                                     cos_theta_error = (
                                         rot_error[0, 0]
@@ -416,11 +427,21 @@ class task_context:
                                         * 3
                                         * path_con["rot_gain"]
                                     )
+                                    obj_con = (
+                                        slack_variable[0]
+                                        + slack_variable[1]
+                                        + slack_variable[2]
+                                        + slack_variable[3]
+                                    )
+                                    if "name" in path_con:
+                                        self.constraints[path_con["name"]] = {
+                                            "obj": obj_con
+                                        }
                                 else:
                                     raise Exception("Error")
                         elif "norm" not in path_con or path_con["norm"] == "L2":
                             # print('L2 norm added')
-                            ocp.add_objective(
+                            obj_con = (
                                 ocp.integral(
                                     cs.sumsqr(
                                         path_con["expression"] - path_con["reference"]
@@ -428,6 +449,9 @@ class task_context:
                                 )
                                 * path_con["gain"]
                             )
+                            ocp.add_objective(obj_con)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj_con}
                         elif path_con["norm"] == "L1":
                             # print("L1 norm added")
                             slack_variable = self.create_expression(
@@ -442,9 +466,10 @@ class task_context:
                                     <= slack_variable
                                 )
                             )
-                            ocp.add_objective(
-                                ocp.integral(slack_variable) * path_con["gain"]
-                            )
+                            obj_con = ocp.integral(slack_variable) * path_con["gain"]
+                            ocp.add_objective(obj_con)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj_con}
                     elif path_con["hard"]:
 
                         ocp.subject_to(path_con["expression"] == path_con["reference"])
