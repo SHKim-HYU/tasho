@@ -145,7 +145,8 @@ class task_context:
 
             if variable_type == "state" or variable_type == "control":
                 ocp.add_objective(
-                    ocp.integral(cs.sumsqr(expression - reference)) * weight
+                    ocp.integral(cs.sumsqr(expression - reference), grid="control")
+                    * weight
                 )
             elif variable_type == "variable":
                 ocp.add_objective(ocp.at_t0(cs.sumsqr(expression - reference)) * weight)
@@ -163,7 +164,7 @@ class task_context:
                 ocp.subject_to(
                     -slack_variable <= (expression - reference <= slack_variable)
                 )
-                ocp.add_objective(ocp.integral(slack_variable) * weight)
+                ocp.add_objective(ocp.integral(slack_variable, grid="control") * weight)
             elif variable_type == "variable":
                 slack_variable = self.create_expression(
                     "slack", "variable", expression.shape
@@ -380,13 +381,16 @@ class task_context:
                                                 / 2
                                                 - 1
                                             )
-                                            ** 2
+                                            ** 2,
+                                            grid="control",
                                         )
                                         * 3
                                         * path_con["rot_gain"]
                                     )
                                     obj_trans = (
-                                        ocp.integral(cs.sumsqr(trans_error))
+                                        ocp.integral(
+                                            cs.sumsqr(trans_error), grid="control"
+                                        )
                                         * path_con["trans_gain"]
                                     )
                                     ocp.add_objective(obj_trans + obj_rot)
@@ -399,7 +403,7 @@ class task_context:
                                         rot_error[0, 0]
                                         + rot_error[1, 1]
                                         + rot_error[2, 2]
-                                        - 2
+                                        - 1
                                     ) * 0.5
                                     slack_variable = self.create_expression(
                                         "slack_final_frame", "control", (4, 1)
@@ -413,7 +417,7 @@ class task_context:
                                         <= (cos_theta_error - 1 <= slack_variable[3])
                                     )
                                     ocp.add_objective(
-                                        ocp.integral(
+                                        ocp.sum(
                                             (
                                                 slack_variable[0]
                                                 + slack_variable[1]
@@ -423,7 +427,7 @@ class task_context:
                                         * path_con["trans_gain"]
                                     )
                                     ocp.add_objective(
-                                        ocp.integral(slack_variable[3])
+                                        ocp.sum(slack_variable[3])
                                         * 3
                                         * path_con["rot_gain"]
                                     )
@@ -445,7 +449,8 @@ class task_context:
                                 ocp.integral(
                                     cs.sumsqr(
                                         path_con["expression"] - path_con["reference"]
-                                    )
+                                    ),
+                                    grid="control",
                                 )
                                 * path_con["gain"]
                             )
@@ -466,7 +471,38 @@ class task_context:
                                     <= slack_variable
                                 )
                             )
-                            obj_con = ocp.integral(slack_variable) * path_con["gain"]
+                            obj_con = (
+                                ocp.integral(
+                                    cs.DM.ones(path_con["expression"].shape).T
+                                    @ slack_variable,
+                                    grid="control",
+                                )
+                                * path_con["gain"]
+                            )
+                            ocp.add_objective(obj_con)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj_con}
+                        elif path_con["norm"] == "L2_nonsquared":
+                            # print("L1 norm added")
+                            slack_variable = self.create_expression(
+                                "slack_path_con",
+                                "control",
+                                (1, 1),
+                            )
+                            ocp.subject_to(
+                                cs.sumsqr(
+                                    path_con["expression"] - path_con["reference"]
+                                )
+                                <= slack_variable ** 2
+                            )
+                            ocp.subject_to(slack_variable >= 0)
+                            obj_con = (
+                                ocp.integral(slack_variable, grid="control")
+                                * path_con["gain"]
+                            )
+                            ocp.add_objective(obj_con)
+                            # ocp.subject_to(slack_variable >= 0)
+
                             ocp.add_objective(obj_con)
                             if "name" in path_con:
                                 self.constraints[path_con["name"]] = {"obj": obj_con}
