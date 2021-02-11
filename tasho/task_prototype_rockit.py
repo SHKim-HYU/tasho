@@ -313,6 +313,12 @@ class task_context:
                                     self.constraints[final_con["name"]] = {
                                         "obj": obj_trans + obj_rot
                                     }
+                                    self.constraints[final_con["name"]][
+                                        "rot_error_cos"
+                                    ] = slack_variable[3]
+                                    self.constraints[final_con["name"]][
+                                        "trans_error"
+                                    ] = slack_variable[0:3]
 
                             else:
                                 raise Exception("Error")
@@ -441,6 +447,12 @@ class task_context:
                                         self.constraints[path_con["name"]] = {
                                             "obj": obj_con
                                         }
+                                        self.constraints[path_con["name"]][
+                                            "rot_error_cos"
+                                        ] = cos_theta_error
+                                        self.constraints[path_con["name"]][
+                                            "trans_error"
+                                        ] = slack_variable[0:3]
                                 else:
                                     raise Exception("Error")
                         elif "norm" not in path_con or path_con["norm"] == "L2":
@@ -612,7 +624,8 @@ class task_context:
         """
 
         ocp = self.ocp
-        options["expand"] = True
+        if "expand" not in options:
+            options["expand"] = True
         ocp.solver(solver, options)
 
     def set_discretization_settings(self, settings):
