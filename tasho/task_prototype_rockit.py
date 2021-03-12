@@ -2,7 +2,6 @@
 # returns a COP
 from sys import path
 
-path.insert(0, r"/home/ajay/Desktop/motion_planning_libraries/rockit")
 from rockit import (
     Ocp,
     DirectMethod,
@@ -205,7 +204,6 @@ class task_context:
                 # Made an assumption that the initial constraint is always hard
                 ocp.subject_to(
                     ocp.at_t0(init_con["expression"]) == init_con["reference"],
-                    include_first=False,
                 )
 
         if "final_constraints" in task_spec:
@@ -520,14 +518,23 @@ class task_context:
                                 self.constraints[path_con["name"]] = {"obj": obj_con}
                     elif path_con["hard"]:
 
-                        ocp.subject_to(path_con["expression"] == path_con["reference"])
+                        ocp.subject_to(
+                            path_con["expression"] == path_con["reference"],
+                            include_first=False,
+                        )
 
                 elif "inequality" in path_con:
 
                     if path_con["hard"]:
-                        ocp.subject_to(
-                            path_con["expression"] <= path_con["upper_limits"]
-                        )
+                        if "include_first" in path_con:
+                            ocp.subject_to(
+                                path_con["expression"] <= path_con["upper_limits"]
+                            )
+                        else:
+                            ocp.subject_to(
+                                path_con["expression"] <= path_con["upper_limits"],
+                                include_first=False,
+                            )
                     else:
                         con_violation = cs.fmax(
                             path_con["expression"] - path_con["upper_limits"], 0
@@ -567,12 +574,12 @@ class task_context:
                 elif "lub" in path_con:
 
                     if path_con["hard"]:
-                        if "exclude_first" not in path_con:
+                        if "include_first" in path_con:
                             ocp.subject_to(
                                 (path_con["lower_limits"] <= path_con["expression"])
                                 <= path_con["upper_limits"]
                             )
-                        elif path_con["exclude_first"] == False:
+                        else:
                             ocp.subject_to(
                                 (path_con["lower_limits"] <= path_con["expression"])
                                 <= path_con["upper_limits"],
