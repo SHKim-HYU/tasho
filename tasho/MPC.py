@@ -28,6 +28,8 @@ class MPC:
         self.controls_names = tc.controls.keys()
         self.variables_names = tc.variables.keys()
 
+        self.params_history = []
+
         # casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
         self.mpc_debug = False
         self._mpc_fun = None
@@ -570,7 +572,7 @@ class MPC:
         # update the params_val with this info
         start = 0
         for state in self.states_names:
-            # print(state)
+            print(state)
             state_shape = self.tc.states[state].shape
             state_len = state_shape[0] * state_shape[1]
             if state == "q_dot" and self.parameters["control_type"] == "joint_velocity":
@@ -620,7 +622,7 @@ class MPC:
                 params_val = self._read_params_nrbullet()
                 if mpc_iter == 20 and self.perturb:
                     q_perturbed = params_val["q0"]
-                    q_perturbed[5] += 0.1
+                    q_perturbed[5] += 0.2
                     joint_indices = [
                         11,
                         12,
@@ -972,6 +974,7 @@ class MPC:
                 print(
                     "[ERROR] Invalid type of parameter to be read from the simulation environment"
                 )
+        print(self.params_history.append(params_val))
 
         return params_val
 
