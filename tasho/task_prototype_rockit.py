@@ -22,16 +22,16 @@ _OCPvars = namedtuple("OCPvars", ["q", "q_dot", "q_ddot", "q0", "q_dot0"])
 
 
 class task_context:
-    """ Class for task context
-	The class stores all expressions and constraints relevant to an OCP
-	"""
+    """Class for task context
+    The class stores all expressions and constraints relevant to an OCP
+    """
 
     def __init__(self, time=None, horizon=10):
-        """ Class constructor - initializes and sets the field variables of the class
+        """Class constructor - initializes and sets the field variables of the class
 
-		:param time: The length of the time horizon of the OCP.
+        :param time: The length of the time horizon of the OCP.
 
-		"""
+        """
 
         if time is None:
             ocp = Ocp(T=FreeTime(10))
@@ -56,22 +56,22 @@ class task_context:
 
     def create_expression(self, name, type, shape):
 
-        """ Creates a symbolic expression for variables in OCP.
+        """Creates a symbolic expression for variables in OCP.
 
-		:param name: name of the symbolic variable
-		:type name: string
+        :param name: name of the symbolic variable
+        :type name: string
 
-		:param type: type of the symbolic variable. \n
-			'state' - a variable that stands for a set of states that evolve over time as the states comprising the dynamical system of the OCP. \n
-			'control' - For representing the control actions of the dynamical system of the OCP. \n
-			'parameter' - Parameters of the dynamical system. Useful for representing quantities that might change over MPC iterations. eg: the initial conditions of the OCP. \n
-			'variable' - A decision variable of the OCP that is not a state or the control action of the dynamical system.
-		:type type: string
+        :param type: type of the symbolic variable. \n
+                'state' - a variable that stands for a set of states that evolve over time as the states comprising the dynamical system of the OCP. \n
+                'control' - For representing the control actions of the dynamical system of the OCP. \n
+                'parameter' - Parameters of the dynamical system. Useful for representing quantities that might change over MPC iterations. eg: the initial conditions of the OCP. \n
+                'variable' - A decision variable of the OCP that is not a state or the control action of the dynamical system.
+        :type type: string
 
-		:param shape: 2-dimensional tuple that denotes the dimensions of the expression.
-		:type shape: tuple of int.
+        :param shape: 2-dimensional tuple that denotes the dimensions of the expression.
+        :type shape: tuple of int.
 
-		"""
+        """
 
         ocp = self.ocp
 
@@ -105,15 +105,15 @@ class task_context:
 
     def set_dynamics(self, state, state_der):
 
-        """ Set dynamics of state variables of the OCP.
+        """Set dynamics of state variables of the OCP.
 
-		:param state: expression of the state.
-		:type state: state expression
+        :param state: expression of the state.
+        :type state: state expression
 
-		:param state_der: The derivative of state expression.
-		:type state_der: const or another expression variable.
+        :param state_der: The derivative of state expression.
+        :type state_der: const or another expression variable.
 
-		"""
+        """
 
         ocp = self.ocp
         ocp.set_der(state, state_der)
@@ -122,30 +122,31 @@ class task_context:
         self, expression, weight, norm="L2", variable_type="state", reference=0
     ):
 
-        """ Add regularization to states or controls or variables. L1 regularization creates slack variables to avoid the non-smoothness in the optimization problem.
+        """Add regularization to states or controls or variables. L1 regularization creates slack variables to avoid the non-smoothness in the optimization problem.
 
-		:param expression: expression of the variable on which the regularization is to be added
-		:type expression: casadi expression
+        :param expression: expression of the variable on which the regularization is to be added
+        :type expression: casadi expression
 
-		:param weight: The regularization weight
-		:type weight: float or parameter
+        :param weight: The regularization weight
+        :type weight: float or parameter
 
-		:param norm: 'L2' for L2 regularization. 'L1' for L1 regularization.
-		:type norm: String
+        :param norm: 'L2' for L2 regularization. 'L1' for L1 regularization.
+        :type norm: String
 
-		:param variable_type: 'state' for a state variable, 'control' for a control variable, 'variable' for a variable
-		:type variable_type: String
+        :param variable_type: 'state' for a state variable, 'control' for a control variable, 'variable' for a variable
+        :type variable_type: String
 
-		:param reference: The reference for regularization. 0 by default.
-		:type reference: float or parameter
-		"""
+        :param reference: The reference for regularization. 0 by default.
+        :type reference: float or parameter
+        """
 
         ocp = self.ocp
         if norm == "L2":
 
             if variable_type == "state" or variable_type == "control":
                 ocp.add_objective(
-                    ocp.integral(cs.sumsqr(expression - reference)) * weight
+                    ocp.integral(cs.sumsqr(expression - reference), grid="control")
+                    * weight
                 )
             elif variable_type == "variable":
                 ocp.add_objective(ocp.at_t0(cs.sumsqr(expression - reference)) * weight)
@@ -163,7 +164,7 @@ class task_context:
                 ocp.subject_to(
                     -slack_variable <= (expression - reference <= slack_variable)
                 )
-                ocp.add_objective(ocp.integral(slack_variable) * weight)
+                ocp.add_objective(ocp.integral(slack_variable, grid="control") * weight)
             elif variable_type == "variable":
                 slack_variable = self.create_expression(
                     "slack", "variable", expression.shape
@@ -186,12 +187,12 @@ class task_context:
 
     def add_objective(self, obj):
 
-        """ Add an objective function to the OCP
+        """Add an objective function to the OCP
 
-		:param obj: A casadi expression of the objective
-		:type state: state expression
+        :param obj: A casadi expression of the objective
+        :type state: state expression
 
-		"""
+        """
 
         self.ocp.add_objective(obj)
 
@@ -250,11 +251,11 @@ class task_context:
                                 expression[0:3, 0:3].T, reference[0:3, 0:3]
                             )
                             if "norm" not in final_con or final_con["norm"] == "L2":
-                                ocp.add_objective(
+                                obj_trans = (
                                     ocp.at_tf(cs.sumsqr(trans_error))
                                     * final_con["trans_gain"]
                                 )
-                                ocp.add_objective(
+                                obj_rot = (
                                     ocp.at_tf(
                                         (
                                             (
@@ -271,6 +272,12 @@ class task_context:
                                     * 3
                                     * final_con["rot_gain"]
                                 )
+                                ocp.add_objective(obj_trans)
+                                ocp.add_objective(obj_rot)
+                                if "name" in final_con:
+                                    self.constraints[final_con["name"]] = {
+                                        "obj": obj_trans + obj_rot
+                                    }
                             elif final_con["norm"] == "L1":
 
                                 cos_theta_error = (
@@ -279,37 +286,40 @@ class task_context:
                                     + rot_error[2, 2]
                                     - 2
                                 ) * 0.5
-                                rot_error = cs.vertcat(
-                                    cos_theta_error, cos_theta_error, cos_theta_error
-                                )
 
                                 slack_variable = self.create_expression(
-                                    "slack_final_frame", "variable", (6, 1)
+                                    "slack_final_frame", "variable", (4, 1)
                                 )
                                 ocp.subject_to(
                                     -slack_variable[0:3]
                                     <= (ocp.at_tf(trans_error) <= slack_variable[0:3])
                                 )
                                 ocp.subject_to(
-                                    -slack_variable[3:6]
-                                    <= (ocp.at_tf(rot_error) - 1 <= slack_variable[3:6])
-                                )
-                                ocp.add_objective(
-                                    (
-                                        slack_variable[0]
-                                        + slack_variable[1]
-                                        + slack_variable[2]
+                                    -slack_variable[3]
+                                    <= (
+                                        ocp.at_tf(cos_theta_error) - 1
+                                        <= slack_variable[3]
                                     )
-                                    * final_con["trans_gain"]
                                 )
-                                ocp.add_objective(
-                                    (
-                                        slack_variable[3]
-                                        + slack_variable[4]
-                                        + slack_variable[5]
-                                    )
-                                    * final_con["rot_gain"]
-                                )
+                                obj_trans = (
+                                    slack_variable[0]
+                                    + slack_variable[1]
+                                    + slack_variable[2]
+                                ) * final_con["trans_gain"]
+                                obj_rot = slack_variable[3] * final_con["rot_gain"] * 3
+                                ocp.add_objective(trans_gain)
+                                ocp.add_objective(obj_rot)
+                                if "name" in final_con:
+                                    self.constraints[final_con["name"]] = {
+                                        "obj": obj_trans + obj_rot
+                                    }
+                                    self.constraints[final_con["name"]][
+                                        "rot_error_cos"
+                                    ] = slack_variable[3]
+                                    self.constraints[final_con["name"]][
+                                        "trans_error"
+                                    ] = slack_variable[0:3]
+
                             else:
                                 raise Exception("Error")
                         else:
@@ -319,7 +329,7 @@ class task_context:
                                 + " selected for a constraint"
                             )
                     elif "norm" not in final_con or final_con["norm"] == "L2":
-                        ocp.add_objective(
+                        obj_con = (
                             ocp.at_tf(
                                 cs.sumsqr(
                                     final_con["expression"] - final_con["reference"]
@@ -327,6 +337,9 @@ class task_context:
                             )
                             * final_con["gain"]
                         )
+                        ocp.add_objective(obj_con)
+                        if "name" in final_con:
+                            self.constraints[final_con["name"]] = {"obj": obj_con}
                     elif final_con["norm"] == "L1":
                         slack_variable = self.create_expression(
                             "slack_variable", "variable", final_con["expression"].shape
@@ -340,12 +353,12 @@ class task_context:
                                 <= slack_variable
                             )
                         )
-                        ocp.add_objective(
-                            ocp.at_tf(
-                                cs.DM.ones(final_con["expression"].shape).T
-                                @ slack_variable
-                            )
+                        obj_con = ocp.at_tf(
+                            cs.DM.ones(final_con["expression"].shape).T @ slack_variable
                         )
+                        ocp.add_objective(obj_con)
+                        if "name" in final_con:
+                            self.constraints[final_con["name"]] = {"obj": obj_con}
 
         if "path_constraints" in task_spec:
             for path_con in task_spec["path_constraints"]:
@@ -362,12 +375,7 @@ class task_context:
                                     expression[0:3, 0:3].T, reference[0:3, 0:3]
                                 )
                                 if "norm" not in path_con or path_con["norm"] == "L2":
-                                    ocp.add_objective(
-                                        ocp.integral(cs.sumsqr(trans_error))
-                                        * path_con["trans_gain"]
-                                    )
-
-                                    ocp.add_objective(
+                                    obj_rot = (
                                         ocp.integral(
                                             (
                                                 (
@@ -379,17 +387,29 @@ class task_context:
                                                 / 2
                                                 - 1
                                             )
-                                            ** 2
+                                            ** 2,
+                                            grid="control",
                                         )
                                         * 3
                                         * path_con["rot_gain"]
                                     )
+                                    obj_trans = (
+                                        ocp.integral(
+                                            cs.sumsqr(trans_error), grid="control"
+                                        )
+                                        * path_con["trans_gain"]
+                                    )
+                                    ocp.add_objective(obj_trans + obj_rot)
+                                    if "name" in path_con:
+                                        self.constraints[path_con["name"]] = {
+                                            "obj": obj_rot + obj_trans
+                                        }
                                 elif path_con["norm"] == "L1":
                                     cos_theta_error = (
                                         rot_error[0, 0]
                                         + rot_error[1, 1]
                                         + rot_error[2, 2]
-                                        - 2
+                                        - 1
                                     ) * 0.5
                                     slack_variable = self.create_expression(
                                         "slack_final_frame", "control", (4, 1)
@@ -403,7 +423,7 @@ class task_context:
                                         <= (cos_theta_error - 1 <= slack_variable[3])
                                     )
                                     ocp.add_objective(
-                                        ocp.integral(
+                                        ocp.sum(
                                             (
                                                 slack_variable[0]
                                                 + slack_variable[1]
@@ -413,22 +433,42 @@ class task_context:
                                         * path_con["trans_gain"]
                                     )
                                     ocp.add_objective(
-                                        ocp.integral(slack_variable[3])
+                                        ocp.sum(slack_variable[3])
                                         * 3
                                         * path_con["rot_gain"]
                                     )
+                                    obj_con = (
+                                        slack_variable[0]
+                                        + slack_variable[1]
+                                        + slack_variable[2]
+                                        + slack_variable[3]
+                                    )
+                                    if "name" in path_con:
+                                        self.constraints[path_con["name"]] = {
+                                            "obj": obj_con
+                                        }
+                                        self.constraints[path_con["name"]][
+                                            "rot_error_cos"
+                                        ] = cos_theta_error
+                                        self.constraints[path_con["name"]][
+                                            "trans_error"
+                                        ] = slack_variable[0:3]
                                 else:
                                     raise Exception("Error")
                         elif "norm" not in path_con or path_con["norm"] == "L2":
                             # print('L2 norm added')
-                            ocp.add_objective(
+                            obj_con = (
                                 ocp.integral(
                                     cs.sumsqr(
                                         path_con["expression"] - path_con["reference"]
-                                    )
+                                    ),
+                                    grid="control",
                                 )
                                 * path_con["gain"]
                             )
+                            ocp.add_objective(obj_con)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj_con}
                         elif path_con["norm"] == "L1":
                             # print("L1 norm added")
                             slack_variable = self.create_expression(
@@ -443,9 +483,41 @@ class task_context:
                                     <= slack_variable
                                 )
                             )
-                            ocp.add_objective(
-                                ocp.integral(slack_variable) * path_con["gain"]
+                            obj_con = (
+                                ocp.integral(
+                                    cs.DM.ones(path_con["expression"].shape).T
+                                    @ slack_variable,
+                                    grid="control",
+                                )
+                                * path_con["gain"]
                             )
+                            ocp.add_objective(obj_con)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj_con}
+                        elif path_con["norm"] == "L2_nonsquared":
+                            # print("L1 norm added")
+                            slack_variable = self.create_expression(
+                                "slack_path_con",
+                                "control",
+                                (1, 1),
+                            )
+                            ocp.subject_to(
+                                cs.sumsqr(
+                                    path_con["expression"] - path_con["reference"]
+                                )
+                                <= slack_variable ** 2
+                            )
+                            ocp.subject_to(slack_variable >= 0)
+                            obj_con = (
+                                ocp.integral(slack_variable, grid="control")
+                                * path_con["gain"]
+                            )
+                            ocp.add_objective(obj_con)
+                            # ocp.subject_to(slack_variable >= 0)
+
+                            ocp.add_objective(obj_con)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj_con}
                     elif path_con["hard"]:
 
                         ocp.subject_to(path_con["expression"] == path_con["reference"])
@@ -531,42 +603,43 @@ class task_context:
 
     def minimize_time(self, weight):
 
-        """ Add a cost on minimizing the time of the OCP to provide time-optimal
-		solutions.
+        """Add a cost on minimizing the time of the OCP to provide time-optimal
+        solutions.
 
-		:param weight: A weight factor on cost penalizing the total time of the ocp horizon.
-		:type weight: float
-		"""
+        :param weight: A weight factor on cost penalizing the total time of the ocp horizon.
+        :type weight: float
+        """
         self.ocp.add_objective(weight * self.ocp.T)
 
     def set_ocp_solver(self, solver, options={}):
 
-        """ Choose the numerical solver for solving the OCP and set the options.
+        """Choose the numerical solver for solving the OCP and set the options.
 
-		:param solver: name of the solver. 'ipopt', 'sqpmethod'.
-		:type solver: string
+        :param solver: name of the solver. 'ipopt', 'sqpmethod'.
+        :type solver: string
 
-		:param options: Dictionary of options for the solver
-		:type options: dictionary
+        :param options: Dictionary of options for the solver
+        :type options: dictionary
 
-		"""
+        """
 
         ocp = self.ocp
-        options["expand"] = True
+        if "expand" not in options:
+            options["expand"] = True
         ocp.solver(solver, options)
 
     def set_discretization_settings(self, settings):
 
-        """ Set the discretization method of the OCP
+        """Set the discretization method of the OCP
 
-		:param settings: A dictionary for setting the discretization method of the OCP with the fields and options given below. \n
-			'horizon_size' - (int)The number of samples in the OCP. \n
-			'discretization method'(string)- 'multiple_shooting' or 'single_shooting'. \n
-			'order' (integer)- The order of integration. Minumum one. \n
-			'integration' (string)- The numerical integration algorithm. 'rk' - Runge-Kutta4 method.
-		:type settings: dictionary
+        :param settings: A dictionary for setting the discretization method of the OCP with the fields and options given below. \n
+                'horizon_size' - (int)The number of samples in the OCP. \n
+                'discretization method'(string)- 'multiple_shooting' or 'single_shooting'. \n
+                'order' (integer)- The order of integration. Minumum one. \n
+                'integration' (string)- The numerical integration algorithm. 'rk' - Runge-Kutta4 method.
+        :type settings: dictionary
 
-		"""
+        """
 
         ocp = self.ocp
         disc_method = settings["discretization method"]
@@ -592,8 +665,7 @@ class task_context:
 
     def solve_ocp(self):
 
-        """ solves the ocp and returns the rockit solution object
-		"""
+        """solves the ocp and returns the rockit solution object"""
 
         ocp = self.ocp
         sol = ocp.solve()
@@ -603,12 +675,12 @@ class task_context:
     # Add monitors to the task context
     def add_monitor(self, task_monitor):
 
-        """ Adds the monitor to the task context.
+        """Adds the monitor to the task context.
 
-		:param task_monitor: A dictionary specifying the monitor
-		:type task_monitor: monitor dictionary
+        :param task_monitor: A dictionary specifying the monitor
+        :type task_monitor: monitor dictionary
 
-		"""
+        """
 
         self.monitors[task_monitor["name"]] = task_monitor
         self.monitors_configured = False
@@ -616,8 +688,8 @@ class task_context:
     # Configure the monitors
     def configure_monitors(self):
 
-        """ Configures all the monitors in the task context. Should be run only after the
-		ocp solve is called atleast once. """
+        """Configures all the monitors in the task context. Should be run only after the
+        ocp solve is called atleast once."""
         if not self.monitors_configured:
             for monitor in self.monitors:
                 self._configure_each_monitor(self.monitors[monitor])
