@@ -12,19 +12,19 @@ import numpy as np
 
 def acceleration_resolved(tc, robot, options={}):
 
-    """ Function returns the expressions for acceleration-resolved control
-	with appropriate position, velocity and acceleration constraints added
-	to the task context.
+    """Function returns the expressions for acceleration-resolved control
+    with appropriate position, velocity and acceleration constraints added
+    to the task context.
 
-	:param tc: The task context
+    :param tc: The task context
 
-	:param robot: robot The object of the robot in question
+    :param robot: robot The object of the robot in question
 
-	:param options: Dictionary to pass further miscellaneous options 
-	"""
+    :param options: Dictionary to pass further miscellaneous options
+    """
 
     q = tc.create_expression(
-        "q", "state", (robot.ndof, 1)
+        "q", "state", (robot.nq, 1)
     )  # joint positions over the trajectory
     q_dot = tc.create_expression("q_dot", "state", (robot.ndof, 1))  # joint velocities
     q_ddot = tc.create_expression("q_ddot", "control", (robot.ndof, 1))
@@ -77,23 +77,23 @@ def velocity_resolved(tc, robot, options):
 
 def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
 
-    """ Function returns the expressions for torque-resolved control
-	with appropriate position, velocity and torque constraints added
-	to the task context.
+    """Function returns the expressions for torque-resolved control
+    with appropriate position, velocity and torque constraints added
+    to the task context.
 
-	:param tc: The task context
+    :param tc: The task context
 
-	:param robot: robot The object of the robot in question
+    :param robot: robot The object of the robot in question
 
-	:param options: Dictionary to pass further options. Key 'forward_dynamics_constraints' is by default
-	set to False. Then, joint accelerations is a constraint variable. Torque values are computed using 
-	inverse dynamics (usually faster) and are subject to box-constraints. When 'forward_dynamics_constraints'
-	is set to True. Joint torques are control variables and are directly subject to box-constraints. 
-	Forward dynamics constraints are then added as equality constriants to the dynamics.
-	"""
+    :param options: Dictionary to pass further options. Key 'forward_dynamics_constraints' is by default
+    set to False. Then, joint accelerations is a constraint variable. Torque values are computed using
+    inverse dynamics (usually faster) and are subject to box-constraints. When 'forward_dynamics_constraints'
+    is set to True. Joint torques are control variables and are directly subject to box-constraints.
+    Forward dynamics constraints are then added as equality constriants to the dynamics.
+    """
 
     q = tc.create_expression(
-        "q", "state", (robot.ndof, 1)
+        "q", "state", (robot.nq, 1)
     )  # joint positions over the trajectory
     q_dot = tc.create_expression("q_dot", "state", (robot.ndof, 1))  # joint velocities
 
@@ -144,4 +144,3 @@ def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
     tc.add_task_constraint(init_constraints)
 
     return q, q_dot, q_ddot, tau, q0, q_dot0
-

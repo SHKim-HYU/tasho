@@ -1,4 +1,3 @@
-
 """Robot module for defining system to be used."""
 
 # from numpy import sin, cos, tan
@@ -11,7 +10,7 @@ import casadi as cs
 import numpy as np
 from tasho.utils import geometry
 
-#TODO: If input resolution has already been set for a previous task, you don't need to set it again
+# TODO: If input resolution has already been set for a previous task, you don't need to set it again
 
 
 class Robot:
@@ -27,7 +26,6 @@ class Robot:
     Here is a link to :py:meth:`load_from_json`.
     Here is a link to :py:meth:`__init__`.
     """
-
 
     def __init__(self, name="kinova"):
         """Start the Robot.
@@ -48,7 +46,7 @@ class Robot:
         self.joint_acc_lb = None
         self.torque_ub = None
         self.torque_lb = None
-        self.gravity = vertcat(0,0,-9.81)
+        self.gravity = vertcat(0, 0, -9.81)
 
         self.load_from_json()
 
@@ -78,169 +76,168 @@ class Robot:
 
         """
 
-        #TODO: also add the geometric jacobian for the rotational part. Better to use pinocchio 
-        #interface to set this in the long term
+        # TODO: also add the geometric jacobian for the rotational part. Better to use pinocchio
+        # interface to set this in the long term
 
-        q_sym = cs.MX.sym('q', self.ndof, 1)
+        q_sym = cs.MX.sym("q", self.ndof, 1)
 
-        #computing the jacobian
+        # computing the jacobian
         fk = self.fk(q_sym)[q]
-        jac = cs.jacobian(fk[0:3,3], q_sym)
+        jac = cs.jacobian(fk[0:3, 3], q_sym)
         jac_rot = cs.jacobian(fk[0:3, 0:3], q_sym)
 
         flag = False
         for i in range(self.ndof):
-            jac_rot_mat = cs.mtimes(cs.reshape(jac_rot[:,i], 3, 3), fk[0:3, 0:3].T)
+            jac_rot_mat = cs.mtimes(cs.reshape(jac_rot[:, i], 3, 3), fk[0:3, 0:3].T)
 
             if flag:
-                jac_rot_vec = cs.horzcat(jac_rot_vec, geometry.cross_mat2vec(jac_rot_mat))
+                jac_rot_vec = cs.horzcat(
+                    jac_rot_vec, geometry.cross_mat2vec(jac_rot_mat)
+                )
 
             else:
                 jac_rot_vec = geometry.cross_mat2vec(jac_rot_mat)
                 flag = True
 
-
-        #constructing and returning the function
+        # constructing and returning the function
         jac_fun = cs.Function(name, [q_sym], [jac, jac_rot_vec])
         self.trans_jacobian = jac_fun
         return jac_fun
 
-
-
-    def set_joint_limits(self, lb = None, ub = None):
+    def set_joint_limits(self, lb=None, ub=None):
         # TODO: This should come from our Pinocchio's interface
         # TODO: Print some warning/error when size of lb and ub doesn't correspond to ndof
         ndof = self.ndof
         if ub == None:
             _ub = inf
             for i in range(1, ndof):
-                _ub = vertcat(_ub,inf)
+                _ub = vertcat(_ub, inf)
         elif isinstance(ub, Real):
             _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
                 for i in range(1, ndof):
-                    _ub = vertcat(_ub,inf)
+                    _ub = vertcat(_ub, inf)
             else:
                 _ub = ub
 
         if lb == None:
             _lb = -inf
             for i in range(1, ndof):
-                _lb = vertcat(_lb,-inf)
+                _lb = vertcat(_lb, -inf)
         elif isinstance(lb, Real):
             _lb = lb
         else:
             if len(lb) != ndof:
                 _lb = -inf
                 for i in range(1, ndof):
-                    _lb = vertcat(_lb,-inf)
+                    _lb = vertcat(_lb, -inf)
             else:
                 _lb = lb
 
         self.joint_ub = _ub
         self.joint_lb = _lb
 
-    def set_joint_torque_limits(self, lb = None, ub = None):
+    def set_joint_torque_limits(self, lb=None, ub=None):
         # TODO: This should come from our Pinocchio's interface
         # TODO: Print some warning/error when size of lb and ub doesn't correspond to ndof
         ndof = self.ndof
         if ub == None:
             _ub = inf
             for i in range(1, ndof):
-                _ub = vertcat(_ub,inf)
+                _ub = vertcat(_ub, inf)
         elif isinstance(ub, Real):
             _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
                 for i in range(1, ndof):
-                    _ub = vertcat(_ub,inf)
+                    _ub = vertcat(_ub, inf)
             else:
                 _ub = ub
 
         if lb == None:
             _lb = -inf
             for i in range(1, ndof):
-                _lb = vertcat(_lb,-inf)
+                _lb = vertcat(_lb, -inf)
         elif isinstance(lb, Real):
             _lb = lb
         else:
             if len(lb) != ndof:
                 _lb = -inf
                 for i in range(1, ndof):
-                    _lb = vertcat(_lb,-inf)
+                    _lb = vertcat(_lb, -inf)
             else:
                 _lb = lb
 
         self.joint_torque_ub = _ub
         self.joint_torque_lb = _lb
 
-    def set_joint_velocity_limits(self, lb = None, ub = None):
+    def set_joint_velocity_limits(self, lb=None, ub=None):
         # TODO: This should come from our Pinocchio's interface
         # TODO: Print some warning/error when size of lb and ub doesn't correspond to ndof
         ndof = self.ndof
         if ub == None:
             _ub = inf
             for i in range(1, ndof):
-                _ub = vertcat(_ub,inf)
+                _ub = vertcat(_ub, inf)
         elif isinstance(ub, Real):
             _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
                 for i in range(1, ndof):
-                    _ub = vertcat(_ub,inf)
+                    _ub = vertcat(_ub, inf)
             else:
                 _ub = ub
 
         if lb == None:
             _lb = -inf
             for i in range(1, ndof):
-                _lb = vertcat(_lb,-inf)
+                _lb = vertcat(_lb, -inf)
         elif isinstance(lb, Real):
             _lb = lb
         else:
             if len(lb) != ndof:
                 _lb = -inf
                 for i in range(1, ndof):
-                    _lb = vertcat(_lb,-inf)
+                    _lb = vertcat(_lb, -inf)
             else:
                 _lb = lb
 
         self.joint_vel_ub = _ub
         self.joint_vel_lb = _lb
 
-    def set_joint_acceleration_limits(self, lb = None, ub = None):
+    def set_joint_acceleration_limits(self, lb=None, ub=None):
         # TODO: This should come from our Pinocchio's interface
         # TODO: Print some warning/error when size of lb and ub doesn't correspond to ndof
         ndof = self.ndof
         if ub == None:
             _ub = inf
             for i in range(1, ndof):
-                _ub = vertcat(_ub,inf)
+                _ub = vertcat(_ub, inf)
         elif isinstance(ub, Real):
             _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
                 for i in range(1, ndof):
-                    _ub = vertcat(_ub,inf)
+                    _ub = vertcat(_ub, inf)
             else:
                 _ub = ub
 
         if lb == None:
             _lb = -inf
             for i in range(1, ndof):
-                _lb = vertcat(_lb,-inf)
+                _lb = vertcat(_lb, -inf)
         elif isinstance(lb, Real):
             _lb = lb
         else:
             if len(lb) != ndof:
                 _lb = -inf
                 for i in range(1, ndof):
-                    _lb = vertcat(_lb,-inf)
+                    _lb = vertcat(_lb, -inf)
             else:
                 _lb = lb
 
@@ -248,13 +245,19 @@ class Robot:
         self.joint_acc_lb = _lb
 
     def load_from_json(self):
-        with open('./models/robots/' + self.name + '.json', 'r') as f:
+        print("Loading robot params from json")
+        with open("./models/robots/" + self.name + ".json", "r") as f:
             json_dict = json.load(f)
 
-        self.ndof = int(json_dict['n_dof'])
-        self.gravity = vertcat(float(json_dict['gravity']['x']), float(json_dict['gravity']['y']), float(json_dict['gravity']['z']))
+        self.ndof = int(json_dict["n_dof"])
+        self.nq = int(json_dict["n_q"])
+        self.gravity = vertcat(
+            float(json_dict["gravity"]["x"]),
+            float(json_dict["gravity"]["y"]),
+            float(json_dict["gravity"]["z"]),
+        )
 
-        _joints_name   = list()
+        _joints_name = list()
         _joints_pos_ub = vertcat()
         _joints_pos_lb = vertcat()
         _joints_vel_ub = vertcat()
@@ -269,30 +272,51 @@ class Robot:
         _all_joint_torque_limit = True
         _all_joint_acc_limit = True
 
-        for x in json_dict['joints']:
+        for x in json_dict["joints"]:
             _joints_name.append(x)
 
-            if ('joint_pos_ub' in json_dict['joints'][x]) and _all_joint_pos_ub:
-                _joints_pos_ub = vertcat(_joints_pos_ub,float(json_dict['joints'][x]['joint_pos_ub']))
+            if ("joint_pos_ub" in json_dict["joints"][x]) and _all_joint_pos_ub:
+                _joints_pos_ub = vertcat(
+                    _joints_pos_ub, float(json_dict["joints"][x]["joint_pos_ub"])
+                )
             else:
                 _all_joint_pos_ub = False
-            if ('joint_pos_lb' in json_dict['joints'][x]) and _all_joint_pos_lb:
-                _joints_pos_lb = vertcat(_joints_pos_lb,float(json_dict['joints'][x]['joint_pos_lb']))
+            if ("joint_pos_lb" in json_dict["joints"][x]) and _all_joint_pos_lb:
+                _joints_pos_lb = vertcat(
+                    _joints_pos_lb, float(json_dict["joints"][x]["joint_pos_lb"])
+                )
             else:
                 _all_joint_pos_lb = False
-            if ('joint_vel_limit' in json_dict['joints'][x]) and _all_joint_vel_limit:
-                _joints_vel_ub = vertcat(_joints_vel_ub,float(json_dict['joints'][x]['joint_vel_limit']))
-                _joints_vel_lb = vertcat(_joints_vel_lb,-float(json_dict['joints'][x]['joint_vel_limit']))
+            if ("joint_vel_limit" in json_dict["joints"][x]) and _all_joint_vel_limit:
+                _joints_vel_ub = vertcat(
+                    _joints_vel_ub, float(json_dict["joints"][x]["joint_vel_limit"])
+                )
+                _joints_vel_lb = vertcat(
+                    _joints_vel_lb, -float(json_dict["joints"][x]["joint_vel_limit"])
+                )
             else:
                 _all_joint_vel_limit = False
-            if ('joint_torque_limit' in json_dict['joints'][x]) and _all_joint_torque_limit:
-                _joints_torque_ub = vertcat(_joints_torque_ub,float(json_dict['joints'][x]['joint_torque_limit']))
-                _joints_torque_lb = vertcat(_joints_torque_lb,-float(json_dict['joints'][x]['joint_torque_limit']))
+            if (
+                "joint_torque_limit" in json_dict["joints"][x]
+            ) and _all_joint_torque_limit:
+                _joints_torque_ub = vertcat(
+                    _joints_torque_ub,
+                    float(json_dict["joints"][x]["joint_torque_limit"]),
+                )
+                _joints_torque_lb = vertcat(
+                    _joints_torque_lb,
+                    -float(json_dict["joints"][x]["joint_torque_limit"]),
+                )
+
             else:
                 _all_joint_torque_limit = False
-            if ('joint_acc_limit' in json_dict['joints'][x]) and _all_joint_acc_limit:
-                _joints_acc_ub = vertcat(_joints_vel_ub,float(json_dict['joints'][x]['joint_acc_limit']))
-                _joints_acc_lb = vertcat(_joints_vel_ub,-float(json_dict['joints'][x]['joint_acc_limit']))
+            if ("joint_acc_limit" in json_dict["joints"][x]) and _all_joint_acc_limit:
+                _joints_acc_ub = vertcat(
+                    _joints_vel_ub, float(json_dict["joints"][x]["joint_acc_limit"])
+                )
+                _joints_acc_lb = vertcat(
+                    _joints_vel_ub, -float(json_dict["joints"][x]["joint_acc_limit"])
+                )
             else:
                 _all_joint_acc_limit = False
 
@@ -312,9 +336,9 @@ class Robot:
             self.joint_acc_lb = _joints_acc_lb
         # TODO: Set ub or lb to infinity if they are not included in json
 
-        self.fd = Function.load(str(json_dict['forward_dynamics_path']))
-        self.id = Function.load(str(json_dict['inverse_dynamics_path']))
-        self.fk = Function.load(str(json_dict['forward_kinematics_path']))
+        self.fd = Function.load(str(json_dict["forward_dynamics_path"]))
+        self.id = Function.load(str(json_dict["inverse_dynamics_path"]))
+        self.fk = Function.load(str(json_dict["forward_kinematics_path"]))
 
         # TODO: Add URDF path to json
         # self.urdf = Function.load(str(json_dict['urdf_path']))
@@ -333,17 +357,17 @@ class Robot:
     def set_state(self, current_x):
         self.current_state = current_x
 
-    def set_robot_input_resolution(self, input_resolution = "acceleration"):
+    def set_robot_input_resolution(self, input_resolution="acceleration"):
         self.input_resolution = input_resolution
 
     def generate_random_configuration(self):
-        """ Returns a random configuration of the robot that respects the joint
+        """Returns a random configuration of the robot that respects the joint
         limits."""
 
         n = self.ndof
         joint_ub = np.array(self.joint_ub).T
         joint_lb = np.array(self.joint_lb).T
-        rand_joint_val = np.random.rand(n)*(joint_ub - joint_lb) + joint_lb       
+        rand_joint_val = np.random.rand(n) * (joint_ub - joint_lb) + joint_lb
 
         return list(rand_joint_val[0])
 
@@ -351,7 +375,6 @@ class Robot:
     #
     #     # Set robot's input resolution for task
     #     task_context.set_input_resolution(self)
-
 
     # def set_input_resolution(self, task_context, input_resolution = "acceleration", options=None):
     #
@@ -418,7 +441,6 @@ class Robot:
     @property
     def get_initial_conditions(self):
         return self.current_state
-
 
     # def sim_system_dyn(self, ocp):
     #     # Get discretised dynamics as CasADi function to simulate the system
@@ -503,7 +525,7 @@ class Robot:
 #
 #     def get_output_controls(self, ocp):
 #         return vertcat(ocp.sample(self.dtheta)[1], ocp.sample(self.V)[1])
-#Function to load casadi robot models
+# Function to load casadi robot models
 
 # import casadi as cs
 #
