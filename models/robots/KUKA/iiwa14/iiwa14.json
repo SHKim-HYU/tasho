@@ -9,6 +9,11 @@
         "y": "0",
         "z": "-9.8100000000000005"
     },
+    "forward_kinematics_path" : "iiwa14_fk.casadi",
+    "forward_dynamics_path" : "iiwa14_fd.casadi",
+    "inverse_dynamics_path" : "iiwa14_id.casadi",
+    "Jacobian_forward_dynamics_path": "iiwa14_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "iiwa14_J_id.casadi",
     "joints": {
         "iiwa_joint_1": {
             "joint_types": "JointModelRZ",
