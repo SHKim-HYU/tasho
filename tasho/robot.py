@@ -343,6 +343,21 @@ class Robot:
         self.J_fd = Function.load(str(json_dict["Jacobian_forward_dynamics_path"]))
         self.J_id = Function.load(str(json_dict["Jacobian_inverse_dynamics_path"]))
 
+        #####################################################################################
+        # rename the jacobians due to casadi's assert of J_fd.name() == jac_+function.name()
+        in_J_fd = self.J_fd.sx_in()
+        out_J_fd = [
+            self.J_fd(self.J_fd.sx_in(0), self.J_fd.sx_in(1), self.J_fd.sx_in(2))
+        ]
+        self.J_fd = Function("jac_fd", in_J_fd, out_J_fd)
+
+        in_J_id = self.J_id.sx_in()
+        out_J_id = [
+            self.J_id(self.J_id.sx_in(0), self.J_id.sx_in(1), self.J_id.sx_in(2))
+        ]
+        self.J_id = Function("jac_id", in_J_id, out_J_id)
+        ####################################################################################
+
         if analytical_derivatives:
             fd_opts = {"custom_jacobian": self.J_fd, "jac_penalty": 0}
             id_opts = {"custom_jacobian": self.J_id, "jac_penalty": 0}
