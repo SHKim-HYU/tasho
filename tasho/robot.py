@@ -27,7 +27,7 @@ class Robot:
     Here is a link to :py:meth:`__init__`.
     """
 
-    def __init__(self, name="kinova"):
+    def __init__(self, name="kinova", analytical_derivatives=False):
         """Start the Robot.
 
         :param name: Robots name to load functions.
@@ -48,7 +48,7 @@ class Robot:
         self.torque_lb = None
         self.gravity = vertcat(0, 0, -9.81)
 
-        self.load_from_json()
+        self.load_from_json(analytical_derivatives)
 
         self.states = []
         self.inputs = []
@@ -244,7 +244,7 @@ class Robot:
         self.joint_acc_ub = _ub
         self.joint_acc_lb = _lb
 
-    def load_from_json(self):
+    def load_from_json(self, analytical_derivatives):
         print("Loading robot params from json")
         with open("./models/robots/" + self.name + ".json", "r") as f:
             json_dict = json.load(f)
@@ -339,6 +339,35 @@ class Robot:
         self.fd = Function.load(str(json_dict["forward_dynamics_path"]))
         self.id = Function.load(str(json_dict["inverse_dynamics_path"]))
         self.fk = Function.load(str(json_dict["forward_kinematics_path"]))
+
+        self.J_fd = Function.load(str(json_dict["Jacobian_forward_dynamics_path"]))
+        self.J_id = Function.load(str(json_dict["Jacobian_inverse_dynamics_path"]))
+
+        if analytical_derivatives:
+            fd_opts = {"custom_jacobian": self.J_fd, "jac_penalty": 0}
+            id_opts = {"custom_jacobian": self.J_id, "jac_penalty": 0}
+
+            # TODO: Check if there's a better/compact way to keep same inputs of fd for the "new" function fd
+            # q_k, dq_k, ddq_k, tau_k = (
+            #     cs.SX.sym("q", self.nq, 1),
+            #     cs.SX.sym("dq", self.ndof, 1),
+            #     cs.SX.sym("ddq", self.ndof, 1),
+            #     cs.SX.sym("tau", self.ndof, 1),
+            # )
+            # self.fd = Function(
+            #     "fd", [q_k, dq_k, tau_k], [self.fd(q_k, dq_k, tau_k)], fd_opts
+            # )
+            # self.id = Function(
+            #     "id", [q_k, dq_k, ddq_k], [self.id(q_k, dq_k, ddq_k)], id_opts
+            # )
+
+            in_fd = self.fd.sx_in()
+            out_fd = [self.fd(self.fd.sx_in(0), self.fd.sx_in(1), self.fd.sx_in(2))]
+            self.fd = Function("fd", in_fd, out_fd, fd_opts)
+
+            in_id = self.id.sx_in()
+            out_id = [self.id(self.id.sx_in(0), self.id.sx_in(1), self.id.sx_in(2))]
+            self.id = Function("id", in_id, out_id, id_opts)
 
         # TODO: Add URDF path to json
         # self.urdf = Function.load(str(json_dict['urdf_path']))
