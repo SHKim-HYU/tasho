@@ -12,6 +12,8 @@
     "forward_kinematics_path" : "./models/robots/KUKA/kr60/kr60_fk.casadi",
     "forward_dynamics_path" : "./models/robots/KUKA/kr60/kr60_fd.casadi",
     "inverse_dynamics_path" : "./models/robots/KUKA/kr60/kr60_id.casadi",
+    "Jacobian_forward_dynamics_path": "./models/robots/KUKA/kr60/kr60_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "./models/robots/KUKA/kr60/kr60_J_id.casadi",
     "joints": {
         "joint_1": {
             "joint_types": "JointModelRevoluteUnaligned",
