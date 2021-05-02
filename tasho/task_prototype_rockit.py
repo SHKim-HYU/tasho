@@ -540,9 +540,13 @@ class task_context:
                             path_con["expression"] - path_con["upper_limits"], 0
                         )
                         if "norm" not in path_con or path_con["norm"] == "L2":
-                            ocp.add_objective(
-                                ocp.integral(con_violation ** 2) * path_con["gain"]
+                            obj = (
+                                ocp.integral(con_violation ** 2, grid="control")
+                                * path_con["gain"]
                             )
+                            ocp.add_objective(obj)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "L1":
                             slack_variable = self.create_expression(
                                 "slack_path_con",
@@ -554,9 +558,13 @@ class task_context:
                                 <= slack_variable
                             )
                             ocp.subject_to(0 >= -slack_variable)
-                            ocp.add_objective(
-                                ocp.integral(slack_variable) * path_con["gain"]
+                            obj = (
+                                ocp.integral(slack_variable, grid="control")
+                                * path_con["gain"]
                             )
+                            ocp.add_objective(obj)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "squaredL2":
                             slack_variable = self.create_expression(
                                 "slack_path_con", "control", (1, 1)
@@ -596,6 +604,27 @@ class task_context:
                             ocp.add_objective(
                                 ocp.integral(con_violation) * path_con["gain"]
                             )
+                        elif path_con["norm"] == "L1":
+                            slack = ocp.control(path_con["expression"].shape[0])
+                            ocp.subject_to(slack >= 0)
+                            ocp.subject_to(
+                                -slack + path_con["lower_limits"]
+                                <= (
+                                    path_con["expression"]
+                                    <= path_con["upper_limits"] + slack
+                                )
+                            )
+                            obj = (
+                                ocp.integral(
+                                    np.ones((1, path_con["expression"].shape[0]))
+                                    @ slack,
+                                    grid="control",
+                                )
+                                * path_con["gain"]
+                            )
+                            ocp.add_objective(obj)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj}
 
                 else:
                     raise Exception("ERROR: unknown type of path constraint added")

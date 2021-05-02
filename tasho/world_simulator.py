@@ -24,6 +24,7 @@ class world_simulator:
         p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())  # optionally
         p.setTimeStep(physics_ts)
+        p.setTimeStep(physics_ts)
         p.setGravity(0, 0, -9.81)
         if plane_spawn:
             planeId = p.loadURDF("plane.urdf")
@@ -38,7 +39,7 @@ class world_simulator:
         # Set default camera position
         p.resetDebugVisualizerCamera(
             cameraDistance=1.5,
-            cameraYaw=55,
+            cameraYaw=80,
             cameraPitch=-10,
             cameraTargetPosition=[0, 0, 0.5],
         )

@@ -27,6 +27,7 @@ class MPC:
         self.states_names = tc.states.keys()
         self.controls_names = tc.controls.keys()
         self.variables_names = tc.variables.keys()
+        self.variables_optiform_details = {}
 
         self.params_history = []
 
@@ -159,6 +160,8 @@ class MPC:
             tc.ocp._method.main_transcribe(tc.ocp)
             self._warm_start(self.sol_ocp)
             sol = tc.solve_ocp()
+            if self.mpc_debug is not True:
+                self._create_mpc_fun_casadi(codeGen=self.codeGen, f_name="ocp_fun")
 
         elif self.parameters["solver_name"] == "sqpmethod":
 
@@ -346,36 +349,55 @@ class MPC:
             )
 
         if self.mpc_debug is not True:
-            self._create_mpc_fun_casadi(codeGen=True)
+            self._create_mpc_fun_casadi(codeGen=self.codeGen)
         self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         # print(sol_controls['s_ddot'])
 
     # internal function to create the MPC function using casadi's opti.to_function capability
-    def _create_mpc_fun_casadi(self, codeGen=False):
+    def _create_mpc_fun_casadi(self, codeGen=False, f_name="mpc_fun"):
 
         tc = self.tc
         # create a list of ocp decision variables in the following order
         # states, controls, variables, parameters, lagrange_multipliers
         opti_xplam = []
+        opti_xplam_cg = []
+        vars_db = self.variables_optiform_details
+        counter = 0
+        print(counter)
         for state in self.states_names:
             _, temp = tc.ocp.sample(tc.states[state], grid="control")
+            temp2 = []
+            for i in range(tc.horizon + 1):
+                temp2.append(temp[:, i])
             opti_xplam.append(temp)
+            vars_db[state] = {"start": counter, "size": temp.shape[0]}
+            opti_xplam_cg.append(cs.vcat(temp2))
+            counter += temp.shape[0] * temp.shape[1]
+            vars_db[state]["end"] = counter
 
         # obtain the opti variables related to control
         for control in self.controls_names:
             _, temp = tc.ocp.sample(tc.controls[control], grid="control")
             temp2 = []
-            for i in range(temp.shape[1] - 1):
+            for i in range(tc.horizon):
                 temp2.append(
                     tc.ocp._method.eval_at_control(tc.ocp, tc.controls[control], i)
                 )
+            vars_db[control] = {"start": counter, "size": temp.shape[0]}
+            counter += temp.shape[0] * (temp.shape[1] - 1)
+            vars_db[control]["end"] = counter
             opti_xplam.append(cs.hcat(temp2))
+            opti_xplam_cg.append(cs.vcat(temp2))
 
         # obtain the opti variables related for variables
         for variable in self.variables_names:
             temp = tc.ocp._method.eval_at_control(tc.ocp, tc.variables[variable], 0)
             # print(temp)
             opti_xplam.append(temp)
+            opti_xplam_cg.append(temp)
+            vars_db[variable] = {"start": counter, "size": temp.shape[0]}
+            counter += temp.shape[0]
+            vars_db[variable]["end"] = counter
 
         for parameter in self.params_names:
             temp = tc.ocp._method.eval_at_control(
@@ -383,6 +405,10 @@ class MPC:
             )  # tc.ocp.sample(tc.parameters[parameter])
             # print(temp)
             opti_xplam.append(temp)
+            opti_xplam_cg.append(temp)
+            vars_db[parameter] = {"start": counter, "size": temp.shape[0]}
+            counter += temp.shape[0]
+            vars_db[parameter]["end"] = counter
 
         # adding the lagrange multiplier terms as well
         # print(tc.ocp.opti.p)
@@ -391,21 +417,37 @@ class MPC:
         # print(opti_xplam[5])
         # print(opti_xplam[6])
         opti_xplam.append(tc.ocp._method.opti.lam_g)
-
+        vars_db["lam_g"] = {
+            "start": counter,
+            "size": tc.ocp._method.opti.lam_g.shape[0],
+        }
+        counter += tc.ocp._method.opti.lam_g.shape[0]
+        vars_db["lam_g"]["end"] = counter
+        print(vars_db)
         # setting the MPC function!
         # opti = tc.ocp.opti
-        # self._mpc_fun = tc.ocp.opti.to_function('mpc_fun', [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]);
-        self._mpc_fun = tc.ocp._method.opti.to_function("f", opti_xplam, opti_xplam)
-        self._opti_xplam = opti_xplam
         opti = tc.ocp._method.opti
+        # self._mpc_fun = opti.to_function(
+        #     "mpc_fun", [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]
+        # )
+        self._mpc_fun = tc.ocp._method.opti.to_function(f_name, opti_xplam, opti_xplam)
+        self._mpc_fun_cg = tc.ocp._method.opti.to_function(
+            f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)]
+        )
+        self._opti_xplam = opti_xplam
+
         self._opti_xplam_to_optiform = cs.Function(
             "opti_xplam_to_optiform", opti_xplam, [opti.x, opti.p, opti.lam_g]
         )
-        if self.codeGen:
-            print("Code generating the MPC function")
-            self._mpc_fun.generate("f" + ".c", {"with_header": True, "main": True})
-            C = cs.Importer("f.c", "clang")
-            self._mpc_fun = cs.external("f", C)
+        if codeGen:
+            if self.code_type == 0:
+                self._mpc_fun_cg.generate(
+                    f_name + ".c", {"with_header": True, "main": True}
+                )
+                C = cs.Importer(f_name + ".c", "clang")
+                self._mpc_fun = cs.external("mpc_", C)
+            elif self.code_type == 1:
+                self._mpc_fun_cg.save(f_name + ".casadi")
             # self._mpc_fun = cs.external('f', './mpc_fun.so')
 
     ## obtain the solution of the ocp
