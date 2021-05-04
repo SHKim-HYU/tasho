@@ -97,7 +97,10 @@ class MPC:
 
         tc.set_ocp_solver(
             "ipopt",
-            {"ipopt": {"max_iter": 1000, "tol": 1e-6, "linear_solver": "ma27"}},
+            {
+                "ipopt": {"max_iter": 1000, "tol": 1e-6, "linear_solver": "ma27"},
+                "error_on_fail": True,
+            },
         )
 
         # assuming that the discretization settings are already done!
@@ -123,7 +126,8 @@ class MPC:
                             "limited_memory_max_history": 5,
                             "tol": 1e-3,
                             "print_level": 5,
-                        }
+                        },
+                        "error_on_fail": True,
                     },
                 )
             else:
@@ -152,6 +156,7 @@ class MPC:
                             "fast_step_computation": "yes",
                             "mu_allow_fast_monotone_decrease": "yes",
                             "ma27_skip_inertia_check": "yes",
+                            "error_on_fail": True,
                             # "ma27_ignore_singularity": "yes",
                         }
                     },
@@ -193,6 +198,7 @@ class MPC:
                     "print_header": False,
                     "print_status": False,
                     "print_time": True,
+                    "error_on_fail": True,
                 }  # "convexify_strategy":"regularize"
                 tc.set_ocp_solver("sqpmethod", solver_options)
 
@@ -227,6 +233,7 @@ class MPC:
                     "print_header": False,
                     "print_status": False,
                     "print_time": True,
+                    "error_on_fail": True,
                 }  # "convexify_strategy":"regularize"
                 tc.set_ocp_solver("sqpmethod", solver_options)
 
@@ -256,6 +263,7 @@ class MPC:
                     "print_header": False,
                     "print_status": False,
                     "print_time": True,
+                    "error_on_fail": True,
                 }  # "convexify_strategy":"regularize"
                 tc.set_ocp_solver("sqpmethod", solver_options)
 
@@ -324,6 +332,7 @@ class MPC:
                     "print_header": False,
                     "print_status": False,
                     "print_time": True,
+                    "error_on_fail": True,
                 }  # "convexify_strategy":"regularize"
                 tc.set_ocp_solver("sqpmethod", solver_options)
 
