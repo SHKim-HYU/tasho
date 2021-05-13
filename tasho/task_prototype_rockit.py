@@ -2,7 +2,6 @@
 # returns a COP
 from sys import path
 
-path.insert(0, r"/home/ajay/Desktop/motion_planning_libraries/rockit")
 from rockit import (
     Ocp,
     DirectMethod,
@@ -205,7 +204,6 @@ class task_context:
                 # Made an assumption that the initial constraint is always hard
                 ocp.subject_to(
                     ocp.at_t0(init_con["expression"]) == init_con["reference"],
-                    include_first=False,
                 )
 
         if "final_constraints" in task_spec:
@@ -520,22 +518,35 @@ class task_context:
                                 self.constraints[path_con["name"]] = {"obj": obj_con}
                     elif path_con["hard"]:
 
-                        ocp.subject_to(path_con["expression"] == path_con["reference"])
+                        ocp.subject_to(
+                            path_con["expression"] == path_con["reference"],
+                            include_first=False,
+                        )
 
                 elif "inequality" in path_con:
 
                     if path_con["hard"]:
-                        ocp.subject_to(
-                            path_con["expression"] <= path_con["upper_limits"]
-                        )
+                        if "include_first" in path_con:
+                            ocp.subject_to(
+                                path_con["expression"] <= path_con["upper_limits"]
+                            )
+                        else:
+                            ocp.subject_to(
+                                path_con["expression"] <= path_con["upper_limits"],
+                                include_first=False,
+                            )
                     else:
                         con_violation = cs.fmax(
                             path_con["expression"] - path_con["upper_limits"], 0
                         )
                         if "norm" not in path_con or path_con["norm"] == "L2":
-                            ocp.add_objective(
-                                ocp.integral(con_violation ** 2) * path_con["gain"]
+                            obj = (
+                                ocp.integral(con_violation ** 2, grid="control")
+                                * path_con["gain"]
                             )
+                            ocp.add_objective(obj)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "L1":
                             slack_variable = self.create_expression(
                                 "slack_path_con",
@@ -547,9 +558,13 @@ class task_context:
                                 <= slack_variable
                             )
                             ocp.subject_to(0 >= -slack_variable)
-                            ocp.add_objective(
-                                ocp.integral(slack_variable) * path_con["gain"]
+                            obj = (
+                                ocp.integral(slack_variable, grid="control")
+                                * path_con["gain"]
                             )
+                            ocp.add_objective(obj)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "squaredL2":
                             slack_variable = self.create_expression(
                                 "slack_path_con", "control", (1, 1)
@@ -567,12 +582,12 @@ class task_context:
                 elif "lub" in path_con:
 
                     if path_con["hard"]:
-                        if "exclude_first" not in path_con:
+                        if "include_first" in path_con:
                             ocp.subject_to(
                                 (path_con["lower_limits"] <= path_con["expression"])
                                 <= path_con["upper_limits"]
                             )
-                        elif path_con["exclude_first"] == False:
+                        else:
                             ocp.subject_to(
                                 (path_con["lower_limits"] <= path_con["expression"])
                                 <= path_con["upper_limits"],
@@ -589,6 +604,27 @@ class task_context:
                             ocp.add_objective(
                                 ocp.integral(con_violation) * path_con["gain"]
                             )
+                        elif path_con["norm"] == "L1":
+                            slack = ocp.control(path_con["expression"].shape[0])
+                            ocp.subject_to(slack >= 0)
+                            ocp.subject_to(
+                                -slack + path_con["lower_limits"]
+                                <= (
+                                    path_con["expression"]
+                                    <= path_con["upper_limits"] + slack
+                                )
+                            )
+                            obj = (
+                                ocp.integral(
+                                    np.ones((1, path_con["expression"].shape[0]))
+                                    @ slack,
+                                    grid="control",
+                                )
+                                * path_con["gain"]
+                            )
+                            ocp.add_objective(obj)
+                            if "name" in path_con:
+                                self.constraints[path_con["name"]] = {"obj": obj}
 
                 else:
                     raise Exception("ERROR: unknown type of path constraint added")
