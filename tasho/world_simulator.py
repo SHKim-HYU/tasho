@@ -127,6 +127,13 @@ class world_simulator:
                     orientation,
                     useFixedBase=fixedBase,
                 )
+            elif robot_name == "mmo_500_ppr":
+                robotID = p.loadURDF(
+                    "/models/robots/MMO_500/mmo500_description/mmo_500_ppr.urdf",
+                    position,
+                    orientation,
+                    useFixedBase=fixedBase,
+                )
             else:
                 print("[Error] No valid robot for the given robot name")
         elif robot_urdf != None:
