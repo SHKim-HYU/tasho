@@ -6,7 +6,7 @@
 import casadi as cs
 import numpy as np
 from time import time
-from multiprocessing import Pool
+import json
 
 
 class MPC:
@@ -363,7 +363,9 @@ class MPC:
         # print(sol_controls['s_ddot'])
 
     # internal function to create the MPC function using casadi's opti.to_function capability
-    def _create_mpc_fun_casadi(self, codeGen=False, f_name="mpc_fun"):
+    def _create_mpc_fun_casadi(
+        self, codeGen=False, f_name="mpc_fun", codeGen_dest="./"
+    ):
 
         tc = self.tc
         # create a list of ocp decision variables in the following order
@@ -432,7 +434,6 @@ class MPC:
         }
         counter += tc.ocp._method.opti.lam_g.shape[0]
         vars_db["lam_g"]["end"] = counter
-        print(vars_db)
         # setting the MPC function!
         # opti = tc.ocp.opti
         opti = tc.ocp._method.opti
@@ -456,6 +457,11 @@ class MPC:
                 C = cs.Importer(f_name + ".c", "clang")
                 self._mpc_fun = cs.external("mpc_", C)
             elif self.code_type == 1:
+                vars_db["casadi_fun"] = codeGen_dest + f_name + ".casadi"
+                vars_db["fun_name"] = f_name
+                print(vars_db)
+                with open(codeGen_dest + f_name + "_property.json", "w") as fp:
+                    json.dump(vars_db, fp)
                 self._mpc_fun_cg.save(f_name + ".casadi")
             # self._mpc_fun = cs.external('f', './mpc_fun.so')
 
