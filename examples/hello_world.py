@@ -23,13 +23,14 @@ if __name__ == "__main__":
 
     tc.add_task_constraint(task_spec)
 
-    tc.set_ocp_solver("ipopt")
-    disc_settings = {
-        "discretization method": "single shooting",
-        "horizon size": 5,
-        "order": 1,
-        "integration": "rk",
-    }
+    # tc.set_ocp_solver("ipopt") #ipopt is set as the default solver
+    # disc_settings = {
+    #     "discretization method": "single shooting",
+    #     "horizon size": 5,
+    #     "order": 1,
+    #     "integration": "rk",
+    # }
+    disc_settings = {}
     tc.set_discretization_settings(disc_settings)
 
     sol = tc.solve_ocp()

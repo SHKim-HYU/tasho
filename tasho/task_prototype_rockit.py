@@ -69,6 +69,8 @@ class task_context:
             "props": [],
         }
 
+        self.set_ocp_solver("ipopt")
+
     def create_expression(self, name, type, shape):
 
         """Creates a symbolic expression for variables in OCP.
@@ -808,7 +810,6 @@ class task_context:
         """Set the discretization method of the OCP
 
         :param settings: A dictionary for setting the discretization method of the OCP with the fields and options given below. \n
-                'horizon_size' - (int)The number of samples in the OCP. \n
                 'discretization method'(string)- 'multiple_shooting' or 'single_shooting'. \n
                 'order' (integer)- The order of integration. Minumum one. \n
                 'integration' (string)- The numerical integration algorithm. 'rk' - Runge-Kutta4 method.
@@ -817,8 +818,15 @@ class task_context:
         """
 
         ocp = self.ocp
-        disc_method = settings["discretization method"]
-        N = settings["horizon size"]
+        if "discretization_method" not in settings:
+            disc_method = "multiple shooting"
+        else:
+            disc_method = settings["discretization method"]
+
+        if "integration" not in settings:
+            integrator = "rk"
+        else:
+            integrator = settings["integration"]
 
         if "order" not in settings:
             M = 1
@@ -826,13 +834,13 @@ class task_context:
             M = settings["order"]
 
         if disc_method == "multiple shooting":
-            ocp.method(MultipleShooting(N=N, M=M, intg=settings["integration"]))
+            ocp.method(MultipleShooting(N=self.horizon, M=M, intg=integrator))
         elif disc_method == "single shooting":
-            ocp.method(SingleShooting(N=N, M=M, intg=settings["integration"]))
+            ocp.method(SingleShooting(N=self.horizon, M=M, intg=integrator))
         elif disc_method == "direct collocation":
-            ocp.method(DirectCollocation(N=N, M=M))
+            ocp.method(DirectCollocation(N=self.horizon, M=M))
         else:
-            print(
+            raise Exception(
                 "ERROR: discretization with "
                 + settings["discretization_method"]
                 + " is not defined"

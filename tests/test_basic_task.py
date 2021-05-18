@@ -4,7 +4,7 @@ from tasho import task_prototype_rockit as tp
 
 class TestTask(unittest.TestCase):
     def test_task_hw(self):
-        tc = tp.task_context(5)
+        tc = tp.task_context(5, horizon_steps=5)
 
         x, x0 = tc.create_state("x", init_parameter=True)
         u = tc.create_control("u")
@@ -31,7 +31,6 @@ class TestTask(unittest.TestCase):
         tc.set_ocp_solver("ipopt", solver_options)
         disc_settings = {
             "discretization method": "multiple shooting",
-            "horizon size": 5,
             "order": 2,
             "integration": "rk",
         }
