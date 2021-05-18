@@ -7,7 +7,8 @@ from tasho import task_prototype_rockit as tp
 
 # This may be replaced by some method get_ocp_variables, which calls self.states, self.controls, ...
 from collections import namedtuple
-_OCPvars = namedtuple("OCPvars", ['q', 'q_dot', 'q_ddot', 'q0', 'q_dot0'])
+
+_OCPvars = namedtuple("OCPvars", ["q", "q_dot", "q_ddot", "q0", "q_dot0"])
 
 
 class Point2Point(tp.task_context):
@@ -20,22 +21,25 @@ class Point2Point(tp.task_context):
         problem = [t.Point2Point()
 
     """
-    def __init__(self, time = None, horizon = 10, goal = None):
+
+    def __init__(self, time=None, horizon_steps=10, goal=None):
         # First call __init__ from TaskContext
         if time is None:
-        	super().__init__(horizon = horizon)
+            super().__init__(horizon_steps=horizon_steps)
         else:
-        	super().__init__(time = time, horizon = horizon)
-
+            super().__init__(time=time, horizon_steps=horizon_steps)
 
         if goal is not None:
-        	if ((isinstance(goal, list) and int(len(goal)) == 3) or
-        		(isinstance(goal, np.ndarray) and goal.shape == (3, 1))):
-        		print("Goal position")
-        	elif (isinstance(goal, np.ndarray) and goal.shape == (4, 4)):
-        		print("Goal transformation matrix")
+            if (isinstance(goal, list) and int(len(goal)) == 3) or (
+                isinstance(goal, np.ndarray) and goal.shape == (3, 1)
+            ):
+                print("Goal position")
+            elif isinstance(goal, np.ndarray) and goal.shape == (4, 4):
+                print("Goal transformation matrix")
         else:
-            print("ERROR: Please set a goal (position or transformation matrix) for the Point2Point problem")
+            print(
+                "ERROR: Please set a goal (position or transformation matrix) for the Point2Point problem"
+            )
 
         self.goal = goal
 
@@ -71,18 +75,37 @@ class Point2Point(tp.task_context):
 
         # Set expression for End-effector's transformation matrix
         for _key in self.robots:
-        	_robot = self.robots[_key]
+            _robot = self.robots[_key]
         fk_fun = _robot.fk(q)[7]
 
         # Define pose constraints
-        finalposition_con = {"hard": True, "type": "Frame", "expression": fk_fun, "reference": goal}
+        finalposition_con = {
+            "hard": True,
+            "type": "Frame",
+            "expression": fk_fun,
+            "reference": goal,
+        }
         finalvelocity_con = {"hard": True, "expression": q_dot, "reference": 0}
-        final_constraints = {"final_constraints": [finalposition_con, finalvelocity_con]}
+        final_constraints = {
+            "final_constraints": [finalposition_con, finalvelocity_con]
+        }
 
         # Define path constraints
-        vel_regularization = {'hard': False, 'expression':q_dot, 'reference':0, 'gain':1}
-        acc_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':1}
-        path_soft_constraints = {'path_constraints':[vel_regularization, acc_regularization]}
+        vel_regularization = {
+            "hard": False,
+            "expression": q_dot,
+            "reference": 0,
+            "gain": 1,
+        }
+        acc_regularization = {
+            "hard": False,
+            "expression": q_ddot,
+            "reference": 0,
+            "gain": 1,
+        }
+        path_soft_constraints = {
+            "path_constraints": [vel_regularization, acc_regularization]
+        }
 
         # Add constraints to task
         self.add_task_constraint(final_constraints)
