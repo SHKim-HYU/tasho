@@ -305,7 +305,7 @@ class task_context:
                                     + slack_variable[2]
                                 ) * final_con["trans_gain"]
                                 obj_rot = slack_variable[3] * final_con["rot_gain"] * 3
-                                ocp.add_objective(trans_gain)
+                                ocp.add_objective(obj_trans)
                                 ocp.add_objective(obj_rot)
                                 if "name" in final_con:
                                     self.constraints[final_con["name"]] = {
