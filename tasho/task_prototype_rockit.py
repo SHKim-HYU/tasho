@@ -25,17 +25,23 @@ class task_context:
     The class stores all expressions and constraints relevant to an OCP
     """
 
-    def __init__(self, time=None, horizon=10):
+    def __init__(self, time=None, horizon_steps=10):
         """Class constructor - initializes and sets the field variables of the class
 
-        :param time: The length of the time horizon of the OCP.
+        :param time: The prediction horizon of the OCP.
+        :type time: float
+
+        :param horizon_steps: Number of steps in the ocp horizon.
+        :type horizon_steps: int
 
         """
 
         if time is None:
             ocp = Ocp(T=FreeTime(10))
+            self.ocp_rate = None
         else:
             ocp = Ocp(T=time)
+            self.ocp_rate = time / horizon_steps
 
         # ocp = Ocp(T = time)
         self.ocp = ocp
@@ -51,7 +57,19 @@ class task_context:
 
         self.robots = {}
         self.OCPvars = None
-        self.horizon = horizon
+        self.horizon = horizon_steps
+
+        self.tc_dict = {
+            "states": {},
+            "controls": {},
+            "parameters": {},
+            "variables": {},
+            "inp_ports": [],
+            "out_ports": [],
+            "props": [],
+        }
+
+        self.set_ocp_solver("ipopt")
 
     def create_expression(self, name, type, shape):
 
@@ -101,6 +119,129 @@ class task_context:
         else:
 
             print("ERROR: expression type undefined")
+
+    def create_state(self, name, shape=(1, 1), init_parameter=False):
+        """
+        Creates a symbolic expression for state. If init_parameter is true, also
+        creates a parameter corresponding to the initial condition of the state.
+        Depending on init_parameter, returns state or state and parameter.
+
+        :param name: name of the symbolic variable
+        :type name: string
+
+        :param shape: 2-dimensional tuple that denotes the dimensions of the expression.
+        :type shape: tuple of int.
+
+        :param init_parameter: Indicates whether an initial condition parameter should be created simultaneously.
+        :type init_parameter: boolean
+
+        """
+        ocp = self.ocp
+        if name in self.states:
+            raise Exception("The state of the name " + name + " is already declared.")
+        state = ocp.state(shape[0], shape[1])  # creating state
+        self.states[name] = state  # adding the symbolic variable to list of states
+        self.tc_dict["states"][name] = {}  # recording state in the task context dict
+
+        if init_parameter:
+            parameter = self.create_parameter(name + "0", shape)
+            ocp.subject_to(ocp.at_t0(state) == parameter)  # adding init eq constraint
+            self.tc_dict["states"][name]["assoc_param"] = name + "0"  # associated param
+            self.tc_dict["parameters"][name + "0"]["assoc_state"] = name
+            return state, parameter
+
+        return state
+
+    def create_parameter(self, name, shape=(1, 1), port_or_property=1):
+        """
+        Creates a symbolic expression for a parameter. By default, also assigns a
+        port which is relevant while deploying the controller on a robot.
+
+        :param name: name of the symbolic variable
+        :type name: string
+
+        :param shape: 2-dimensional tuple that denotes the dimensions of the expression.
+        :type shape: tuple of int.
+
+        :param port_or_property: 1 - port is created. 2 - property is created. any other value - neither port nor property created
+        :type port_or_property: int
+
+        """
+        ocp = self.ocp
+        if name in self.parameters:
+            raise Exception(
+                "The parameter of the name " + name + " is already declared."
+            )
+        parameter = ocp.parameter(shape[0], shape[1])
+        self.parameters[name] = parameter
+        self.tc_dict["parameters"][name] = {}  # declaring param in the tc dict
+
+        if port_or_property == 1:
+            # declaring a port and making connections with the associated parameter
+            self.tc_dict["inp_ports"].append(
+                {
+                    "name": "port_inp_" + name,
+                    "var": name,
+                    "desc": "[default] Read values for parameter " + name,
+                }
+            )
+            self.tc_dict["parameters"][name]["assoc_port"] = (
+                len(self.tc_dict["inp_ports"]) - 1
+            )
+
+        elif port_or_property == 2:
+            # declaring a property
+            self.tc_dict["props"].append(
+                {
+                    "name": "prop_inp_" + name,
+                    "var": name,
+                    "desc": "[default] Read values for parameter " + name,
+                }
+            )
+            self.tc_dict["parameters"][name]["assoc_prop"] = (
+                len(self.tc_dict["props"]) - 1
+            )
+
+        return parameter
+
+    def create_control(self, name, shape=(1, 1), outport=True):
+        """
+        Creates a symbolic expression for a control variable. By default, also
+        assigns an output port which is relevant while deploying the controller
+        on a robot.
+
+        :param name: name of the symbolic variable
+        :type name: string
+
+        :param shape: 2-dimensional tuple that denotes the dimensions of the expression.
+        :type shape: tuple of int.
+
+        :param outport: Set to True if an output port needs to be created, False otherwise.
+
+        """
+        ocp = self.ocp
+        if name in self.controls:
+            raise Exception(
+                "The parameter of the name " + name + " is already declared."
+            )
+        control = ocp.control(shape[0], shape[1])
+        self.controls[name] = control
+        self.tc_dict["controls"][name] = {}
+
+        if outport == True:
+            # declaring an port and making connections with the associated control
+            self.tc_dict["out_ports"].append(
+                {
+                    "name": "port_out_" + name,
+                    "var": name,
+                    "desc": "[default] write values for control " + name,
+                }
+            )
+            self.tc_dict["controls"][name]["assoc_port"] = (
+                len(self.tc_dict["out_ports"]) - 1
+            )
+
+        return control
 
     def set_dynamics(self, state, state_der):
 
@@ -669,7 +810,6 @@ class task_context:
         """Set the discretization method of the OCP
 
         :param settings: A dictionary for setting the discretization method of the OCP with the fields and options given below. \n
-                'horizon_size' - (int)The number of samples in the OCP. \n
                 'discretization method'(string)- 'multiple_shooting' or 'single_shooting'. \n
                 'order' (integer)- The order of integration. Minumum one. \n
                 'integration' (string)- The numerical integration algorithm. 'rk' - Runge-Kutta4 method.
@@ -678,8 +818,15 @@ class task_context:
         """
 
         ocp = self.ocp
-        disc_method = settings["discretization method"]
-        N = settings["horizon size"]
+        if "discretization_method" not in settings:
+            disc_method = "multiple shooting"
+        else:
+            disc_method = settings["discretization method"]
+
+        if "integration" not in settings:
+            integrator = "rk"
+        else:
+            integrator = settings["integration"]
 
         if "order" not in settings:
             M = 1
@@ -687,13 +834,13 @@ class task_context:
             M = settings["order"]
 
         if disc_method == "multiple shooting":
-            ocp.method(MultipleShooting(N=N, M=M, intg=settings["integration"]))
+            ocp.method(MultipleShooting(N=self.horizon, M=M, intg=integrator))
         elif disc_method == "single shooting":
-            ocp.method(SingleShooting(N=N, M=M, intg=settings["integration"]))
+            ocp.method(SingleShooting(N=self.horizon, M=M, intg=integrator))
         elif disc_method == "direct collocation":
-            ocp.method(DirectCollocation(N=N, M=M))
+            ocp.method(DirectCollocation(N=self.horizon, M=M))
         else:
-            print(
+            raise Exception(
                 "ERROR: discretization with "
                 + settings["discretization_method"]
                 + " is not defined"
