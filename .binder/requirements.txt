@@ -1,0 +1,6 @@
+casadi
+numpy
+matplotlib
+scipy
+rockit-meco
+pybullet
