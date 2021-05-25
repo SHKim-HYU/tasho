@@ -3,7 +3,7 @@ from tasho import input_resolution, world_simulator
 from tasho import robot as rob
 from tasho import MPC
 from tasho.utils import geometry
-from casadi import pi, cos, sin, acos
+from casadi import pi, cos, sin, acos, sign
 import casadi as cs
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,31 +25,30 @@ if ocp_control == "acceleration_resolved":
     robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
 
 # Define initial conditions of the robot
-# q_init = [0, pi / 6, 0, 4 * pi / 6, 0, -2 * pi / 6, -pi / 2]
-q_init = np.array(
-    [
-        -1.35488912e00,
-        -8.72846052e-01,
-        2.18411843e00,
-        6.78786296e-01,
-        2.08696971e00,
-        -9.76390128e-01,
-        -1.71721329e00,
-        1.65969745e-03,
-        1.65969745e-03,
-        1.47829337e00,
-        -5.24943547e-01,
-        -1.95134781e00,
-        5.30517837e-01,
-        -2.69960026e00,
-        -8.14070355e-01,
-        1.17172289e00,
-        2.06459136e-03,
-        2.06462524e-03,
-    ]
-).T
+left_arm_q_init = [
+    -1.35,
+    -8.72e-01,
+    2.18,
+    6.78e-01,
+    2.08,
+    -9.76e-01,
+    -1.71,
+    1.65e-03,
+    1.65e-03,
+]
+right_arm_q_init = [
+    0,
+    -2.26,
+    -2.35,
+    0.52,
+    0.025,
+    0.749,
+    0,
+    0,
+    0,
+]
+q_init = np.array(left_arm_q_init + right_arm_q_init).T
 q_dot_init = [0] * robot.ndof
-
 
 ##########################################
 # Task spacification - Contour following
@@ -57,7 +56,7 @@ q_dot_init = [0] * robot.ndof
 
 # Select prediction horizon and sample time for the MPC execution
 horizon_size = 16
-t_mpc = 0.02
+t_mpc = 0.01
 
 # Initialize the task context object
 tc = tp.task_context(horizon_size * t_mpc)
@@ -79,7 +78,7 @@ def contour_path(s):
     ee_pos_init = ee_fk_init[:3, 3]
     ee_rot_init = ee_fk_init[:3, :3]
 
-    sdotref = 0.025
+    sdotref = 0.1
     sdot_path = sdotref * (
         5.777783e-13 * s ** 5
         - 34.6153846154 * s ** 4
@@ -91,17 +90,18 @@ def contour_path(s):
 
     a_p = 0.15
     z_p = 0.05
-    pos_path = ee_pos_init + cs.vertcat(
-        z_p * sin(s * (4 * pi)),
-        a_p * sin(s * (2 * pi)),
-        a_p * sin(s * (2 * pi)) * cos(s * (2 * pi)),
-    )
     # pos_path = ee_pos_init + cs.vertcat(
     #     z_p * sin(s * (4 * pi)),
     #     a_p * sin(s * (2 * pi)),
     #     a_p * sin(s * (2 * pi)) * cos(s * (2 * pi)),
     # )
+    pos_path = ee_pos_init + cs.vertcat(
+        a_p * sin(s * (2 * pi)),
+        0,
+        a_p * sin(s * (2 * pi)) * cos(s * (2 * pi)),
+    )
     rot_path = ee_rot_init
+    # rot_path = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
 
     return pos_path, rot_path, sdot_path
 
@@ -166,15 +166,35 @@ def rot_err(q, s):
     )
 
 
+def tun_err(q, s):
+    return cs.vertcat(pos_err(q, s), rot_err(q, s))
+
+
 # Set tunnel constraints to allow a deviation from the path
-pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
-    "hard": False,
-    "inequality": True,
-    "expression": pos_err(q, s),
-    "upper_limits": 0.01 ** 2,
-    "gain": 100,
-    "norm": "squaredL2",
-}
+# pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
+#     "hard": False,
+#     "inequality": True,
+#     "expression": pos_err(q, s),
+#     "upper_limits": 0.01 ** 2,
+#     "gain": 100,
+#     "norm": "squaredL2",
+# }
+# tunnel_constraints = {"path_constraints": [pos_tunnel_con]}
+# tc.add_task_constraint(tunnel_constraints)
+
+
+# Contouring - demos
+# With more horizon: Total acceleration effort or total energy spent
+#
+# Python notebook - Contouring example
+#
+#
+# Showing
+#
+# Discuss under the hood
+#
+
+
 # rot_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
 #     "hard": False,
 #     "inequality": True,
@@ -183,8 +203,20 @@ pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
 #     "gain": 100,
 #     "norm": "squaredL2",
 # }
-tunnel_constraints = {"path_constraints": [pos_tunnel_con]}
+# tunnel_constraints2 = {"path_constraints": [rot_tunnel_con]}
+# tc.add_task_constraint(tunnel_constraints2)
+
+tun_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
+    "hard": False,
+    "inequality": True,
+    "expression": tun_err(q, s),
+    "upper_limits": 0.01 ** 2,
+    "gain": 100,
+    "norm": "squaredL2",
+}
+tunnel_constraints = {"path_constraints": [tun_tunnel_con]}
 tc.add_task_constraint(tunnel_constraints)
+
 
 # Define objective
 tc.add_objective(
