@@ -342,6 +342,42 @@ class MPC:
             print("Solving with the SQP method")
             sol = tc.solve_ocp()
 
+            if self.mpc_debug is not True:
+                if self.parameters["codegen"]:
+                    self.code_type = 2
+
+                    if self.parameters["codegen"]["filename"]:
+                        filename = self.parameters["codegen"]["filename"]
+                    else:
+                        filename = "mpc_fun"
+
+                    self._create_mpc_fun_casadi(
+                        codeGen=self.parameters["codegen"]["codegen"],
+                        f_name=filename,
+                    )
+
+                    if self.parameters["codegen"]["compilation"]:
+                        import os
+
+                        if self.parameters["codegen"]["compiler"]:
+                            compiler = self.parameters["codegen"]["compiler"]
+                        else:
+                            compiler = "gcc"
+
+                        print("Compiling MPC function ...")
+                        os.system(
+                            compiler
+                            + " "
+                            + self.parameters["codegen"]["flags"]
+                            + " "
+                            + filename
+                            + ".c -shared -fPIC -lm -o lib"
+                            + filename
+                            + ".so"
+                        )
+                        print("... Finished compilation of MPC function")
+                        # exit()
+
         else:
             # Set ipopt as default solver
             print("Using IPOPT with LBFGS as the default solver")
@@ -457,6 +493,16 @@ class MPC:
                 C = cs.Importer(f_name + ".c", "clang")
                 self._mpc_fun = cs.external("mpc_", C)
             elif self.code_type == 1:
+                vars_db["casadi_fun"] = codeGen_dest + f_name + ".casadi"
+                vars_db["fun_name"] = f_name
+                print(vars_db)
+                with open(codeGen_dest + f_name + "_property.json", "w") as fp:
+                    json.dump(vars_db, fp)
+                self._mpc_fun_cg.save(f_name + ".casadi")
+            elif self.code_type == 2:
+                self._mpc_fun_cg.generate(
+                    f_name + ".c", {"with_header": True, "main": True}
+                )
                 vars_db["casadi_fun"] = codeGen_dest + f_name + ".casadi"
                 vars_db["fun_name"] = f_name
                 print(vars_db)
