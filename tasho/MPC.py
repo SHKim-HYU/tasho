@@ -493,10 +493,19 @@ class MPC:
         # self._mpc_fun = opti.to_function(
         #     "mpc_fun", [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]
         # )
-        self._mpc_fun = tc.ocp._method.opti.to_function(f_name, opti_xplam, opti_xplam)
-        self._mpc_fun_cg = tc.ocp._method.opti.to_function(
-            f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)]
-        )
+        if self.parameters["codegen"]["jit"]:
+            print("Using just-in-time compilation ...")
+            cg_opts = {"jit":True, "compiler": "shell", "jit_options": {"verbose":True, "compiler": "ccache gcc" , "compiler_flags": self.parameters["codegen"]["flags"]}, "verbose":False, "jit_serialize": "embed"}
+
+            self._mpc_fun = tc.ocp._method.opti.to_function(f_name, opti_xplam, opti_xplam, cg_opts)
+            self._mpc_fun_cg = tc.ocp._method.opti.to_function(
+                f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)], cg_opts
+            )
+        else:
+            self._mpc_fun = tc.ocp._method.opti.to_function(f_name, opti_xplam, opti_xplam)
+            self._mpc_fun_cg = tc.ocp._method.opti.to_function(
+                f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)]
+            )
         self._opti_xplam = opti_xplam
 
         self._opti_xplam_to_optiform = cs.Function(

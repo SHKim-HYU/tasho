@@ -360,6 +360,7 @@ if use_MPC_class:
         "compiler": "gcc",
         "flags": "-O3 -ffast-math -flto -funroll-loops -march=native -mfpmath=both -mvzeroupper",
         "use_external": False,
+        "jit": False,
     }
 
     # Create monitor to check some termination criteria
