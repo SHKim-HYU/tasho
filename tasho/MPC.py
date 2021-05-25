@@ -434,6 +434,8 @@ class MPC:
         }
         counter += tc.ocp._method.opti.lam_g.shape[0]
         vars_db["lam_g"]["end"] = counter
+        vars_db["horizon"] = tc.horizon
+        vars_db["ocp_rate"] = tc.ocp_rate
         # setting the MPC function!
         # opti = tc.ocp.opti
         opti = tc.ocp._method.opti
@@ -461,8 +463,8 @@ class MPC:
                 vars_db["fun_name"] = f_name
                 print(vars_db)
                 with open(codeGen_dest + f_name + "_property.json", "w") as fp:
-                    json.dump(vars_db, fp)
-                self._mpc_fun_cg.save(f_name + ".casadi")
+                    json.dump(vars_db, fp, indent=2)
+                self._mpc_fun_cg.save(codeGen_dest + f_name + ".casadi")
             # self._mpc_fun = cs.external('f', './mpc_fun.so')
 
     ## obtain the solution of the ocp
