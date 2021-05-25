@@ -371,12 +371,16 @@ class MPC:
                             + self.parameters["codegen"]["flags"]
                             + " "
                             + filename
-                            + ".c -shared -fPIC -lm -o lib"
+                            + ".c -shared -fPIC -lm -o "
                             + filename
                             + ".so"
                         )
                         print("... Finished compilation of MPC function")
-                        # exit()
+
+                        if self.parameters["codegen"]["use_external"]:
+                            self._mpc_fun = cs.external(
+                                filename, "./" + filename + ".so"
+                            )
 
         else:
             # Set ipopt as default solver

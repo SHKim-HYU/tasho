@@ -355,10 +355,11 @@ if use_MPC_class:
     }
     mpc_params["codegen"] = {
         "codegen": True,
+        "filename": "yumi_mpc_a",
         "compilation": True,
         "compiler": "gcc",
         "flags": "-O3 -ffast-math -flto -funroll-loops -march=native -mfpmath=both -mvzeroupper",
-        "filename": "yumi_mpc_a",
+        "use_external": True,
     }
 
     # Create monitor to check some termination criteria
