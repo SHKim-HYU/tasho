@@ -355,8 +355,8 @@ if use_MPC_class:
     }
     mpc_params["codegen"] = {
         "codegen": True,
-        "filename": "yumi_mpc_a",
-        "compilation": True,
+        "filename": "mpc_c",
+        "compilation": False,
         "compiler": "gcc",
         "flags": "-O3 -ffast-math -flto -funroll-loops -march=native -mfpmath=both -mvzeroupper",
         "use_external": True,
