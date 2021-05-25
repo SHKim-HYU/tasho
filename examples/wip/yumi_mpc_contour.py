@@ -36,7 +36,7 @@ left_arm_q_init = [
     1.65e-03,
     1.65e-03,
 ]
-right_arm_q_init = [
+right_arm_q_init = [  # Home configuration
     0,
     -2.26,
     -2.35,
@@ -352,6 +352,13 @@ if use_MPC_class:
         "discretization": "constant_acceleration",
         "joint_indices": joint_indices,
         "no_samples": no_samples,
+    }
+    mpc_params["codegen"] = {
+        "codegen": True,
+        "compilation": True,
+        "compiler": "gcc",
+        "flags": "-O3 -ffast-math -flto -funroll-loops -march=native -mfpmath=both -mvzeroupper",
+        "filename": "yumi_mpc_a",
     }
 
     # Create monitor to check some termination criteria
