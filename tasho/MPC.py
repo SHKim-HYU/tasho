@@ -378,9 +378,14 @@ class MPC:
                         print("... Finished compilation of MPC function")
 
                         if self.parameters["codegen"]["use_external"]:
+                            print("Loading the compiled function back ...")
+                            
                             self._mpc_fun = cs.external(
                                 filename, "./" + filename + ".so"
                             )
+                            
+                            print("... Loaded")
+                            
 
         else:
             # Set ipopt as default solver
@@ -397,8 +402,9 @@ class MPC:
                 },
             )
 
-        if self.mpc_debug is not True:
-            self._create_mpc_fun_casadi(codeGen=self.codeGen)
+            if self.mpc_debug is not True:
+                self._create_mpc_fun_casadi(codeGen=self.codeGen)
+                
         self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         # print(sol_controls['s_ddot'])
 
