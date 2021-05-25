@@ -377,7 +377,11 @@ class MPC:
                         )
                         print("... Finished compilation of MPC function")
 
-                        if self.parameters["codegen"]["use_external"]:
+                    if self.parameters["codegen"]["use_external"]:
+
+                        import os
+
+                        if os.path.isfile(filename+'.so'):
                             print("Loading the compiled function back ...")
                             
                             self._mpc_fun = cs.external(
@@ -385,6 +389,9 @@ class MPC:
                             )
                             
                             print("... Loaded")
+                        else:
+                            print("[ERROR] The file "+filename+".so doesn't exist. Try compiling the function first")
+                            exit()
                             
 
         else:
