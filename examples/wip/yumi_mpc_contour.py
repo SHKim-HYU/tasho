@@ -59,7 +59,7 @@ horizon_size = 16
 t_mpc = 0.01
 
 # Initialize the task context object
-tc = tp.task_context(horizon_size * t_mpc)
+tc = tp.task_context(horizon_size * t_mpc, horizon_steps=horizon_size)
 
 # Define the input type of the robot (torque or acceleration)
 if ocp_control == "acceleration_resolved":
@@ -224,8 +224,8 @@ tc.add_objective(
         1e-5
         * cs.sumsqr(
             cs.vertcat(
-                1e-2 * q,
-                10 * q_dot,
+                1e-2 * q[0:8],
+                10 * q_dot[0:8],
                 1e-2 * (1 - s),
                 10 * s_dot,
                 10 * pos_err(q, s),
@@ -260,7 +260,7 @@ tc.add_regularization(
     expression=q[0:8], weight=1e-2, norm="L2", variable_type="state", reference=0
 )
 tc.add_regularization(
-    expression=q_dot, weight=1e-2, norm="L2", variable_type="state", reference=0
+    expression=q_dot[0:8], weight=1e-2, norm="L2", variable_type="state", reference=0
 )
 
 ################################################
@@ -359,7 +359,7 @@ if use_MPC_class:
         "compilation": False,
         "compiler": "gcc",
         "flags": "-O3 -ffast-math -flto -funroll-loops -march=native -mfpmath=both -mvzeroupper",
-        "use_external": True,
+        "use_external": False,
     }
 
     # Create monitor to check some termination criteria
