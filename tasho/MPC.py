@@ -31,6 +31,10 @@ class MPC:
 
         self.params_history = []
 
+        self.states_log = []
+        self.controls_log = []
+        self.variables_log = []
+
         # casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
         self.mpc_debug = False
         self._mpc_fun = None
@@ -742,6 +746,7 @@ class MPC:
             + len(self.controls_names)
             + len(self.variables_names)
         )
+
         # TODO: change by adding termination criteria
         for mpc_iter in range(self.max_mpc_iter):
 
@@ -818,6 +823,7 @@ class MPC:
                     sol = list(self._mpc_fun(*sol))
                     toc = time() - tic
                     self._solver_time.append(toc)
+
                     # Monitors
                     opti_form = self._opti_xplam_to_optiform(*sol)
                     # computing the primal feasibility of the solution
@@ -850,6 +856,12 @@ class MPC:
                         return "MPC_SUCCEEDED"
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+
+                # Log solution
+                if self.parameters["log_solution"]:
+                    self.states_log.append(sol_states)
+                    self.controls_log.append(sol_controls)
+                    self.variables_log.append(sol_variables)
 
                 self.mpc_ran = True
 
