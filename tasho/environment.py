@@ -1,4 +1,7 @@
+
 """Environment module for defining objects in the environment."""
+
+from tasho.utils.definitions import get_project_root
 
 class Environment:
     """Docstring for class Environment.
@@ -60,7 +63,7 @@ class Cylinder(Object):
         self.fixed = fixed
 
 class Cube(Object):
-    def __init__(self, length = 0.1, position = [0,0,0], orientation = [0,0,0], urdf = "models/objects/cube_small.urdf", fixed = False):
+    def __init__(self, length = 0.1, position = [0,0,0], orientation = [0,0,0], urdf = str(get_project_root()) + "/models/objects/cube_small.urdf", fixed = False):
         self.length = length
         self.position = position
         self.orientation = orientation

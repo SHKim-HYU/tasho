@@ -7,7 +7,7 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 import time
-
+from tasho.utils.definitions import get_project_root
 
 class world_simulator:
     def __init__(self, plane_spawn=True, bullet_gui=True, physics_ts=1.0 / 240):
@@ -54,7 +54,7 @@ class world_simulator:
         position = pose["position"]
         orientation = pose["orientation"]
         cylinderID = p.loadURDF(
-            "models/objects/cylinder.urdf",
+            str(get_project_root()) + "/models/objects/cylinder.urdf",
             position,
             orientation,
             useFixedBase=fixedBase,
@@ -75,7 +75,7 @@ class world_simulator:
         position = pose["position"]
         orientation = pose["orientation"]
         cubeID = p.loadURDF(
-            "models/objects/cube.urdf",
+            str(get_project_root()) + "/models/objects/cube.urdf",
             position,
             orientation,
             useFixedBase=fixedBase,
@@ -92,14 +92,14 @@ class world_simulator:
         if robot_name != None:
             if robot_name == "yumi":
                 robotID = p.loadURDF(
-                    "models/robots/ABB/yumi/yumi.urdf",
+                    str(get_project_root()) + "/models/robots/ABB/yumi/yumi.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
                 )
             elif robot_name == "kinova":
                 robotID = p.loadURDF(
-                    "models/robots/Kinova/Gen3/kortex_description/urdf/JACO3_URDF_V11.urdf",
+                    str(get_project_root()) + "/models/robots/Kinova/Gen3/kortex_description/urdf/JACO3_URDF_V11.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
@@ -115,21 +115,21 @@ class world_simulator:
                 )
             elif robot_name == "kr60":
                 robotID = p.loadURDF(
-                    "models/robots/KUKA/kr60/kr60_description/kr60ha.urdf",
+                    str(get_project_root()) + "/models/robots/KUKA/kr60/kr60_description/kr60ha.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
                 )
             elif robot_name == "atlas":
                 robotID = p.loadURDF(
-                    "models/robots/Atlas/Atlas_description/urdf/atlas.urdf",
+                    str(get_project_root()) + "/models/robots/Atlas/Atlas_description/urdf/atlas.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
                 )
             elif robot_name == "mmo_500_ppr":
                 robotID = p.loadURDF(
-                    "/models/robots/MMO_500/mmo500_description/mmo_500_ppr.urdf",
+                    str(get_project_root()) + "/models/robots/MMO_500/mmo500_description/mmo_500_ppr.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
