@@ -5,8 +5,6 @@ from tasho import discrete_plan as dp
 from tasho import problem_template as pt
 from tasho import environment as env
 
-from tasho.utils.definitions import get_project_root
-
 import casadi as cs
 from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
@@ -33,9 +31,9 @@ robot.set_robot_input_resolution("acceleration")
 
 # Set environment
 environment = env.Environment()
-cube1 = env.Cube(length = 1, position = [0.5, 0, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = str(get_project_root()) + "/models/objects/cube_small.urdf")
-table1 = env.Box(height = 0.3, position = [0.5, 0, 0], orientation = [0.0, 0.0, 0.7071080798594737, 0.7071054825112364], urdf = str(get_project_root()) + "/models/objects/table.urdf")
-table2 = env.Box(height = 0.3, position = [0,-0.5, 0], orientation = [0.0, 0.0, 0.0, 1.0], urdf = str(get_project_root()) + "/models/objects/table.urdf")
+cube1 = env.Cube(length = 1, position = [0.5, 0, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "/models/objects/cube_small.urdf")
+table1 = env.Box(height = 0.3, position = [0.5, 0, 0], orientation = [0.0, 0.0, 0.7071080798594737, 0.7071054825112364], urdf = "/models/objects/table.urdf")
+table2 = env.Box(height = 0.3, position = [0,-0.5, 0], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "/models/objects/table.urdf")
 
 environment.add_object(cube1, "cube")
 environment.add_object(table1, "table1")

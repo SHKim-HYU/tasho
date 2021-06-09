@@ -3,7 +3,6 @@
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution, world_simulator
 from tasho import robot as rob
-from tasho.utils.definitions import get_project_root
 import casadi as cs
 import numpy as np
 import matplotlib.pyplot as plt
@@ -196,7 +195,7 @@ if __name__ == "__main__":
     # Add collision avoidance constraints, if activated
     if coll_avoid:
         kuka_envelope_fun = cs.Function.load(
-            str(get_project_root()) + "/models/robots/KUKA/iiwa7/kuka_ball_envelope.casadi"
+            "./models/robots/KUKA/iiwa7/kuka_ball_envelope.casadi"
         )
         envelopes = kuka_envelope_fun(q)
         ball_obs = {"center": [0.3, 0.0, 1.1], "radius": 0.1}

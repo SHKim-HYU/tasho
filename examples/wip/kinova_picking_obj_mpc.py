@@ -7,7 +7,6 @@ from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
 import numpy as np
 import matplotlib.pyplot as plt
-from tasho.utils.definitions import get_project_root
 
 print("Moving-object picking with Kinova Gen3")
 
