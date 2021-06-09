@@ -3,7 +3,6 @@ from tasho import input_resolution, world_simulator
 from tasho import robot as rob
 from tasho import MPC
 from tasho.utils import geometry
-from casadi import pi, cos, sin, acos, sign
 import casadi as cs
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,7 +20,7 @@ robot = rob.Robot(robot_choice, analytical_derivatives=True)
 
 # Update robot's parameters if needed
 if ocp_control == "acceleration_resolved":
-    max_joint_acc = 240 * pi / 180
+    max_joint_acc = 240 * cs.pi / 180
     robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
 
 # Define initial conditions of the robot
@@ -55,7 +54,7 @@ q_dot_init = [0] * robot.ndof
 ##########################################
 
 # Select prediction horizon and sample time for the MPC execution
-horizon_size = 16
+horizon_size = 100
 t_mpc = 0.01
 
 # Initialize the task context object
@@ -78,28 +77,33 @@ def contour_path(s):
     ee_pos_init = ee_fk_init[:3, 3]
     ee_rot_init = ee_fk_init[:3, :3]
 
-    sdotref = 0.1
+    sdotref = 0.25
     sdot_path = sdotref * (
-        5.777783e-13 * s ** 5
-        - 34.6153846154 * s ** 4
-        + 69.2307692308 * s ** 3
-        - 46.7307692308 * s ** 2
-        + 12.1153846154 * s
-        + 0.0515384615
+        5.777e-13 * s ** 5
+        - 34.615 * s ** 4
+        + 69.230 * s ** 3
+        - 46.730 * s ** 2
+        + 12.115 * s
+        + 0.0515
     )
 
-    a_p = 0.15
+    a_p = 0.05
     z_p = 0.05
-    # pos_path = ee_pos_init + cs.vertcat(
-    #     z_p * sin(s * (4 * pi)),
-    #     a_p * sin(s * (2 * pi)),
-    #     a_p * sin(s * (2 * pi)) * cos(s * (2 * pi)),
-    # )
     pos_path = ee_pos_init + cs.vertcat(
-        a_p * sin(s * (2 * pi)),
         0,
-        a_p * sin(s * (2 * pi)) * cos(s * (2 * pi)),
+        a_p * cs.sin(s * (2 * cs.pi)),
+        a_p * cs.sin(s * (2 * cs.pi)) * cs.cos(s * (2 * cs.pi)),
     )
+
+    # A = 0.3
+    # f = 1 #/(2*cs.pi)
+    # delta = 0.001
+    # pos_path = ee_pos_init + cs.vertcat(
+    #     0,
+    #     0,
+    #     (A/cs.atan(1/delta))*cs.atan(cs.sin(2*cs.pi*s*f)/delta),
+    # )
+
     rot_path = ee_rot_init
     # rot_path = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
 
@@ -170,19 +174,6 @@ def tun_err(q, s):
     return cs.vertcat(pos_err(q, s), rot_err(q, s))
 
 
-# Set tunnel constraints to allow a deviation from the path
-# pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
-#     "hard": False,
-#     "inequality": True,
-#     "expression": pos_err(q, s),
-#     "upper_limits": 0.01 ** 2,
-#     "gain": 100,
-#     "norm": "squaredL2",
-# }
-# tunnel_constraints = {"path_constraints": [pos_tunnel_con]}
-# tc.add_task_constraint(tunnel_constraints)
-
-
 # Contouring - demos
 # With more horizon: Total acceleration effort or total energy spent
 #
@@ -193,18 +184,6 @@ def tun_err(q, s):
 #
 # Discuss under the hood
 #
-
-
-# rot_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
-#     "hard": False,
-#     "inequality": True,
-#     "expression": rot_err(q, s),
-#     "upper_limits": 0.05 ** 2,
-#     "gain": 100,
-#     "norm": "squaredL2",
-# }
-# tunnel_constraints2 = {"path_constraints": [rot_tunnel_con]}
-# tc.add_task_constraint(tunnel_constraints2)
 
 tun_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
     "hard": False,
@@ -362,6 +341,7 @@ if use_MPC_class:
         "use_external": False,
         "jit": False,
     }
+    mpc_params["log_solution"] = True
 
     # Create monitor to check some termination criteria
     tc.add_monitor(
@@ -385,3 +365,14 @@ if use_MPC_class:
 
     # Execute the MPC loop
     mpc_obj.runMPC()
+
+    # _, x_sol = sol.sample(x, grid= "control")
+    print("#################################")
+    max_acc = 0
+    sumsqr_acc = 0
+    for controls in mpc_obj.controls_log:
+        sumsqr_acc += cs.sumsqr(controls['q_ddot'][0])
+        max_acc = np.max(controls['q_ddot'][0])
+
+    print("N =", horizon_size,"| TOTAL ACC: ",sumsqr_acc, "| MAX ACC: ", max_acc, " | Mean sol time: ", np.mean(mpc_obj._solver_time))
+    print("#################################")

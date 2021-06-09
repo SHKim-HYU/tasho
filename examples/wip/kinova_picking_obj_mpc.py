@@ -1,5 +1,3 @@
-### OCP for point-to-point motion and visualization of a KUKA robot arm
-
 import sys
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution
@@ -16,7 +14,7 @@ print("Moving-object picking with Kinova Gen3")
 # Define robot and initial joint angles
 ################################################
 # Import the robot object from the robot's repository (includes functions for FD, ID, FK, joint limits, etc)
-robot = rob.Robot("kinova")
+robot = rob.Robot("kinova", analytical_derivatives=False)
 
 # Update robot's parameters if needed
 max_joint_acc = 60 * 3.14159 / 180
@@ -92,7 +90,15 @@ tc.add_regularization(
 ################################################
 # Set solver and discretization options
 ################################################
-tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0, "tol": 1e-3,}})
+tc.set_ocp_solver(
+    "ipopt",
+    {
+        "ipopt": {
+            "print_level": 0,
+            "tol": 1e-3,
+        }
+    },
+)
 
 disc_settings = {
     "discretization method": "multiple shooting",
@@ -134,7 +140,7 @@ if visualizationBullet:
 
     # Add the cube to the world
     cubeID = p.loadURDF(
-        "models/objects/cube_small.urdf",
+        "./models/objects/cube_small.urdf",
         [0.5, -0.2, 0.35],
         [0.0, 0.0, 0.0, 1.0],
         globalScaling=1.0,
@@ -144,7 +150,10 @@ if visualizationBullet:
     # Add table to the world
     tbStartOrientation = p.getQuaternionFromEuler([0, 0, 1.5708])
     tbID = p.loadURDF(
-        "models/objects/table.urdf", [0.5, 0, 0], tbStartOrientation, globalScaling=0.3,
+        "./models/objects/table.urdf",
+        [0.5, 0, 0],
+        tbStartOrientation,
+        globalScaling=0.3,
     )
 
     # Determine number of samples that the simulation should be executed
@@ -178,7 +187,6 @@ if visualizationBullet:
             + cs.DM(lin_vel) * time_to_stop
             - 0.5 * 0.5 * lin_vel / (cs.norm_1(lin_vel) + 1e-3) * time_to_stop ** 2
         )
-        predicted_pos[2] += 0.03  # cube height
         print("Predicted position of cube", predicted_pos)
 
         # Set parameter values
@@ -192,6 +200,7 @@ if visualizationBullet:
         # Sample the solution for the next MPC execution
         ts, q_sol = sol.sample(q, grid="control")
         ts, q_dot_sol = sol.sample(q_dot, grid="control")
+
         tc.ocp.set_initial(q, q_sol.T)
         tc.ocp.set_initial(q_dot, q_dot_sol.T)
 
@@ -213,4 +222,3 @@ if visualizationBullet:
     obj.run_simulation(100)
 
     obj.end_simulation()
-

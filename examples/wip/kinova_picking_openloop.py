@@ -11,6 +11,7 @@ from rockit import MultipleShooting, Ocp
 from tasho import task_prototype_rockit
 from tasho import input_resolution
 from tasho.robot import Robot
+from tasho.utils.definitions import get_project_root
 
 # create a tuple to hold all variables from the ocp
 OcpVars = namedtuple("OcpVars", "q q_dot q_ddot q0 q_dot0")
@@ -142,7 +143,7 @@ def add_cubes_to_scene(poses: dict):
     for name, info in poses.items():
         # print( "info", info)
         cube_ids[name] = p.loadURDF(
-            "models/objects/cube_small.urdf", info["pos"], info["quat"]
+            str(get_project_root()) + "/models/objects/cube_small.urdf", info["pos"], info["quat"]
         )
     return cube_ids
 
@@ -268,7 +269,7 @@ if __name__ == "__main__":
         robotID = obj.add_robot(position, orientation, "iiwa7")
 
         picked_cube_id = p.loadURDF(
-            "models/objects/cube_small.urdf",
+            str(get_project_root()) + "/models/objects/cube_small.urdf",
             [0, -0.5, 0.4],
             [0.0, 0.0, 0.0, 1.0],
             globalScaling=1.0,
@@ -285,7 +286,7 @@ if __name__ == "__main__":
         # table2ID = p.loadURDF(
         #     "cube_small.urdf", [0, -0.5, 0], [0.0, 0.0, 0.0, 1.0], globalScaling=6.9
         # )
-        binID = p.loadURDF("models/objects/bin.urdf")
+        binID = p.loadURDF(str(get_project_root()) + "/models/objects/bin.urdf")
         # print(obj.getJointInfoArray(robotID))
         no_samples = int(T_MPC / obj.physics_ts)
 

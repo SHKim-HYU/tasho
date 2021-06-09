@@ -1,5 +1,3 @@
-### OCP for point-to-point motion and visualization of a KUKA robot arm
-
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution, world_simulator
 from tasho import robot as rob
@@ -19,7 +17,7 @@ print("Task specification and visualization of contour-following example with MP
 robot_choice = "kinova"
 ocp_control = "torque_resolved"  #'acceleration_resolved' #'torque_resolved'
 
-robot = rob.Robot(robot_choice)
+robot = rob.Robot(robot_choice, analytical_derivatives=True)
 
 # Update robot's parameters if needed
 if ocp_control == "acceleration_resolved":
@@ -38,7 +36,7 @@ def contour_path(s):
     ee_pos_init = ee_fk_init[:3, 3]
     ee_rot_init = ee_fk_init[:3, :3]
 
-    sdotref = 0.2
+    sdotref = 0.025
     sdot_path = sdotref * (
         5.777783e-13 * s ** 5
         - 34.6153846154 * s ** 4
@@ -148,6 +146,14 @@ pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
     "gain": 100,
     "norm": "squaredL2",
 }
+rot_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
+    "hard": False,
+    "inequality": True,
+    "expression": rot_err(q, s),
+    "upper_limits": 0.05 ** 2,
+    "gain": 100,
+    "norm": "squaredL2",
+}
 tunnel_constraints = {"path_constraints": [pos_tunnel_con]}
 tc.add_task_constraint(tunnel_constraints)
 
@@ -179,7 +185,11 @@ if ocp_control == "torque_resolved":
     )
 if ocp_control == "acceleration_resolved":
     tc.add_regularization(
-        expression=q_ddot, weight=1e-3, norm="L2", variable_type="control", reference=0,
+        expression=q_ddot,
+        weight=1e-3,
+        norm="L2",
+        variable_type="control",
+        reference=0,
     )
 tc.add_regularization(
     expression=s_ddot, weight=4e-5, norm="L2", variable_type="control", reference=0
@@ -298,7 +308,7 @@ if use_MPC_class:
     sim_type = "bullet_notrealtime"
 
     mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
-    mpc_obj.max_mpc_iter = 400
+    mpc_obj.max_mpc_iter = 4000
 
     # Run the ocp with IPOPT once to get a good initial guess for the MPC
     mpc_obj.configMPC_fromcurrent()

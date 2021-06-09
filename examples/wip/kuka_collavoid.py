@@ -6,6 +6,7 @@ from tasho import task_prototype_rockit as tp
 from tasho import input_resolution, world_simulator, MPC
 from rockit.acados_interface import AcadosInterface
 from tasho import robot as rob
+from tasho.utils.definitions import get_project_root
 import casadi as cs
 from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
@@ -53,7 +54,7 @@ if __name__ == '__main__':
 	fk_vals = robot.fk(q)[6]
 
 	#load the function that computes the envelope of the robot
-	kuka_envelope_fun = cs.Function.load('./models/robots/KUKA/iiwa7/kuka_ball_envelope.casadi')
+	kuka_envelope_fun = cs.Function.load(str(get_project_root()) + '/models/robots/KUKA/iiwa7/kuka_ball_envelope.casadi')
 
 	T_goal = np.array([[-1., 0., 0., 0.5], [0., 1., 0., -0.5], [0.0, 0., -1.0, 0.2], [0.0, 0.0, 0.0, 1.0]])
 
