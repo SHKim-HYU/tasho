@@ -33,7 +33,7 @@ horizon_size = 20
 t_mpc = 0.1
 
 # Initialize the task context object
-tc = tp.task_context(horizon_size * t_mpc)
+tc = tp.task_context(horizon_size * t_mpc, horizon_steps = horizon_size)
 
 # Define the input type of the robot (torque or acceleration)
 q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot)
@@ -217,7 +217,7 @@ if visualizationBullet:
         T_ee_sol = robot.fk(q_sol[0])[7]
         pos_ee_sol = T_ee_sol[:3, 3]
         dist_to_cube_sq = cs.sumsqr(pos_ee_sol - predicted_pos)
-        if dist_to_cube_sq <= 1.5e-2 ** 2:
+        if dist_to_cube_sq <= 2e-2 ** 2:
             break
 
     obj.run_simulation(100)
