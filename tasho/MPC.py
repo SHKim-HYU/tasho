@@ -347,7 +347,7 @@ class MPC:
             sol = tc.solve_ocp()
 
             if self.mpc_debug is not True:
-                if self.parameters["codegen"]:
+                if ("codegen" in self.parameters) and self.parameters["codegen"]:
                     self.code_type = 2
 
                     if self.parameters["codegen"]["filename"]:
@@ -858,7 +858,7 @@ class MPC:
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
 
                 # Log solution
-                if self.parameters["log_solution"]:
+                if ("log_solution" in self.parameters) and self.parameters["log_solution"]:
                     self.states_log.append(sol_states)
                     self.controls_log.append(sol_controls)
                     self.variables_log.append(sol_variables)
