@@ -7,6 +7,7 @@ from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
 import numpy as np
 import matplotlib.pyplot as plt
+from tasho.utils.definitions import get_project_root
 
 print("Moving-object picking with Kinova Gen3")
 
@@ -141,6 +142,7 @@ if visualizationBullet:
     # Add the cube to the world
     cubeID = p.loadURDF(
         "./models/objects/cube_small.urdf",
+
         [0.5, -0.2, 0.35],
         [0.0, 0.0, 0.0, 1.0],
         globalScaling=1.0,
