@@ -94,15 +94,15 @@ class Point2Point(tp.task_context):
         self.add_task_constraint(final_constraints)
 
 
-        # self.add_regularization(expression=(fk_fun - goal), weight=10, norm="L2")
+        self.add_regularization(expression=(fk_fun - goal), weight=1e-5, norm="L2")
         # self.add_regularization(
-        #     expression=q, weight=1e-2, norm="L2", variable_type="state", reference=0
+        #     expression=q, weight=1e-3, norm="L2", variable_type="state", reference=0
         # )
         self.add_regularization(
-            expression=q_dot, weight=100, norm="L2", variable_type="state", reference=0
+            expression=q_dot, weight=1e-3, norm="L2", variable_type="state", reference=0
         )
         self.add_regularization(
-            expression=q_ddot, weight=100, norm="L2", variable_type="control", reference=0
+            expression=q_ddot, weight=1e-3, norm="L2", variable_type="control", reference=0
         )
 
         # Set settings

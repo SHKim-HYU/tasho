@@ -24,29 +24,34 @@ if ocp_control == "acceleration_resolved":
     robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
 
 # Define initial conditions of the robot
-left_arm_q_init = [
-    -1.35,
-    -8.72e-01,
-    2.18,
-    6.78e-01,
-    2.08,
-    -9.76e-01,
-    -1.71,
-    1.65e-03,
-    1.65e-03,
-]
-right_arm_q_init = [  # Home configuration
-    0,
-    -2.26,
-    -2.35,
-    0.52,
-    0.025,
-    0.749,
-    0,
-    0,
-    0,
-]
-q_init = np.array(left_arm_q_init + right_arm_q_init).T
+if robot_choice == "yumi":
+    left_arm_q_init = [
+        -1.35,
+        -8.72e-01,
+        2.18,
+        6.78e-01,
+        2.08,
+        -9.76e-01,
+        -1.71,
+        1.65e-03,
+        1.65e-03,
+    ]
+    right_arm_q_init = [  # Home configuration
+        0,
+        -2.26,
+        -2.35,
+        0.52,
+        0.025,
+        0.749,
+        0,
+        0,
+        0,
+    ]
+    q_init = np.array(left_arm_q_init + right_arm_q_init).T
+
+elif robot_choice == "kinova":
+    q_init = [0, -0.523598, 0, 2.51799, 0, -0.523598, -1.5708]
+
 q_dot_init = [0] * robot.ndof
 
 ##########################################
@@ -54,7 +59,7 @@ q_dot_init = [0] * robot.ndof
 ##########################################
 
 # Select prediction horizon and sample time for the MPC execution
-horizon_size = 100
+horizon_size = 16
 t_mpc = 0.01
 
 # Initialize the task context object
@@ -215,9 +220,22 @@ tc.add_objective(
 )
 
 # Add regularization terms to the objective
-tc.add_regularization(expression=(s_dot - sdot_path), weight=20, norm="L2")
+tc.add_regularization(expression=s_dot, reference=sdot_path, weight=20, norm="L2")
 tc.add_regularization(expression=pos_err(q, s), weight=1e-1, norm="L2")
 tc.add_regularization(expression=rot_err(q, s), weight=1e-1, norm="L2")
+
+tc.add_regularization(
+    expression=q, weight=1e-2, norm="L2", variable_type="state", reference=0
+)
+tc.add_regularization(
+    expression=q_dot, weight=1e-2, norm="L2", variable_type="state", reference=0
+)
+tc.add_regularization(
+    expression=s, weight=1e-2, norm="L2", variable_type="state", reference=0
+)
+tc.add_regularization(
+    expression=s_dot, weight=1e-2, norm="L2", variable_type="state", reference=0
+)
 
 if ocp_control == "torque_resolved":
     tc.add_regularization(
@@ -235,12 +253,6 @@ tc.add_regularization(
     expression=s_ddot, weight=4e-5, norm="L2", variable_type="control", reference=0
 )
 
-tc.add_regularization(
-    expression=q[0:8], weight=1e-2, norm="L2", variable_type="state", reference=0
-)
-tc.add_regularization(
-    expression=q_dot[0:8], weight=1e-2, norm="L2", variable_type="state", reference=0
-)
 
 ################################################
 # Set solver and discretization options
@@ -284,7 +296,7 @@ if use_MPC_class:
     # Add robot to the world environment
     position = [0.0, 0.0, 0.0]
     orientation = [0.0, 0.0, 0.0, 1.0]
-    yumiID = obj.add_robot(position, orientation, "yumi")
+    robotID = obj.add_robot(position, orientation, robot_choice)
 
     # Determine number of samples that the simulation should be executed
     no_samples = int(t_mpc / obj.physics_ts)
@@ -292,11 +304,13 @@ if use_MPC_class:
         print("[ERROR] MPC sampling time not integer multiple of physics sampling time")
 
     # Correspondence between joint numbers in bullet and OCP
-    joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
+    if robot_choice == "yumi":
+        joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    elif robot_choice == "kinova":
+        joint_indices = [0, 1, 2, 3, 4, 5, 6]
     # Begin the visualization by applying the initial control signal
-    obj.resetJointState(yumiID, joint_indices, q_init)
-    obj.setController(yumiID, "velocity", joint_indices, targetVelocities=q_dot_init)
+    obj.resetJointState(robotID, joint_indices, q_init)
+    obj.setController(robotID, "velocity", joint_indices, targetVelocities=q_dot_init)
 
     # Define MPC parameters
     mpc_params = {"world": obj}
@@ -304,12 +318,12 @@ if use_MPC_class:
     q0_params_info = {
         "type": "joint_position",
         "joint_indices": joint_indices,
-        "robotID": yumiID,
+        "robotID": robotID,
     }
     q_dot0_params_info = {
         "type": "joint_velocity",
         "joint_indices": joint_indices,
-        "robotID": yumiID,
+        "robotID": robotID,
     }
     s0_params_info = {"type": "progress_variable", "state": True}
     s_dot0_params_info = {"type": "progress_variable", "state": True}
@@ -319,7 +333,7 @@ if use_MPC_class:
         "q_dot0": q_dot0_params_info,
         "s0": s0_params_info,
         "s_dot0": s_dot0_params_info,
-        "robots": {yumiID: robot},
+        "robots": {robotID: robot},
     }
     mpc_params["disc_settings"] = disc_settings
     mpc_params["solver_name"] = "sqpmethod"
@@ -327,7 +341,7 @@ if use_MPC_class:
     mpc_params["t_mpc"] = t_mpc
     mpc_params["control_type"] = "joint_velocity"  #'joint_torque'
     mpc_params["control_info"] = {
-        "robotID": yumiID,
+        "robotID": robotID,
         "discretization": "constant_acceleration",
         "joint_indices": joint_indices,
         "no_samples": no_samples,

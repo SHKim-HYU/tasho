@@ -16,9 +16,10 @@ print("Random bin picking with Kinova Gen3")
 t_mpc = 0.5
 max_joint_acc = 30*3.14159/180
 
-q0_val = [0, -0.523598, 0, 2.51799, 0, -0.523598, -1.5708]
+q0_val = [0, -0.523598, 0, 2.51799, 0, -0.523598, 0]
 # q0_val = [0, 0.523598, cs.pi, -1.51799, 0, 0.523598, 1.5708]
 q_dot0_val = [0]*7
+
 
 # Instantiate plan
 plan = dp.DiscretePlan()
@@ -44,7 +45,7 @@ plan.add_environment(environment)
 # # --------------------------------------------------------------------------
 # # Approximation to object
 # # --------------------------------------------------------------------------
-horizon_size = 30
+horizon_size = 10
 T_goal = np.array([[0, 1, 0, 0.5], [1, 0, 0, 0], [0, 0, -1, 0.25], [0, 0, 0, 1]])  # T_goal = np.array([[0.0, 0., -1., 0.5], [0., 1., 0., 0.], [1.0, 0., 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) # T_goal = np.array([[0., 0., -1., 0.5], [-1., 0., 0., 0.], [0., 1., 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) # T_goal = np.array([[0., 1., 0., 0.5], [1., 0., 0., 0.], [0., 0., -1.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) # T_goal = np.array([[0, 1, 0, 0], [1, 0, 0, -0.5], [0, 0, -1, 0.5], [0, 0, 0, 1]])
 
 approach_task = pt.Point2Point(horizon_size*t_mpc, horizon_steps = horizon_size, goal = T_goal)
@@ -54,8 +55,10 @@ approach_task.add_robot(robot)
 # --------------------------------------------------------------------------
 # Picking the object up
 # --------------------------------------------------------------------------
-horizon_size = 20
-T_goal = np.array([[-1, 0, 0, 0], [0, 1, 0, 0.5], [0, 0, -1, 0.25], [0, 0, 0, 1]])
+horizon_size = 30
+# T_goal = np.array([[-1, 0, 0, 0], [0, 1, 0, 0.5], [0, 0, -1, 0.25], [0, 0, 0, 1]])
+# T_goal = np.array([[0, 0, 1, 0.5], [1, 0, 0, 0.2], [0, 1, 0, 0.5], [0, 0, 0, 1]])
+T_goal = np.array([[0, 1, 0, 0.4], [1, 0, 0, 0.15], [0, 0, -1, 0.25], [0, 0, 0, 1]])
 
 pickup_task = pt.Point2Point(time = horizon_size*t_mpc, horizon_steps = horizon_size, goal = T_goal)
 # pickup_task = tp.Point2Point(horizon = horizon_size, goal = T_goal)
