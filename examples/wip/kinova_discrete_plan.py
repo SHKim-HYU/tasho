@@ -13,11 +13,11 @@ import numpy as np
 
 print("Random bin picking with Kinova Gen3")
 
-horizon_size = 10
 t_mpc = 0.5
 max_joint_acc = 30*3.14159/180
 
 q0_val = [0, -0.523598, 0, 2.51799, 0, -0.523598, -1.5708]
+# q0_val = [0, 0.523598, cs.pi, -1.51799, 0, 0.523598, 1.5708]
 q_dot0_val = [0]*7
 
 # Instantiate plan
@@ -33,7 +33,7 @@ robot.set_robot_input_resolution("acceleration")
 environment = env.Environment()
 cube1 = env.Cube(length = 1, position = [0.5, 0, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "/models/objects/cube_small.urdf")
 table1 = env.Box(height = 0.3, position = [0.5, 0, 0], orientation = [0.0, 0.0, 0.7071080798594737, 0.7071054825112364], urdf = "/models/objects/table.urdf")
-table2 = env.Box(height = 0.3, position = [0,-0.5, 0], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "/models/objects/table.urdf")
+table2 = env.Box(height = 0.3, position = [0,0.5, 0], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "/models/objects/table.urdf")
 
 environment.add_object(cube1, "cube")
 environment.add_object(table1, "table1")
@@ -44,7 +44,7 @@ plan.add_environment(environment)
 # # --------------------------------------------------------------------------
 # # Approximation to object
 # # --------------------------------------------------------------------------
-horizon_size = 10
+horizon_size = 30
 T_goal = np.array([[0, 1, 0, 0.5], [1, 0, 0, 0], [0, 0, -1, 0.25], [0, 0, 0, 1]])  # T_goal = np.array([[0.0, 0., -1., 0.5], [0., 1., 0., 0.], [1.0, 0., 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) # T_goal = np.array([[0., 0., -1., 0.5], [-1., 0., 0., 0.], [0., 1., 0.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) # T_goal = np.array([[0., 1., 0., 0.5], [1., 0., 0., 0.], [0., 0., -1.0, 0.5], [0.0, 0.0, 0.0, 1.0]]) # T_goal = np.array([[0, 1, 0, 0], [1, 0, 0, -0.5], [0, 0, -1, 0.5], [0, 0, 0, 1]])
 
 approach_task = pt.Point2Point(horizon_size*t_mpc, horizon_steps = horizon_size, goal = T_goal)
@@ -55,7 +55,7 @@ approach_task.add_robot(robot)
 # Picking the object up
 # --------------------------------------------------------------------------
 horizon_size = 20
-T_goal = np.array([[1, 0, 0, 0], [0, -1, 0, -0.5], [0, 0, -1, 0.25], [0, 0, 0, 1]])
+T_goal = np.array([[-1, 0, 0, 0], [0, 1, 0, 0.5], [0, 0, -1, 0.25], [0, 0, 0, 1]])
 
 pickup_task = pt.Point2Point(time = horizon_size*t_mpc, horizon_steps = horizon_size, goal = T_goal)
 # pickup_task = tp.Point2Point(horizon = horizon_size, goal = T_goal)

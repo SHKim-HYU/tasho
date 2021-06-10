@@ -188,6 +188,7 @@ if visualizationBullet:
             + cs.DM(lin_vel) * time_to_stop
             - 0.5 * 0.5 * lin_vel / (cs.norm_1(lin_vel) + 1e-3) * time_to_stop ** 2
         )
+        predicted_pos[2] += 0.03  # cube height
         print("Predicted position of cube", predicted_pos)
 
         # Set parameter values

@@ -15,7 +15,7 @@ print("Task specification and visualization of contour-following example with MP
 ##########################################
 # Import the robot object from the robot's repository (includes functions for FD, ID, FK, joint limits, etc)
 robot_choice = "kinova"
-ocp_control = "torque_resolved"  #'acceleration_resolved' #'torque_resolved'
+ocp_control = "acceleration_resolved"  #'acceleration_resolved' #'torque_resolved'
 
 robot = rob.Robot(robot_choice, analytical_derivatives=True)
 
@@ -292,6 +292,17 @@ if use_MPC_class:
         "joint_indices": joint_indices,
         "no_samples": no_samples,
     }
+
+    mpc_params["codegen"] = {
+        "codegen": False,
+        "filename": "mpc_c",
+        "compilation": False,
+        "compiler": "gcc",
+        "flags": "-O3 -ffast-math -flto -funroll-loops -march=native -mfpmath=both -mvzeroupper",
+        "use_external": False,
+        "jit": False,
+    }
+    mpc_params["log_solution"] = False
 
     # Create monitor to check some termination criteria
     tc.add_monitor(

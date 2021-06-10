@@ -1044,9 +1044,14 @@ class task_context:
 
             self.OCPvars = _OCPvars(q, q_dot, q_ddot, q0, q_dot0)
 
-        elif input_resolution == "torque":
+        elif robot.input_resolution == "torque":
 
             raise Exception("ERROR: Not implemented")
+            # q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(
+            #     self, robot, {"forward_dynamics_constraints": False}
+            # )
+
+            # self.OCPvars = _OCPvars(q, q_dot, tau, q0, q_dot0)
 
         else:
 
