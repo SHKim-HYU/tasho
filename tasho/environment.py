@@ -31,11 +31,11 @@ class Environment:
             _className = value.__class__.__name__
 
             if _className == "Cube":
-                print("*********** THIS IS A CUBE ************")
+                # print("*********** THIS IS A CUBE ************")
                 objectID = world_simulator.add_object_urdf(position = value.position, orientation = value.orientation, urdf = value.urdf, fixedBase = value.fixed, globalScaling = value.length)
                 self.objectID[key] = objectID
             elif _className == "Box":
-                print("*********** THIS IS A BOX ************")
+                # print("*********** THIS IS A BOX ************")
                 objectID = world_simulator.add_object_urdf(position = value.position, orientation = value.orientation, urdf = value.urdf, fixedBase = value.fixed, globalScaling = value.height)
                 self.objectID[key] = objectID
 
