@@ -2,6 +2,7 @@ import sys
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution
 from tasho import robot as rob
+from tasho import environment as env
 import casadi as cs
 from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
@@ -138,24 +139,20 @@ if visualizationBullet:
     orientation = [0.0, 0.0, 0.0, 1.0]
     kinovaID = obj.add_robot(position, orientation, "kinova")
 
-    # Add the cube to the world
-    cubeID = p.loadURDF(
-        "./models/objects/cube_small.urdf",
+    # Set environment
+    environment = env.Environment()
 
-        [0.5, -0.2, 0.35],
-        [0.0, 0.0, 0.0, 1.0],
-        globalScaling=1.0,
-    )
+    cube1 = env.Cube(length = 1, position = [0.5, -0.2, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "/models/objects/cube_small.urdf")
+    environment.add_object(cube1, "cube")
+    
+    table1 = env.Box(height = 0.3, position = [0.5, 0, 0], orientation = [0.0, 0.0, 0.7071080798594737, 0.7071054825112364], urdf = "/models/objects/table.urdf")
+    environment.add_object(table1, "table1")
+
+    environment.set_in_world_simulator(obj)
+
+    cubeID = environment.get_object_ID("cube")
     p.resetBaseVelocity(cubeID, linearVelocity=[0, 0.8, 0])
 
-    # Add table to the world
-    tbStartOrientation = p.getQuaternionFromEuler([0, 0, 1.5708])
-    tbID = p.loadURDF(
-        "./models/objects/table.urdf",
-        [0.5, 0, 0],
-        tbStartOrientation,
-        globalScaling=0.3,
-    )
 
     # Determine number of samples that the simulation should be executed
     no_samples = int(t_mpc / obj.physics_ts)

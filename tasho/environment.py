@@ -15,6 +15,7 @@ class Environment:
     """
     def __init__(self):
         self.objects = {}
+        self.objectID = {}
 
     def add_object(self, object, name = None):
         if name is None:
@@ -32,9 +33,14 @@ class Environment:
             if _className == "Cube":
                 print("*********** THIS IS A CUBE ************")
                 objectID = world_simulator.add_object_urdf(position = value.position, orientation = value.orientation, urdf = value.urdf, fixedBase = value.fixed, globalScaling = value.length)
+                self.objectID[key] = objectID
             elif _className == "Box":
                 print("*********** THIS IS A BOX ************")
                 objectID = world_simulator.add_object_urdf(position = value.position, orientation = value.orientation, urdf = value.urdf, fixedBase = value.fixed, globalScaling = value.height)
+                self.objectID[key] = objectID
+
+    def get_object_ID(self, name):
+        return self.objectID[name]
 
 class Object:
     def __init__(self, position = [0,0,0], orientation = [0,0,0], urdf = None, fixed = False):
