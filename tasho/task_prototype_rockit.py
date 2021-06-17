@@ -13,6 +13,7 @@ from rockit import (
 import numpy as np
 import casadi as cs
 from tasho import input_resolution
+from tasho import default_mpc_options
 
 # This may be replaced by some method get_ocp_variables, which calls self.states, self.controls, ...
 from collections import namedtuple
@@ -25,7 +26,7 @@ class task_context:
     The class stores all expressions and constraints relevant to an OCP
     """
 
-    def __init__(self, time=None, horizon_steps=10):
+    def __init__(self, time=None, horizon_steps=10, name="tc"):
         """Class constructor - initializes and sets the field variables of the class
 
         :param time: The prediction horizon of the OCP.
@@ -33,6 +34,9 @@ class task_context:
 
         :param horizon_steps: Number of steps in the ocp horizon.
         :type horizon_steps: int
+
+        :param name: Name of the task context
+        :type name: string
 
         """
 
@@ -45,6 +49,7 @@ class task_context:
 
         # ocp = Ocp(T = time)
         self.ocp = ocp
+        self.tc_name = name
         self.states = {}
         self.controls = {}
         self.variables = {}
@@ -69,7 +74,21 @@ class task_context:
             "props": [],
         }
 
-        self.set_ocp_solver("ipopt")
+        # Setting Ipopt as the default ocp solver
+        self.ocp_solver = "ipopt"
+        self.ocp_options = {
+            "ipopt": {"linear_solver": "mumps"},
+            "error_on_fail": True,
+        }
+        self.set_ocp_solver(self.ocp_solver, self.ocp_options)
+
+        # Setting sqpmethod as the default mpc solver
+        def_dict = default_mpc_options.get_default_mpc_options()
+        self.mpc_solver = "sqpmethod"
+        self.mpc_options = def_dict["sqp_ip_mumps"]["options"]
+
+        # setting default discretization settings
+        self.set_discretization_settings({})
 
     def create_expression(self, name, type, shape):
 
@@ -120,7 +139,7 @@ class task_context:
 
             print("ERROR: expression type undefined")
 
-    def create_state(self, name, shape=(1, 1), init_parameter=False):
+    def create_state(self, name, shape=(1, 1), init_parameter=False, warm_start=1):
         """
         Creates a symbolic expression for state. If init_parameter is true, also
         creates a parameter corresponding to the initial condition of the state.
@@ -135,6 +154,8 @@ class task_context:
         :param init_parameter: Indicates whether an initial condition parameter should be created simultaneously.
         :type init_parameter: boolean
 
+        :param warm_start: Indicates if and how the states should be warmstarted. 0 - no warm start. 1 - warm start with the initial value.
+        :type warm_start: Int
         """
         ocp = self.ocp
         if name in self.states:
@@ -148,6 +169,8 @@ class task_context:
             ocp.subject_to(ocp.at_t0(state) == parameter)  # adding init eq constraint
             self.tc_dict["states"][name]["assoc_param"] = name + "0"  # associated param
             self.tc_dict["parameters"][name + "0"]["assoc_state"] = name
+            self.tc_dict["inp_ports"][-1]["warm_start"] = warm_start
+            self.tc_dict["inp_ports"][-1]["wvar"] = name
             return state, parameter
 
         return state
@@ -318,13 +341,6 @@ class task_context:
                     "invalid variable type. Must be 'state', 'control' or 'variable"
                 )
 
-    ## Turn on collision avoidance for robot links
-    def collision_avoidance_hyperplanes(self, toggle):
-        # USE def eval_at_control(self, stage, expr, k): where k is the step of multiple shooting
-        # can access using ocp._method.eval...
-        # then add this as constraint to opti
-        print("Not implemented")
-
     def add_objective(self, obj):
 
         """Add an objective function to the OCP
@@ -446,7 +462,7 @@ class task_context:
                                     + slack_variable[2]
                                 ) * final_con["trans_gain"]
                                 obj_rot = slack_variable[3] * final_con["rot_gain"] * 3
-                                ocp.add_objective(trans_gain)
+                                ocp.add_objective(obj_trans)
                                 ocp.add_objective(obj_rot)
                                 if "name" in final_con:
                                     self.constraints[final_con["name"]] = {
@@ -1061,30 +1077,17 @@ class task_context:
 
         # self.sim_system_dyn = robot.sim_system_dyn(self.task_context)
 
-    def generate_function(self, name="opti", save=True, codegen=True):
-        # TODO
-        # [stage.value(a) for a in args]
-        # print(self.get_states)
-        # print(self.get_controls)
-        # print(self.get_parameters)
+    def generate_controller(self, location, opts):
 
-        # CHECK IF THERE'S A BETTER WAY TO CALL primal sol and dual sol than the one below
-        opti = self.ocp._method.opti
+        """
+        Generates code/.casadi files for the OCP/MPC.
 
-        primal_sol = opti.x
-        dual_sol = opti.lam_g
-        opti_params = opti.p
-        opti_cost = opti.f
+        :param location: The directory where the generated controller files should be saved.
+        :type location: String.
 
-        input = [opti_params, primal_sol, dual_sol]
-        output = [primal_sol, dual_sol, opti_cost]
-        # output = [self.get_output_states()]
-        # input = [tc.get_parameters + primal_sol + dual_sol + ]
-        # output = [self.ocp.sample(vehicle.x, grid='integrator', refine=self.refine)[0]] + [vehicle.get_output_states(self.ocp, self.refine)] + \
-        #     [vehicle.get_output_controls(self.ocp, self.refine)] + [T, states, controls, V_states]
-        #
-        #
-        # func = self.ocp._method.opti.to_function(name, [opti_params, primal_sol, dual_sol], [primal_sol, dual_sol, opti_cost]);
+        :param opts: Options for the OCP/MPC component
+        :type opts: Dictionary
+        """
         func = self.ocp.to_function(name, input, output)
         #
         if save == True:
@@ -1093,6 +1096,11 @@ class task_context:
             func.generate(name + ".c", {"with_header": True})
         # self.ocp_fun = self.ocp.to_function('ocp_fun', \
         #         [param_X0, param_obst, param_v_safe, param_xy_last, param_xy, param_theta, T, states, controls, V_states], output)
+
+    def _unroll_controller_vars(self):
+        # unrolls all the variables in the task context into a single large vector
+        # and also stores the meta data concerning the variables in a dictionary
+        a = 1
 
     @property
     def get_states(self):
