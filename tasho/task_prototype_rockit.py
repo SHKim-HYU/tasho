@@ -1047,6 +1047,59 @@ class task_context:
         # Assign the monitor function to the dictionary element of the the task context that defines the monitor
         monitor["monitor_fun"] = monitor_fun
 
+    def generate_MPC_component(self, location, cg_opts):
+
+        """
+        Generates the OCP (and MPC) codes and the json file with all the information
+        about the ocp and stores it in the desired location.
+
+        :param location: The location where the generated components should be saved.
+        :type location: string
+
+        :param cg_opts: The code-generation options for the solvers.
+        :type cg_opts: Python dictionary
+        """
+
+        # Generate the OCP component
+        ocp_fun, vars_db = self.generate_controller(
+            "_ocp", location, self.ocp_solver, self.ocp_options, cg_opts["ocp_cg_opts"]
+        )
+        self.ocp_fun = ocp_fun
+
+        # generate the MPC component if required
+        if "mpc" in cg_opts and cg_opts["mpc"]:
+            mpc_fun, _ = self.generate_controller(
+                "_mpc",
+                location,
+                self.mpc_solver,
+                self.mpc_options,
+                cg_opts["mpc_cg_opts"],
+            )
+            self.mpc_fun = mpc_fun
+            # TODO: add monitor value in OCP and MPC xplm
+            vars_db["mpc_fun_name"] = self.tc_name + "_mpc"
+            vars_db["mpc_file"] = location + self.tc_name + "_mpc.casadi"
+            # TODO: also add the case where .c files are generated
+
+        # Updating the json file and dumping it
+        vars_db["num_inp_ports"] = len(self.tc_dict["inp_ports"])
+        vars_db["num_out_ports"] = len(self.tc_dict["out_ports"])
+        vars_db["num_props"] = len(self.tc_dict["props"])
+        vars_db["num_states"] = len(self.states)
+        vars_db["num_controls"] = len(self.controls)
+        vars_db["num_parameters"] = len(self.parameters)
+        vars_db["states"] = list(self.states.keys())
+        vars_db["controls"] = list(self.controls.keys())
+        vars_db["inp_ports"] = self.tc_dict["inp_ports"]
+        vars_db["out_ports"] = self.tc_dict["out_ports"]
+        vars_db["props"] = self.tc_dict["props"]
+        vars_db["horizon"] = self.horizon
+        vars_db["mpc_ts"] = self.ocp_rate
+        vars_db["ocp_fun_name"] = self.tc_name + "_ocp"
+        vars_db["ocp_file"] = location + self.tc_name + "_ocp.casadi"
+
+        return vars_db
+
     def generate_controller(self, name, location, solver, sol_opts, cg_opts):
 
         """
@@ -1074,7 +1127,7 @@ class task_context:
         # set the discretization settings and transcribe
         self.set_discretization_settings(self.disc_settings)
         self.ocp._method.main_transcribe(self.ocp)
-        ocp_xplm, vars_db = _unroll_controller_vars()
+        ocp_xplm, vars_db = self._unroll_controller_vars()
         if not cg_opts["jit"]:
             ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm)
         else:
@@ -1107,7 +1160,7 @@ class task_context:
         # unrolls all the variables in the task context into a single large vector
         # and also stores the meta data concerning the variables in a dictionary
 
-        opti_xplm = []  # declaring the vector roll
+        op_xplm = []  # declaring the vector roll
         vars_db = {}
         counter = 0
         for state in self.states.keys():
@@ -1121,7 +1174,7 @@ class task_context:
             vars_db[state]["end"] = counter
 
         # obtain the opti variables related to control
-        for control in self.controls_names:
+        for control in self.controls.keys():
             _, temp = self.ocp.sample(self.controls[control], grid="control")
             temp2 = []
             for i in range(self.horizon):
@@ -1140,7 +1193,7 @@ class task_context:
             op_xplm.append(cs.vcat(temp2))
 
         # obtain the opti variables related for variables
-        for variable in self.variables_names:
+        for variable in self.variables.keys():
             temp = self.ocp._method.eval_at_control(
                 self.ocp, self.variables[variable], 0
             )
@@ -1153,7 +1206,7 @@ class task_context:
             counter += temp.shape[0]
             vars_db[variable]["end"] = counter
 
-        for parameter in self.params_names:
+        for parameter in self.parameters.keys():
             temp = self.ocp._method.eval_at_control(
                 self.ocp, self.parameters[parameter], 0
             )
@@ -1174,7 +1227,7 @@ class task_context:
         counter += self.ocp._method.opti.lam_g.shape[0]
         vars_db["lam_g"]["end"] = counter
 
-        return [cs.vcat(opti_xplm)], vars_db
+        return [cs.vcat(op_xplm)], vars_db
 
     @property
     def get_states(self):
