@@ -8,5 +8,8 @@ dist/
 tasho/tasho_orocos_ros_bridge/build
 tasho/tasho_orocos_ros_bridge/devel
 
+# Notebook checkpoints
+.ipynb_checkpoints/
+
 # Editor settings
 .vscode/

@@ -245,7 +245,8 @@ class Robot:
         self.joint_acc_lb = _lb
 
     def load_from_json(self, analytical_derivatives):
-        print("Loading robot params from json")
+        print("Loading robot params from json ...")
+        # with open("./models/robots/" + self.name + ".json", "r") as f:
         with open("./models/robots/" + self.name + ".json", "r") as f:
             json_dict = json.load(f)
 
@@ -349,13 +350,13 @@ class Robot:
         out_J_fd = [
             self.J_fd(self.J_fd.sx_in(0), self.J_fd.sx_in(1), self.J_fd.sx_in(2))
         ]
-        self.J_fd = Function("jac_fd", in_J_fd, out_J_fd)
+        self.J_fd = Function("jac_fd", in_J_fd, out_J_fd, ["q", "q_dot", "tau"], ["jac_fd"])
 
         in_J_id = self.J_id.sx_in()
         out_J_id = [
             self.J_id(self.J_id.sx_in(0), self.J_id.sx_in(1), self.J_id.sx_in(2))
         ]
-        self.J_id = Function("jac_id", in_J_id, out_J_id)
+        self.J_id = Function("jac_id", in_J_id, out_J_id, ["q", "q_dot", "q_ddot"], ["jac_id"])
         ####################################################################################
 
         if analytical_derivatives:
@@ -378,11 +379,11 @@ class Robot:
 
             in_fd = self.fd.sx_in()
             out_fd = [self.fd(self.fd.sx_in(0), self.fd.sx_in(1), self.fd.sx_in(2))]
-            self.fd = Function("fd", in_fd, out_fd, fd_opts)
+            self.fd = Function("fd", in_fd, out_fd, ["q", "q_dot", "tau"], ["q_ddot"], fd_opts)
 
             in_id = self.id.sx_in()
             out_id = [self.id(self.id.sx_in(0), self.id.sx_in(1), self.id.sx_in(2))]
-            self.id = Function("id", in_id, out_id, id_opts)
+            self.id = Function("id", in_id, out_id, ["q", "q_dot", "q_ddot"], ["tau"], id_opts)
 
         # TODO: Add URDF path to json
         # self.urdf = Function.load(str(json_dict['urdf_path']))
@@ -392,6 +393,7 @@ class Robot:
         # for x in json_dict:
         #     # print("%s: %s" % (x, json_dict[x]))
         #     print("%s: %s" % (x, json_dict[x]))
+        print("Loaded " + str(self.ndof) + "-DoF robot: " + self.name)
 
     def sim_system_dyn(self, ocp):
         # Get discretised dynamics as CasADi function to simulate the system

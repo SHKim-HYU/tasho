@@ -446,7 +446,7 @@ class task_context:
                                     + slack_variable[2]
                                 ) * final_con["trans_gain"]
                                 obj_rot = slack_variable[3] * final_con["rot_gain"] * 3
-                                ocp.add_objective(trans_gain)
+                                ocp.add_objective(obj_trans)
                                 ocp.add_objective(obj_rot)
                                 if "name" in final_con:
                                     self.constraints[final_con["name"]] = {
@@ -1044,9 +1044,14 @@ class task_context:
 
             self.OCPvars = _OCPvars(q, q_dot, q_ddot, q0, q_dot0)
 
-        elif input_resolution == "torque":
+        elif robot.input_resolution == "torque":
 
             raise Exception("ERROR: Not implemented")
+            # q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(
+            #     self, robot, {"forward_dynamics_constraints": False}
+            # )
+
+            # self.OCPvars = _OCPvars(q, q_dot, tau, q0, q_dot0)
 
         else:
 

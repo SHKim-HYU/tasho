@@ -1,9 +1,8 @@
-### OCP for point-to-point motion and visualization of a KUKA robot arm
-
 import sys
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution
 from tasho import robot as rob
+from tasho import environment as env
 import casadi as cs
 from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
@@ -16,7 +15,7 @@ print("Moving-object picking with Kinova Gen3")
 # Define robot and initial joint angles
 ################################################
 # Import the robot object from the robot's repository (includes functions for FD, ID, FK, joint limits, etc)
-robot = rob.Robot("kinova")
+robot = rob.Robot("kinova", analytical_derivatives=False)
 
 # Update robot's parameters if needed
 max_joint_acc = 60 * 3.14159 / 180
@@ -35,7 +34,7 @@ horizon_size = 20
 t_mpc = 0.1
 
 # Initialize the task context object
-tc = tp.task_context(horizon_size * t_mpc)
+tc = tp.task_context(horizon_size * t_mpc, horizon_steps = horizon_size)
 
 # Define the input type of the robot (torque or acceleration)
 q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot)
@@ -92,7 +91,15 @@ tc.add_regularization(
 ################################################
 # Set solver and discretization options
 ################################################
-tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0, "tol": 1e-3,}})
+tc.set_ocp_solver(
+    "ipopt",
+    {
+        "ipopt": {
+            "print_level": 0,
+            "tol": 1e-3,
+        }
+    },
+)
 
 disc_settings = {
     "discretization method": "multiple shooting",
@@ -132,20 +139,20 @@ if visualizationBullet:
     orientation = [0.0, 0.0, 0.0, 1.0]
     kinovaID = obj.add_robot(position, orientation, "kinova")
 
-    # Add the cube to the world
-    cubeID = p.loadURDF(
-        "models/objects/cube_small.urdf",
-        [0.5, -0.2, 0.35],
-        [0.0, 0.0, 0.0, 1.0],
-        globalScaling=1.0,
-    )
+    # Set environment
+    environment = env.Environment()
+
+    cube1 = env.Cube(length = 1, position = [0.5, -0.2, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "/models/objects/cube_small.urdf")
+    environment.add_object(cube1, "cube")
+    
+    table1 = env.Box(height = 0.3, position = [0.5, 0, 0], orientation = [0.0, 0.0, 0.7071080798594737, 0.7071054825112364], urdf = "/models/objects/table.urdf")
+    environment.add_object(table1, "table1")
+
+    environment.set_in_world_simulator(obj)
+
+    cubeID = environment.get_object_ID("cube")
     p.resetBaseVelocity(cubeID, linearVelocity=[0, 0.8, 0])
 
-    # Add table to the world
-    tbStartOrientation = p.getQuaternionFromEuler([0, 0, 1.5708])
-    tbID = p.loadURDF(
-        "models/objects/table.urdf", [0.5, 0, 0], tbStartOrientation, globalScaling=0.3,
-    )
 
     # Determine number of samples that the simulation should be executed
     no_samples = int(t_mpc / obj.physics_ts)
@@ -192,6 +199,7 @@ if visualizationBullet:
         # Sample the solution for the next MPC execution
         ts, q_sol = sol.sample(q, grid="control")
         ts, q_dot_sol = sol.sample(q_dot, grid="control")
+
         tc.ocp.set_initial(q, q_sol.T)
         tc.ocp.set_initial(q_dot, q_dot_sol.T)
 
@@ -207,10 +215,9 @@ if visualizationBullet:
         T_ee_sol = robot.fk(q_sol[0])[7]
         pos_ee_sol = T_ee_sol[:3, 3]
         dist_to_cube_sq = cs.sumsqr(pos_ee_sol - predicted_pos)
-        if dist_to_cube_sq <= 1.5e-2 ** 2:
+        if dist_to_cube_sq <= 2e-2 ** 2:
             break
 
     obj.run_simulation(100)
 
     obj.end_simulation()
-
