@@ -40,15 +40,18 @@ class task_context:
 
         """
 
+        ocp = Ocp()
         if time is None:
-            ocp = Ocp(T=FreeTime(10))
+            stage1 = ocp.stage(T=FreeTime)
             self.ocp_rate = None
         else:
-            ocp = Ocp(T=time)
+            stage1 = ocp.stage(T=time)
             self.ocp_rate = time / horizon_steps
 
         # ocp = Ocp(T = time)
         self.ocp = ocp
+        self.stages = []
+        self.stages.append(stage1)
         self.tc_name = name
         self.states = {}
         self.controls = {}
@@ -91,7 +94,7 @@ class task_context:
         # setting default discretization settings
         self.set_discretization_settings(self.disc_settings)
 
-    def create_expression(self, name, type, shape):
+    def create_expression(self, name, type, shape, stage=0):
 
         """Creates a symbolic expression for variables in OCP.
 
@@ -110,7 +113,7 @@ class task_context:
 
         """
 
-        ocp = self.ocp
+        ocp = self.stages[stage]
 
         if type == "state":
             state = ocp.state(shape[0], shape[1])
@@ -140,7 +143,9 @@ class task_context:
 
             print("ERROR: expression type undefined")
 
-    def create_state(self, name, shape=(1, 1), init_parameter=False, warm_start=1):
+    def create_state(
+        self, name, shape=(1, 1), init_parameter=False, warm_start=1, stage=0
+    ):
         """
         Creates a symbolic expression for state. If init_parameter is true, also
         creates a parameter corresponding to the initial condition of the state.
@@ -158,7 +163,7 @@ class task_context:
         :param warm_start: Indicates if and how the states should be warmstarted. 0 - no warm start. 1 - warm start with the initial value.
         :type warm_start: Int
         """
-        ocp = self.ocp
+        ocp = self.stages[stage]
         if name in self.states:
             raise Exception("The state of the name " + name + " is already declared.")
         state = ocp.state(shape[0], shape[1])  # creating state
@@ -176,7 +181,7 @@ class task_context:
 
         return state
 
-    def create_parameter(self, name, shape=(1, 1), port_or_property=1):
+    def create_parameter(self, name, shape=(1, 1), port_or_property=1, stage=0):
         """
         Creates a symbolic expression for a parameter. By default, also assigns a
         port which is relevant while deploying the controller on a robot.
@@ -191,7 +196,7 @@ class task_context:
         :type port_or_property: int
 
         """
-        ocp = self.ocp
+        ocp = self.stages[stage]
         if name in self.parameters:
             raise Exception(
                 "The parameter of the name " + name + " is already declared."
@@ -228,7 +233,7 @@ class task_context:
 
         return parameter
 
-    def create_control(self, name, shape=(1, 1), outport=True):
+    def create_control(self, name, shape=(1, 1), outport=True, stage=0):
         """
         Creates a symbolic expression for a control variable. By default, also
         assigns an output port which is relevant while deploying the controller
@@ -243,7 +248,7 @@ class task_context:
         :param outport: Set to True if an output port needs to be created, False otherwise.
 
         """
-        ocp = self.ocp
+        ocp = self.stages[stage]
         if name in self.controls:
             raise Exception(
                 "The parameter of the name " + name + " is already declared."
@@ -267,7 +272,7 @@ class task_context:
 
         return control
 
-    def set_dynamics(self, state, state_der):
+    def set_dynamics(self, state, state_der, stage=0):
 
         """Set dynamics of state variables of the OCP.
 
@@ -279,11 +284,11 @@ class task_context:
 
         """
 
-        ocp = self.ocp
+        ocp = self.stages[stage]
         ocp.set_der(state, state_der)
 
     def add_regularization(
-        self, expression, weight, norm="L2", variable_type="state", reference=0
+        self, expression, weight, norm="L2", variable_type="state", reference=0, stage=0
     ):
 
         """Add regularization to states or controls or variables. L1 regularization creates slack variables to avoid the non-smoothness in the optimization problem.
@@ -304,7 +309,7 @@ class task_context:
         :type reference: float or parameter
         """
 
-        ocp = self.ocp
+        ocp = self.stages[0]
         if norm == "L2":
 
             if variable_type == "state" or variable_type == "control":
@@ -342,7 +347,7 @@ class task_context:
                     "invalid variable type. Must be 'state', 'control' or 'variable"
                 )
 
-    def add_objective(self, obj):
+    def add_objective(self, obj, stage=0):
 
         """Add an objective function to the OCP
 
@@ -351,11 +356,11 @@ class task_context:
 
         """
 
-        self.ocp.add_objective(obj)
+        self.stages[stage].add_objective(obj)
 
-    def add_task_constraint(self, task_spec):
+    def add_task_constraint(self, task_spec, stage=0):
 
-        ocp = self.ocp
+        ocp = self.stages[stage]
 
         if "initial_constraints" in task_spec:
             for init_con in task_spec["initial_constraints"]:
@@ -795,7 +800,7 @@ class task_context:
                 "Unknown type of constraint added. Not 'path_constraints', 'final_constraints' or 'initial_constraints'"
             )
 
-    def minimize_time(self, weight):
+    def minimize_time(self, weight, stage=0):
 
         """Add a cost on minimizing the time of the OCP to provide time-optimal
         solutions.
@@ -803,7 +808,7 @@ class task_context:
         :param weight: A weight factor on cost penalizing the total time of the ocp horizon.
         :type weight: float
         """
-        self.ocp.add_objective(weight * self.ocp.T)
+        self.stages[stage].add_objective(weight * self.stages[stage].T)
 
     def set_ocp_solver(self, solver, options={}):
 
@@ -822,7 +827,7 @@ class task_context:
             options["expand"] = True
         ocp.solver(solver, options)
 
-    def set_discretization_settings(self, settings):
+    def set_discretization_settings(self, settings, stage=0):
 
         """Set the discretization method of the OCP
 
@@ -834,7 +839,7 @@ class task_context:
 
         """
 
-        ocp = self.ocp
+        ocp = self.stages[stage]
         if "discretization_method" not in settings:
             disc_method = "multiple shooting"
         else:
@@ -870,7 +875,24 @@ class task_context:
         ocp = self.ocp
         sol = ocp.solve()
         self.configure_monitors()  # The first solve of the ocp configures the monitors
+        self.sol = sol
         return sol
+
+    def set_value(self, expr, value, stage=0):
+
+        ocp = self.stages[stage]
+        ocp.set_value(expr, value)
+
+    def sol_sample(self, expr, grid="control", stage=0):
+        t, x_sol = self.sol(self.stages[stage]).sample(expr, grid=grid)
+        return t, x_sol
+
+    def sol_value(self, expr, stage=0):
+        x_val = self.sol(self.stages[stage]).value(expr)
+        return x_val
+
+    def set_initial(self, expr, value, stage=0):
+        self.stages[stage].set_initial(expr, value)
 
     # Add monitors to the task context
     def add_monitor(self, task_monitor):
@@ -1124,9 +1146,10 @@ class task_context:
         # generate the ocp function
         # set the ocp solver
         self.set_ocp_solver(solver, sol_opts)
+        self.ocp.solver(solver, sol_opts)
         # set the discretization settings and transcribe
-        self.set_discretization_settings(self.disc_settings)
-        self.ocp._method.main_transcribe(self.ocp)
+        # self.set_discretization_settings(self.disc_settings)
+        # self.stages[0]._method.main_transcribe(self.stages[0])
         ocp_xplm, vars_db = self._unroll_controller_vars()
         if not cg_opts["jit"]:
             ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm)
@@ -1163,8 +1186,9 @@ class task_context:
         op_xplm = []  # declaring the vector roll
         vars_db = {}
         counter = 0
+        ocp = self.stages[0]  # TODO iterate over all the stages!!
         for state in self.states.keys():
-            _, temp = self.ocp.sample(self.states[state], grid="control")
+            _, temp = ocp.sample(self.states[state], grid="control")
             temp2 = []
             for i in range(self.horizon + 1):
                 temp2.append(temp[:, i])
@@ -1175,13 +1199,11 @@ class task_context:
 
         # obtain the opti variables related to control
         for control in self.controls.keys():
-            _, temp = self.ocp.sample(self.controls[control], grid="control")
+            _, temp = ocp.sample(self.controls[control], grid="control")
             temp2 = []
             for i in range(self.horizon):
                 temp2.append(
-                    self.ocp._method.eval_at_control(
-                        self.ocp, self.controls[control], i
-                    )
+                    ocp._method.eval_at_control(ocp, self.controls[control], i)
                 )
             vars_db[control] = {
                 "start": counter,
@@ -1194,9 +1216,7 @@ class task_context:
 
         # obtain the opti variables related for variables
         for variable in self.variables.keys():
-            temp = self.ocp._method.eval_at_control(
-                self.ocp, self.variables[variable], 0
-            )
+            temp = ocp._method.eval_at_control(ocp, self.variables[variable], 0)
             op_xplm.append(temp)
             vars_db[variable] = {
                 "start": counter,
@@ -1207,9 +1227,7 @@ class task_context:
             vars_db[variable]["end"] = counter
 
         for parameter in self.parameters.keys():
-            temp = self.ocp._method.eval_at_control(
-                self.ocp, self.parameters[parameter], 0
-            )
+            temp = ocp._method.eval_at_control(ocp, self.parameters[parameter], 0)
             op_xplm.append(temp)
             vars_db[parameter] = {
                 "start": counter,

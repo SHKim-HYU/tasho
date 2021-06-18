@@ -40,10 +40,9 @@ class TestTask(unittest.TestCase):
         }
         tc.set_discretization_settings(disc_settings)
 
-        ocp = tc.ocp
-        ocp.set_value(p, 0.9)
-        sol = ocp.solve()
-        t, x_val = sol.sample(x, grid="control")
+        tc.set_value(p, 0.9)
+        sol = tc.solve_ocp()
+        t, x_val = tc.sol_sample(x, grid="control")
 
         ## Test function generation/save
 

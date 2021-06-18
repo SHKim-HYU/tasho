@@ -36,10 +36,10 @@ class TestTask(unittest.TestCase):
         }
         tc.set_discretization_settings(disc_settings)
 
-        tc.ocp.set_value(p, 5)
-        tc.ocp.set_value(x0, 0.05)
+        tc.set_value(p, 5)
+        tc.set_value(x0, 0.05)
         sol = tc.solve_ocp()
-        t, x_val = sol.sample(x, grid="control")
+        t, x_val = tc.sol_sample(x, grid="control")
 
         self.assertAlmostEqual(
             x_val[-1], 2.236067977499, 10, "Final position test failed"
@@ -47,9 +47,9 @@ class TestTask(unittest.TestCase):
         self.assertEqual(t[-1], 5, "Final time test failed")
 
         ## Test parameter change
-        tc.ocp.set_value(p, 0.9)
+        tc.set_value(p, 0.9)
         sol = tc.solve_ocp()
-        t, x_val = sol.sample(x, grid="control")
+        t, x_val = tc.sol_sample(x, grid="control")
         self.assertAlmostEqual(
             x_val[-1], 0.9486832980505, 10, "Final position test failed"
         )

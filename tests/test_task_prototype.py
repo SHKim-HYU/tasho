@@ -32,7 +32,7 @@ class TestTask(unittest.TestCase):
         tc.set_discretization_settings(disc_settings)
 
         sol = tc.solve_ocp()
-        t, x_val = sol.sample(x, grid="control")
+        t, x_val = tc.sol_sample(x, grid="control")
 
         # test the result with L2 regularization
         self.assertAlmostEqual(
@@ -45,7 +45,7 @@ class TestTask(unittest.TestCase):
         tc.set_ocp_solver("ipopt", solver_options)
         tc.set_discretization_settings(disc_settings)
         sol = tc.solve_ocp()
-        t, x_val = sol.sample(x, grid="control")
+        t, x_val = tc.sol_sample(x, grid="control")
         self.assertAlmostEqual(x_val[-1], 0.05, 6, "Final position test failed")
 
         # Testing regularizations on variables
@@ -55,14 +55,14 @@ class TestTask(unittest.TestCase):
         tc.set_ocp_solver("ipopt", solver_options)
         tc.set_discretization_settings(disc_settings)
         sol = tc.solve_ocp()
-        y_val = sol.value(y)
+        y_val = tc.sol_value(y)
         self.assertAlmostEqual(y_val, 3.333333333, 6, "Variable regularization failed")
 
         tc.add_regularization(y, 5, variable_type="variable", reference=0)
         tc.set_ocp_solver("ipopt", solver_options)
         tc.set_discretization_settings(disc_settings)
         sol = tc.solve_ocp()
-        y_val = sol.value(y)
+        y_val = tc.sol_value(y)
         self.assertAlmostEqual(
             y_val, 2.500000000000, 6, "Variable regularization failed"
         )
@@ -71,7 +71,7 @@ class TestTask(unittest.TestCase):
         tc.set_ocp_solver("ipopt", solver_options)
         tc.set_discretization_settings(disc_settings)
         sol = tc.solve_ocp()
-        y_val = sol.value(y)
+        y_val = tc.sol_value(y)
         self.assertAlmostEqual(y_val, 0, 6, "Variable regularization failed")
 
     def test_initial_constraints(self):
@@ -103,8 +103,8 @@ class TestTask(unittest.TestCase):
             }
         )
         sol = tc.solve_ocp()
-        _, x_val = sol.sample(x, grid="control")
-        _, u_val = sol.sample(u, grid="control")
+        _, x_val = tc.sol_sample(x, grid="control")
+        _, u_val = tc.sol_sample(u, grid="control")
         self.assertAlmostEqual(
             x_val[0], 0.05, 6, "initial constraint on scalar state not respected"
         )
@@ -136,8 +136,8 @@ class TestTask(unittest.TestCase):
             }
         )
         sol = tc.solve_ocp()
-        _, x_val = sol.sample(x, grid="control")
-        _, u_val = sol.sample(u, grid="control")
+        _, x_val = tc.sol_sample(x, grid="control")
+        _, u_val = tc.sol_sample(u, grid="control")
         self.assertAlmostEqual(
             x_val[0, 0], 0.05, 6, "initial constraint on vector state not respected"
         )
@@ -180,8 +180,8 @@ class TestTask(unittest.TestCase):
             }
         )
         sol = tc.solve_ocp()
-        _, x_val = sol.sample(x, grid="control")
-        _, u_val = sol.sample(u, grid="control")
+        _, x_val = tc.sol_sample(x, grid="control")
+        _, u_val = tc.sol_sample(u, grid="control")
         self.assertAlmostEqual(
             x_val[-1], 0.05, 6, "terminal constraint on scalar state not respected"
         )
@@ -230,8 +230,8 @@ class TestTask(unittest.TestCase):
             }
         )
         sol = tc.solve_ocp()
-        _, x_val = sol.sample(x, grid="control")
-        _, u_val = sol.sample(u, grid="control")
+        _, x_val = tc.sol_sample(x, grid="control")
+        _, u_val = tc.sol_sample(u, grid="control")
         self.assertAlmostEqual(
             x_val[-1, 0], 0.05, 6, "final constraint on vector state not respected"
         )
@@ -294,8 +294,8 @@ class TestTask(unittest.TestCase):
             }
         )
         sol = tc.solve_ocp()
-        _, x_val = sol.sample(x, grid="control")
-        _, u_val = sol.sample(u, grid="control")
+        _, x_val = tc.sol_sample(x, grid="control")
+        _, u_val = tc.sol_sample(u, grid="control")
         del tc
 
         tc = tp.task_context(2)
@@ -312,8 +312,32 @@ class TestTask(unittest.TestCase):
         )
 
         ocp = tc.ocp
-        ocp.add_objective(ocp.at_tf(cs.sumsqr(x - [0.05, 0.1])) * 10)
-        ocp.add_objective(ocp.at_tf(cs.sumsqr(u - [1.0, -1.0])) * 10)
+        tc.add_task_constraint(
+            {
+                "final_constraints": [
+                    {
+                        "hard": False,
+                        "expression": x,
+                        "reference": [0.05, 0.1],
+                        "gain": 10,
+                    }
+                ]
+            }
+        )
+        tc.add_task_constraint(
+            {
+                "final_constraints": [
+                    {
+                        "hard": False,
+                        "expression": u,
+                        "reference": [1.0, -1.0],
+                        "gain": 10,
+                    }
+                ]
+            }
+        )
+        # ocp.add_objective(ocp.at_tf(cs.sumsqr(x - [0.05, 0.1])) * 10)
+        # ocp.add_objective(ocp.at_tf(cs.sumsqr(u - [1.0, -1.0])) * 10)
         tc.set_ocp_solver("ipopt", solver_options)
         tc.set_discretization_settings(
             {
@@ -324,8 +348,8 @@ class TestTask(unittest.TestCase):
             }
         )
         sol = tc.solve_ocp()
-        _, x_val2 = sol.sample(x, grid="control")
-        _, u_val2 = sol.sample(u, grid="control")
+        _, x_val2 = tc.sol_sample(x, grid="control")
+        _, u_val2 = tc.sol_sample(u, grid="control")
         self.assertAlmostEqual(
             x_val[-1, 0],
             x_val2[-1, 0],
@@ -401,8 +425,8 @@ class TestTask(unittest.TestCase):
             }
         )
         sol = tc.solve_ocp()
-        _, x_val = sol.sample(x, grid="control")
-        _, u_val = sol.sample(u, grid="control")
+        _, x_val = tc.sol_sample(x, grid="control")
+        _, u_val = tc.sol_sample(u, grid="control")
 
         tc2 = tp.task_context(2)
         x2 = tc2.create_expression("x", "state", (2, 1))
@@ -417,7 +441,7 @@ class TestTask(unittest.TestCase):
             {"initial_constraints": [{"expression": u2, "reference": [0.0, 0.0]}]}
         )
 
-        ocp = tc2.ocp
+        ocp = tc2.stages[0]
         slack = ocp.variable(2, 1)
         ocp.subject_to(-slack <= (ocp.at_tf(x2) - [0.05, 0.1] <= slack))
         ocp.add_objective((slack[0] + slack[1]) * 1)
@@ -432,8 +456,8 @@ class TestTask(unittest.TestCase):
             }
         )
         sol2 = tc2.solve_ocp()
-        _, x_val2 = sol2.sample(x2, grid="control")
-        _, u_val2 = sol2.sample(u2, grid="control")
+        _, x_val2 = tc2.sol_sample(x2)
+        _, u_val2 = tc2.sol_sample(u2)
         self.assertAlmostEqual(
             x_val[-1, 0],
             x_val2[-1, 0],

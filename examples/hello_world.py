@@ -34,7 +34,7 @@ if __name__ == "__main__":
     tc.set_discretization_settings(disc_settings)
 
     sol = tc.solve_ocp()
-    t, x_val = sol.sample(x, grid="control")
+    t, x_val = tc.sol_sample(x, grid="control")
 
     plt.figure()
     plt.plot(t, x_val)

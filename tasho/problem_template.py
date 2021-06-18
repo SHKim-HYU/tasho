@@ -93,7 +93,6 @@ class Point2Point(tp.task_context):
         # Add constraints to task
         self.add_task_constraint(final_constraints)
 
-
         self.add_regularization(expression=(fk_fun - goal), weight=1e-5, norm="L2")
         # self.add_regularization(
         #     expression=q, weight=1e-3, norm="L2", variable_type="state", reference=0
@@ -102,15 +101,19 @@ class Point2Point(tp.task_context):
             expression=q_dot, weight=1e-3, norm="L2", variable_type="state", reference=0
         )
         self.add_regularization(
-            expression=q_ddot, weight=1e-3, norm="L2", variable_type="control", reference=0
+            expression=q_ddot,
+            weight=1e-3,
+            norm="L2",
+            variable_type="control",
+            reference=0,
         )
 
         # Set settings
         self.set_ocp_solver(SOLVER, SOLVER_SETTINGS)
         self.set_discretization_settings(DISC_SETTINGS)
 
-        q0_val = robot.current_state[0:robot.ndof]
-        q_dot0_val = robot.current_state[robot.ndof:]
+        q0_val = robot.current_state[0 : robot.ndof]
+        q_dot0_val = robot.current_state[robot.ndof :]
 
-        self.ocp.set_value(q0, q0_val)
-        self.ocp.set_value(q_dot0, q_dot0_val)
+        self.set_value(q0, q0_val)
+        self.set_value(q_dot0, q_dot0_val)
