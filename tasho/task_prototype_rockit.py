@@ -1047,37 +1047,6 @@ class task_context:
         # Assign the monitor function to the dictionary element of the the task context that defines the monitor
         monitor["monitor_fun"] = monitor_fun
 
-    def set_input_resolution(self, robot):
-
-        if robot.input_resolution == "velocity":
-
-            raise Exception("ERROR: Not implemented and probably not recommended")
-
-        elif robot.input_resolution == "acceleration":
-
-            q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(
-                self, robot, {}
-            )
-
-            self.OCPvars = _OCPvars(q, q_dot, q_ddot, q0, q_dot0)
-
-        elif input_resolution == "torque":
-
-            raise Exception("ERROR: Not implemented")
-
-        else:
-
-            raise Exception(
-                'ERROR: Only available options for input_resolution are: "velocity", "acceleration" or "torque".'
-            )
-
-    def add_robot(self, robot):
-        self.robots[robot.name] = robot
-        # robot.transcribe(self)
-        self.set_input_resolution(robot)
-
-        # self.sim_system_dyn = robot.sim_system_dyn(self.task_context)
-
     def generate_controller(self, name, location, solver, sol_opts, cg_opts):
 
         """
@@ -1237,9 +1206,3 @@ class task_context:
     def get_output_controls(self):
         controls = self.get_controls
         return self.ocp.sample(controls, grid="control")[1]
-
-
-# if __name__ == '__main__':
-# 	ocp = Ocp(T = 5)
-# 	param = ocp.parameter(5, 5)
-# 	print(param.size())

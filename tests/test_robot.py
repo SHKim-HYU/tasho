@@ -98,7 +98,6 @@ class TestRobot(unittest.TestCase):
     def test_robotinputresolution(self):
         # ABB Yumi
         rob_yumi = rb.Robot(name="yumi")
-        rob_yumi.set_robot_input_resolution("acceleration")
 
         self.assertEqual(
             rob_yumi.ndof, 18, "ABB Yumi - should have 18 degrees of freedom"
@@ -148,7 +147,6 @@ class TestRobot(unittest.TestCase):
         robot = rb.Robot("kinova")
         robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
         robot.set_state(q0_val + q_dot0_val)
-        robot.set_robot_input_resolution("acceleration")
 
         T_goal = np.array(
             [[0, 1, 0, 0.5], [1, 0, 0, 0], [0, 0, -1, 0.25], [0, 0, 0, 1]]
