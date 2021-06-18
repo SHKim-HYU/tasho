@@ -56,6 +56,7 @@ class task_context:
         self.parameters = {}
         self.constraints = {}
         self.monitors = {}
+        self.disc_settings = {}
         self.monitors_configured = False
         # self.opti = ocp.opti # Removed from Rockit
         self.t_ocp = None
@@ -88,7 +89,7 @@ class task_context:
         self.mpc_options = def_dict["sqp_ip_mumps"]["options"]
 
         # setting default discretization settings
-        self.set_discretization_settings({})
+        self.set_discretization_settings(self.disc_settings)
 
     def create_expression(self, name, type, shape):
 
@@ -1077,30 +1078,134 @@ class task_context:
 
         # self.sim_system_dyn = robot.sim_system_dyn(self.task_context)
 
-    def generate_controller(self, location, opts):
+    def generate_controller(self, name, location, solver, sol_opts, cg_opts):
 
         """
-        Generates code/.casadi files for the OCP/MPC.
+        Generates code/.casadi files for the OCP.
+
+        :param name: Name of the code-generated function.
+        :type name: String
 
         :param location: The directory where the generated controller files should be saved.
         :type location: String.
 
-        :param opts: Options for the OCP/MPC component
-        :type opts: Dictionary
+        :param solver: Name of the solver
+        :type solver: String.
+
+        :param sol_opts: Options for the solver.
+        :type sol_opts: Python dictionary
+
+        :param cg_opts: Code-generation options
+        :type opts: Python dictionary
         """
-        func = self.ocp.to_function(name, input, output)
-        #
-        if save == True:
-            func.save(name + ".casadi")
-        if codegen == True:
-            func.generate(name + ".c", {"with_header": True})
-        # self.ocp_fun = self.ocp.to_function('ocp_fun', \
-        #         [param_X0, param_obst, param_v_safe, param_xy_last, param_xy, param_theta, T, states, controls, V_states], output)
+
+        # generate the ocp function
+        # set the ocp solver
+        self.set_ocp_solver(solver, sol_opts)
+        # set the discretization settings and transcribe
+        self.set_discretization_settings(self.disc_settings)
+        self.ocp._method.main_transcribe(self.ocp)
+        ocp_xplm, vars_db = _unroll_controller_vars()
+        if not cg_opts["jit"]:
+            ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm)
+        else:
+            jit_opts = {
+                "jit": True,
+                "compiler": "shell",
+                "jit_options": {
+                    "verbose": True,
+                    "compiler": "ccache gcc",
+                    "compiler_flags": self.parameters["codegen"]["flags"],
+                },
+                "verbose": False,
+                "jit_serialize": "embed",
+            }
+            ocp_fun = self.ocp.to_function(
+                self.tc_name + name, ocp_xplm, ocp_xplm, jit_opts
+            )
+
+        if cg_opts["save"]:
+            ocp_fun.save(location + self.tc_name + name + ".casadi")
+
+        if cg_opts["codegen"]:
+            ocp_fun.generate(
+                location + self.tc_name + name + ".c", {"with_header": True}
+            )
+
+        return ocp_fun, vars_db
 
     def _unroll_controller_vars(self):
         # unrolls all the variables in the task context into a single large vector
         # and also stores the meta data concerning the variables in a dictionary
-        a = 1
+
+        opti_xplm = []  # declaring the vector roll
+        vars_db = {}
+        counter = 0
+        for state in self.states.keys():
+            _, temp = self.ocp.sample(self.states[state], grid="control")
+            temp2 = []
+            for i in range(self.horizon + 1):
+                temp2.append(temp[:, i])
+            vars_db[state] = {"start": counter, "size": temp.shape[0]}
+            op_xplm.append(cs.vcat(temp2))
+            counter += temp.shape[0] * temp.shape[1]
+            vars_db[state]["end"] = counter
+
+        # obtain the opti variables related to control
+        for control in self.controls_names:
+            _, temp = self.ocp.sample(self.controls[control], grid="control")
+            temp2 = []
+            for i in range(self.horizon):
+                temp2.append(
+                    self.ocp._method.eval_at_control(
+                        self.ocp, self.controls[control], i
+                    )
+                )
+            vars_db[control] = {
+                "start": counter,
+                "size": temp.shape[0],
+                "jump": temp.shape[0],
+            }
+            counter += temp.shape[0] * (temp.shape[1] - 1)
+            vars_db[control]["end"] = counter
+            op_xplm.append(cs.vcat(temp2))
+
+        # obtain the opti variables related for variables
+        for variable in self.variables_names:
+            temp = self.ocp._method.eval_at_control(
+                self.ocp, self.variables[variable], 0
+            )
+            op_xplm.append(temp)
+            vars_db[variable] = {
+                "start": counter,
+                "size": temp.shape[0],
+                "jump": temp.shape[0],
+            }
+            counter += temp.shape[0]
+            vars_db[variable]["end"] = counter
+
+        for parameter in self.params_names:
+            temp = self.ocp._method.eval_at_control(
+                self.ocp, self.parameters[parameter], 0
+            )
+            op_xplm.append(temp)
+            vars_db[parameter] = {
+                "start": counter,
+                "size": temp.shape[0],
+                "jump": temp.shape[0],
+            }
+            counter += temp.shape[0]
+            vars_db[parameter]["end"] = counter
+
+        op_xplm.append(self.ocp._method.opti.lam_g)
+        vars_db["lam_g"] = {
+            "start": counter,
+            "size": self.ocp._method.opti.lam_g.shape[0],
+        }
+        counter += self.ocp._method.opti.lam_g.shape[0]
+        vars_db["lam_g"]["end"] = counter
+
+        return [cs.vcat(opti_xplm)], vars_db
 
     @property
     def get_states(self):
