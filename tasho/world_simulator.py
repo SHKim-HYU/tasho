@@ -8,7 +8,6 @@ import pybullet as p
 import pybullet_data
 import time
 
-
 class world_simulator:
     def __init__(self, plane_spawn=True, bullet_gui=True, physics_ts=1.0 / 240):
 
@@ -54,7 +53,7 @@ class world_simulator:
         position = pose["position"]
         orientation = pose["orientation"]
         cylinderID = p.loadURDF(
-            "models/objects/cylinder.urdf",
+            "/models/objects/cylinder.urdf",
             position,
             orientation,
             useFixedBase=fixedBase,
@@ -75,7 +74,7 @@ class world_simulator:
         position = pose["position"]
         orientation = pose["orientation"]
         cubeID = p.loadURDF(
-            "models/objects/cube.urdf",
+            "/models/objects/cube.urdf",
             position,
             orientation,
             useFixedBase=fixedBase,
@@ -92,14 +91,14 @@ class world_simulator:
         if robot_name != None:
             if robot_name == "yumi":
                 robotID = p.loadURDF(
-                    "models/robots/ABB/yumi/yumi.urdf",
+                    "/models/robots/ABB/yumi/yumi.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
                 )
             elif robot_name == "kinova":
                 robotID = p.loadURDF(
-                    "models/robots/Kinova/Gen3/kortex_description/urdf/JACO3_URDF_V11.urdf",
+                    "/models/robots/Kinova/Gen3/kortex_description/urdf/JACO3_URDF_V11.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
@@ -115,14 +114,14 @@ class world_simulator:
                 )
             elif robot_name == "kr60":
                 robotID = p.loadURDF(
-                    "models/robots/KUKA/kr60/kr60_description/kr60ha.urdf",
+                    "/models/robots/KUKA/kr60/kr60_description/kr60ha.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
                 )
             elif robot_name == "atlas":
                 robotID = p.loadURDF(
-                    "models/robots/Atlas/Atlas_description/urdf/atlas.urdf",
+                    "/models/robots/Atlas/Atlas_description/urdf/atlas.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,

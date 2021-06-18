@@ -3,7 +3,6 @@ from tasho import input_resolution, world_simulator
 from tasho import robot as rob
 from tasho import MPC
 from tasho.utils import geometry
-from casadi import pi, cos, sin, acos
 import casadi as cs
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,19 +13,66 @@ print("Task specification and visualization of contour-following example with MP
 # Define robot and initial joint angles
 ##########################################
 # Import the robot object from the robot's repository (includes functions for FD, ID, FK, joint limits, etc)
-robot_choice = "kinova"
+robot_choice = "yumi"
 ocp_control = "acceleration_resolved"  #'acceleration_resolved' #'torque_resolved'
 
 robot = rob.Robot(robot_choice, analytical_derivatives=True)
 
 # Update robot's parameters if needed
 if ocp_control == "acceleration_resolved":
-    max_joint_acc = 240 * pi / 180
+    max_joint_acc = 240 * cs.pi / 180
     robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
 
 # Define initial conditions of the robot
-q_init = [0, pi / 6, 0, 4 * pi / 6, 0, -2 * pi / 6, -pi / 2]
+if robot_choice == "yumi":
+    left_arm_q_init = [
+        -1.35,
+        -8.72e-01,
+        2.18,
+        6.78e-01,
+        2.08,
+        -9.76e-01,
+        -1.71,
+        1.65e-03,
+        1.65e-03,
+    ]
+    right_arm_q_init = [  # Home configuration
+        0,
+        -2.26,
+        -2.35,
+        0.52,
+        0.025,
+        0.749,
+        0,
+        0,
+        0,
+    ]
+    q_init = np.array(left_arm_q_init + right_arm_q_init).T
+
+elif robot_choice == "kinova":
+    q_init = [0, -0.523598, 0, 2.51799, 0, -0.523598, -1.5708]
+
 q_dot_init = [0] * robot.ndof
+
+##########################################
+# Task spacification - Contour following
+##########################################
+
+# Select prediction horizon and sample time for the MPC execution
+horizon_size = 16
+t_mpc = 0.01
+
+# Initialize the task context object
+tc = tp.task_context(horizon_size * t_mpc, horizon_steps=horizon_size)
+
+# Define the input type of the robot (torque or acceleration)
+if ocp_control == "acceleration_resolved":
+    q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
+elif ocp_control == "torque_resolved":
+    q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(
+        tc, robot, {"forward_dynamics_constraints": False}
+    )
+
 
 ##########################################
 # Define contour
@@ -36,46 +82,38 @@ def contour_path(s):
     ee_pos_init = ee_fk_init[:3, 3]
     ee_rot_init = ee_fk_init[:3, :3]
 
-    sdotref = 0.025
+    sdotref = 0.25
     sdot_path = sdotref * (
-        5.777783e-13 * s ** 5
-        - 34.6153846154 * s ** 4
-        + 69.2307692308 * s ** 3
-        - 46.7307692308 * s ** 2
-        + 12.1153846154 * s
-        + 0.0515384615
+        5.777e-13 * s ** 5
+        - 34.615 * s ** 4
+        + 69.230 * s ** 3
+        - 46.730 * s ** 2
+        + 12.115 * s
+        + 0.0515
     )
 
-    a_p = 0.15
+    a_p = 0.05
     z_p = 0.05
     pos_path = ee_pos_init + cs.vertcat(
-        z_p * sin(s * (4 * pi)),
-        a_p * sin(s * (2 * pi)),
-        a_p * sin(s * (2 * pi)) * cos(s * (2 * pi)),
+        0,
+        a_p * cs.sin(s * (2 * cs.pi)),
+        a_p * cs.sin(s * (2 * cs.pi)) * cs.cos(s * (2 * cs.pi)),
     )
+
+    # A = 0.3
+    # f = 1 #/(2*cs.pi)
+    # delta = 0.001
+    # pos_path = ee_pos_init + cs.vertcat(
+    #     0,
+    #     0,
+    #     (A/cs.atan(1/delta))*cs.atan(cs.sin(2*cs.pi*s*f)/delta),
+    # )
+
     rot_path = ee_rot_init
+    # rot_path = np.array([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
 
     return pos_path, rot_path, sdot_path
 
-
-##########################################
-# Task spacification - Contour following
-##########################################
-
-# Select prediction horizon and sample time for the MPC execution
-horizon_size = 16
-t_mpc = 0.02
-
-# Initialize the task context object
-tc = tp.task_context(horizon_size * t_mpc)
-
-# Define the input type of the robot (torque or acceleration)
-if ocp_control == "acceleration_resolved":
-    q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
-elif ocp_control == "torque_resolved":
-    q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(
-        tc, robot, {"forward_dynamics_constraints": False}
-    )
 
 # Define augmented dynamics based on path-progress variable s
 s = tc.create_expression("s", "state", (1, 1))
@@ -137,25 +175,32 @@ def rot_err(q, s):
     )
 
 
-# Set tunnel constraints to allow a deviation from the path
-pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
+def tun_err(q, s):
+    return cs.vertcat(pos_err(q, s), rot_err(q, s))
+
+
+# Contouring - demos
+# With more horizon: Total acceleration effort or total energy spent
+#
+# Python notebook - Contouring example
+#
+#
+# Showing
+#
+# Discuss under the hood
+#
+
+tun_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
     "hard": False,
     "inequality": True,
-    "expression": pos_err(q, s),
+    "expression": tun_err(q, s),
     "upper_limits": 0.01 ** 2,
     "gain": 100,
     "norm": "squaredL2",
 }
-rot_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
-    "hard": False,
-    "inequality": True,
-    "expression": rot_err(q, s),
-    "upper_limits": 0.05 ** 2,
-    "gain": 100,
-    "norm": "squaredL2",
-}
-tunnel_constraints = {"path_constraints": [pos_tunnel_con]}
+tunnel_constraints = {"path_constraints": [tun_tunnel_con]}
 tc.add_task_constraint(tunnel_constraints)
+
 
 # Define objective
 tc.add_objective(
@@ -163,8 +208,8 @@ tc.add_objective(
         1e-5
         * cs.sumsqr(
             cs.vertcat(
-                1e-2 * q,
-                10 * q_dot,
+                1e-2 * q[0:8],
+                10 * q_dot[0:8],
                 1e-2 * (1 - s),
                 10 * s_dot,
                 10 * pos_err(q, s),
@@ -175,9 +220,22 @@ tc.add_objective(
 )
 
 # Add regularization terms to the objective
-tc.add_regularization(expression=(s_dot - sdot_path), weight=20, norm="L2")
+tc.add_regularization(expression=s_dot, reference=sdot_path, weight=20, norm="L2")
 tc.add_regularization(expression=pos_err(q, s), weight=1e-1, norm="L2")
 tc.add_regularization(expression=rot_err(q, s), weight=1e-1, norm="L2")
+
+tc.add_regularization(
+    expression=q, weight=1e-2, norm="L2", variable_type="state", reference=0
+)
+tc.add_regularization(
+    expression=q_dot, weight=1e-2, norm="L2", variable_type="state", reference=0
+)
+tc.add_regularization(
+    expression=s, weight=1e-2, norm="L2", variable_type="state", reference=0
+)
+tc.add_regularization(
+    expression=s_dot, weight=1e-2, norm="L2", variable_type="state", reference=0
+)
 
 if ocp_control == "torque_resolved":
     tc.add_regularization(
@@ -195,12 +253,6 @@ tc.add_regularization(
     expression=s_ddot, weight=4e-5, norm="L2", variable_type="control", reference=0
 )
 
-tc.add_regularization(
-    expression=q, weight=1e-2, norm="L2", variable_type="state", reference=0
-)
-tc.add_regularization(
-    expression=q_dot, weight=1e-2, norm="L2", variable_type="state", reference=0
-)
 
 ################################################
 # Set solver and discretization options
@@ -219,7 +271,7 @@ tc.set_discretization_settings(disc_settings)
 # Set parameter values
 ################################################
 tc.ocp.set_value(q0, q_init)
-tc.ocp.set_value(q_dot0, [0] * 7)
+tc.ocp.set_value(q_dot0, [0] * robot.ndof)
 tc.ocp.set_value(s0, 0)
 tc.ocp.set_value(s_dot0, 0)
 
@@ -244,7 +296,7 @@ if use_MPC_class:
     # Add robot to the world environment
     position = [0.0, 0.0, 0.0]
     orientation = [0.0, 0.0, 0.0, 1.0]
-    kinovaID = obj.add_robot(position, orientation, "kinova")
+    robotID = obj.add_robot(position, orientation, robot_choice)
 
     # Determine number of samples that the simulation should be executed
     no_samples = int(t_mpc / obj.physics_ts)
@@ -252,11 +304,13 @@ if use_MPC_class:
         print("[ERROR] MPC sampling time not integer multiple of physics sampling time")
 
     # Correspondence between joint numbers in bullet and OCP
-    joint_indices = [0, 1, 2, 3, 4, 5, 6]
-
+    if robot_choice == "yumi":
+        joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    elif robot_choice == "kinova":
+        joint_indices = [0, 1, 2, 3, 4, 5, 6]
     # Begin the visualization by applying the initial control signal
-    obj.resetJointState(kinovaID, joint_indices, q_init)
-    obj.setController(kinovaID, "velocity", joint_indices, targetVelocities=q_dot_init)
+    obj.resetJointState(robotID, joint_indices, q_init)
+    obj.setController(robotID, "velocity", joint_indices, targetVelocities=q_dot_init)
 
     # Define MPC parameters
     mpc_params = {"world": obj}
@@ -264,12 +318,12 @@ if use_MPC_class:
     q0_params_info = {
         "type": "joint_position",
         "joint_indices": joint_indices,
-        "robotID": kinovaID,
+        "robotID": robotID,
     }
     q_dot0_params_info = {
         "type": "joint_velocity",
         "joint_indices": joint_indices,
-        "robotID": kinovaID,
+        "robotID": robotID,
     }
     s0_params_info = {"type": "progress_variable", "state": True}
     s_dot0_params_info = {"type": "progress_variable", "state": True}
@@ -279,7 +333,7 @@ if use_MPC_class:
         "q_dot0": q_dot0_params_info,
         "s0": s0_params_info,
         "s_dot0": s_dot0_params_info,
-        "robots": {kinovaID: robot},
+        "robots": {robotID: robot},
     }
     mpc_params["disc_settings"] = disc_settings
     mpc_params["solver_name"] = "sqpmethod"
@@ -287,14 +341,13 @@ if use_MPC_class:
     mpc_params["t_mpc"] = t_mpc
     mpc_params["control_type"] = "joint_velocity"  #'joint_torque'
     mpc_params["control_info"] = {
-        "robotID": kinovaID,
+        "robotID": robotID,
         "discretization": "constant_acceleration",
         "joint_indices": joint_indices,
         "no_samples": no_samples,
     }
-
     mpc_params["codegen"] = {
-        "codegen": False,
+        "codegen": True,
         "filename": "mpc_c",
         "compilation": False,
         "compiler": "gcc",
@@ -302,7 +355,7 @@ if use_MPC_class:
         "use_external": False,
         "jit": False,
     }
-    mpc_params["log_solution"] = False
+    mpc_params["log_solution"] = True
 
     # Create monitor to check some termination criteria
     tc.add_monitor(
@@ -326,3 +379,14 @@ if use_MPC_class:
 
     # Execute the MPC loop
     mpc_obj.runMPC()
+
+    # _, x_sol = sol.sample(x, grid= "control")
+    print("#################################")
+    max_acc = 0
+    sumsqr_acc = 0
+    for controls in mpc_obj.controls_log:
+        sumsqr_acc += cs.sumsqr(controls['q_ddot'][0])
+        max_acc = np.max(controls['q_ddot'][0])
+
+    print("N =", horizon_size,"| TOTAL ACC: ",sumsqr_acc, "| MAX ACC: ", max_acc, " | Mean sol time: ", np.mean(mpc_obj._solver_time))
+    print("#################################")

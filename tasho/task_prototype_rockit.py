@@ -1229,6 +1229,42 @@ class task_context:
 
         return [cs.vcat(op_xplm)], vars_db
 
+    def set_input_resolution(self, robot):
+
+        if robot.input_resolution == "velocity":
+
+            raise Exception("ERROR: Not implemented and probably not recommended")
+
+        elif robot.input_resolution == "acceleration":
+
+            q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(
+                self, robot, {}
+            )
+
+            self.OCPvars = _OCPvars(q, q_dot, q_ddot, q0, q_dot0)
+
+        elif robot.input_resolution == "torque":
+
+            raise Exception("ERROR: Not implemented")
+            # q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(
+            #     self, robot, {"forward_dynamics_constraints": False}
+            # )
+
+            # self.OCPvars = _OCPvars(q, q_dot, tau, q0, q_dot0)
+
+        else:
+
+            raise Exception(
+                'ERROR: Only available options for input_resolution are: "velocity", "acceleration" or "torque".'
+            )
+
+    def add_robot(self, robot):
+        self.robots[robot.name] = robot
+        # robot.transcribe(self)
+        self.set_input_resolution(robot)
+
+        # self.sim_system_dyn = robot.sim_system_dyn(self.task_context)
+
     @property
     def get_states(self):
         states = cs.vertcat()

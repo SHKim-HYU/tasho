@@ -31,6 +31,10 @@ class MPC:
 
         self.params_history = []
 
+        self.states_log = []
+        self.controls_log = []
+        self.variables_log = []
+
         # casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
         self.mpc_debug = False
         self._mpc_fun = None
@@ -342,6 +346,58 @@ class MPC:
             print("Solving with the SQP method")
             sol = tc.solve_ocp()
 
+            if self.mpc_debug is not True:
+                if ("codegen" in self.parameters) and self.parameters["codegen"]:
+                    self.code_type = 2
+
+                    if self.parameters["codegen"]["filename"]:
+                        filename = self.parameters["codegen"]["filename"]
+                    else:
+                        filename = "mpc_fun"
+
+                    self._create_mpc_fun_casadi(
+                        codeGen=self.parameters["codegen"]["codegen"],
+                        f_name=filename,
+                    )
+
+                    if self.parameters["codegen"]["compilation"]:
+                        import os
+
+                        if self.parameters["codegen"]["compiler"]:
+                            compiler = self.parameters["codegen"]["compiler"]
+                        else:
+                            compiler = "gcc"
+
+                        print("Compiling MPC function ...")
+                        os.system(
+                            compiler
+                            + " "
+                            + self.parameters["codegen"]["flags"]
+                            + " "
+                            + filename
+                            + ".c -shared -fPIC -lm -o "
+                            + filename
+                            + ".so"
+                        )
+                        print("... Finished compilation of MPC function")
+
+                    if self.parameters["codegen"]["use_external"]:
+
+                        import os
+
+                        if os.path.isfile(filename+'.so'):
+                            print("Loading the compiled function back ...")
+                            
+                            self._mpc_fun = cs.external(
+                                filename, "./" + filename + ".so"
+                            )
+                            
+                            print("... Loaded")
+                        else:
+                            print("[ERROR] The file "+filename+".so doesn't exist. Try compiling the function first")
+                            exit()
+                            
+
         else:
             # Set ipopt as default solver
             print("Using IPOPT with LBFGS as the default solver")
@@ -357,8 +413,9 @@ class MPC:
                 },
             )
 
-        if self.mpc_debug is not True:
-            self._create_mpc_fun_casadi(codeGen=self.codeGen)
+            if self.mpc_debug is not True:
+                self._create_mpc_fun_casadi(codeGen=self.codeGen)
+                
         self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
         # print(sol_controls['s_ddot'])
 
@@ -442,10 +499,19 @@ class MPC:
         # self._mpc_fun = opti.to_function(
         #     "mpc_fun", [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]
         # )
-        self._mpc_fun = tc.ocp._method.opti.to_function(f_name, opti_xplam, opti_xplam)
-        self._mpc_fun_cg = tc.ocp._method.opti.to_function(
-            f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)]
-        )
+        if self.parameters["codegen"]["jit"]:
+            print("Using just-in-time compilation ...")
+            cg_opts = {"jit":True, "compiler": "shell", "jit_options": {"verbose":True, "compiler": "ccache gcc" , "compiler_flags": self.parameters["codegen"]["flags"]}, "verbose":False, "jit_serialize": "embed"}
+
+            self._mpc_fun = tc.ocp._method.opti.to_function(f_name, opti_xplam, opti_xplam, cg_opts)
+            self._mpc_fun_cg = tc.ocp._method.opti.to_function(
+                f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)], cg_opts
+            )
+        else:
+            self._mpc_fun = tc.ocp._method.opti.to_function(f_name, opti_xplam, opti_xplam)
+            self._mpc_fun_cg = tc.ocp._method.opti.to_function(
+                f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)]
+            )
         self._opti_xplam = opti_xplam
 
         self._opti_xplam_to_optiform = cs.Function(
@@ -463,8 +529,20 @@ class MPC:
                 vars_db["fun_name"] = f_name
                 print(vars_db)
                 with open(codeGen_dest + f_name + "_property.json", "w") as fp:
+                    json.dump(vars_db, fp)
+                self._mpc_fun_cg.save(f_name + ".casadi")
+            elif self.code_type == 2:
+                self._mpc_fun_cg.generate(
+                    f_name + ".c", {"with_header": True, "main": True}
+                )
+                vars_db["casadi_fun"] = codeGen_dest + f_name + ".casadi"
+                vars_db["fun_name"] = f_name
+                print(vars_db)
+                with open(codeGen_dest + f_name + "_property.json", "w") as fp:
+                #     json.dump(vars_db, fp)
                     json.dump(vars_db, fp, indent=2)
                 self._mpc_fun_cg.save(codeGen_dest + f_name + ".casadi")
+                # self._mpc_fun_cg.save(f_name + ".casadi")
             # self._mpc_fun = cs.external('f', './mpc_fun.so')
 
     ## obtain the solution of the ocp
@@ -672,6 +750,7 @@ class MPC:
             + len(self.controls_names)
             + len(self.variables_names)
         )
+
         # TODO: change by adding termination criteria
         for mpc_iter in range(self.max_mpc_iter):
 
@@ -748,6 +827,7 @@ class MPC:
                     sol = list(self._mpc_fun(*sol))
                     toc = time() - tic
                     self._solver_time.append(toc)
+
                     # Monitors
                     opti_form = self._opti_xplam_to_optiform(*sol)
                     # computing the primal feasibility of the solution
@@ -780,6 +860,12 @@ class MPC:
                         return "MPC_SUCCEEDED"
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+
+                # Log solution
+                if ("log_solution" in self.parameters) and self.parameters["log_solution"]:
+                    self.states_log.append(sol_states)
+                    self.controls_log.append(sol_controls)
+                    self.variables_log.append(sol_variables)
 
                 self.mpc_ran = True
 

@@ -243,7 +243,7 @@ class DiscretePlan:
 
                 # TODO: Avoid this, don't know how yet
                 if tname == "pickup":
-                    p.createConstraint(robotID, 6, cubeID, -1, p.JOINT_FIXED, [0., 0., 1.], [0., 0, 0.1], [0., 0., 0.1])
+                    p.createConstraint(robotID, 7, cubeID, -1, p.JOINT_FIXED, [0., 0., 1.], [0., 0, 0.0], [0., 0., 0.0])
 
                 for i in range(horizon_size):
                 	q_vel_current = 0.5*(qdot_sol[i] + qdot_sol[i+1])

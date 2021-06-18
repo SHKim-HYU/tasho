@@ -6,8 +6,6 @@ stages:
 # shorthand for testing
 .test_template: &template
   image: alejandroastudillo/tasho-base
-  tags:
-    - docker
   before_script:
     - source activate tasho-base
     - rm -rf .pip
@@ -47,7 +45,6 @@ docs:sphinx:
       - docs/build
   only:
     - master
-
 
 pages:
   stage: publish
