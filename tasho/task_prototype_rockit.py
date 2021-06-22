@@ -930,12 +930,13 @@ class task_context:
         return fun_pr
 
     # Internal function to configure each monitor
-    def _configure_each_monitor(self, monitor):
+    def _configure_each_monitor(self, monitor, stage=0):
 
         opti = self.ocp._method.opti
+        ocp = self.stages[stage]
         expr = monitor["expression"]
         # define the casadi function to compute the monitor value
-        _, expr_sampled = self.ocp.sample(
+        _, expr_sampled = ocp.sample(
             expr, grid="control"
         )  # the monitored expression over the ocp control grid
         # print(expr_sampled[0].shape)
@@ -1150,7 +1151,7 @@ class task_context:
         # set the discretization settings and transcribe
         # self.set_discretization_settings(self.disc_settings)
         # self.stages[0]._method.main_transcribe(self.stages[0])
-        ocp_xplm, vars_db = self._unroll_controller_vars()
+        ocp_xplm, vars_db, ocp_xplm_out = self._unroll_controller_vars()
         if not cg_opts["jit"]:
             ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm)
         else:
@@ -1166,7 +1167,7 @@ class task_context:
                 "jit_serialize": "embed",
             }
             ocp_fun = self.ocp.to_function(
-                self.tc_name + name, ocp_xplm, ocp_xplm, jit_opts
+                self.tc_name + name, ocp_xplm, ocp_xplm_out, jit_opts
             )
 
         if cg_opts["save"]:
@@ -1245,7 +1246,45 @@ class task_context:
         counter += self.ocp._method.opti.lam_g.shape[0]
         vars_db["lam_g"]["end"] = counter
 
-        return [cs.vcat(op_xplm)], vars_db
+        import copy
+
+        op_xplm_out = copy.deepcopy(op_xplm)
+        # Add the monitor function to op_xplm
+        monitors = self.monitors
+        monitors_dict = {}
+        for m_name in monitors.keys():
+
+            # Compute the value of the monitor function at the desired location
+            _, expr_mon_grid = ocp.sample(
+                monitors[m_name]["expression"], grid="control"
+            )
+            if "initial" in monitors[m_name]:
+                expr_m = expr_mon_grid[0]
+                print(expr_m)
+            elif "final" in monitors[m_name]:
+                expr_m = expr_mon_grid[-1]
+            elif "always" in monitors[m_name]:
+                expr_m = cs.mmax(expr_mon_grid)
+            elif "any" in monitors[m_name]:
+                expr_m = cs.mmin(expr_mon_grid)
+            else:
+                raise Exception("Monitor not set at initial, final, always or any")
+
+            # Add the monitor function to op_xplm and store the name and location
+            op_xplm_out.append(expr_m)
+            monitors_dict[m_name] = counter
+            counter += 1
+
+        # Add an array of the monitor names and the dictionary associated with the locations
+        # to vars_db
+        monitor_names = list(monitors_dict.keys())
+        vars_db["monitor_names"] = monitor_names
+        vars_db["monitor_locations"] = monitors_dict
+
+        if "termination_criteria" not in monitor_names:
+            raise Warning("No termination criteria set as a monitor!")
+
+        return [cs.vcat(op_xplm)], vars_db, [cs.vcat(op_xplm_out)]
 
     def set_input_resolution(self, robot):
 
