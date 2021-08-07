@@ -26,3 +26,9 @@ Discrete Plan
 
 .. automodule:: tasho.discrete_plan
     :members:
+
+Time Optimal
+============
+
+.. automodule:: tasho.time_optimal
+    :members:
