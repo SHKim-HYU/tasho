@@ -45,6 +45,7 @@ docs:sphinx:
       - docs/build
   only:
     - master
+    - develop
 
 pages:
   stage: publish
@@ -62,3 +63,4 @@ pages:
       - public
   only:
     - master
+    - develop
