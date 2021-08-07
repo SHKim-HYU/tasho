@@ -140,46 +140,46 @@ class Time_optimal:
         return tsol, qdotsol, asol
 
 
-if __name__ == '__main__':
-
-    print("No syntax errors")
-    from tasho import robot as rob
-    robot = rob.Robot("iiwa7")
-    joint_acc_limit = 3 #rad/s^2
-    robot.joint_acc_ub = joint_acc_limit
-    robot.joint_acc_lb = -joint_acc_limit
-    topt = Time_optimal(robot, 19, 'acceleration', control_rate_con = None)
-    Ts = 0.2
-    q_val = cs.DM.zeros(7, 19)
-    for i in range(1,10):
-        q_val[:, i] = q_val[:, 0] + 0.5*(Ts*i)**2*joint_acc_limit
-    q_dot = 9*Ts*joint_acc_limit
-    for i in range(10, 19):
-        q_val[:, i] = q_val[:, 9] + q_dot*(i-9)*Ts - 0.5*(Ts*(i-9))**2*joint_acc_limit
-
-    # topt._tc.set_value(topt._q, q_val)
-
-    # topt._tc.set_ocp_solver('ipopt', {'ipopt':{'linear_solver':'ma27'}})
-    # sol = topt._tc.solve_ocp()
-    #
-    #
-    #
-    # tsol, asol = topt._tc.sol_sample(topt._control, grid = 'control')
-    # qdotsol = topt._tc.sol_sample(topt._q_dot, grid = 'control')[1]
-
-    topt.use_ma27()
-    tsol, qdotsol, asol = topt.compute_time_opt_traj(q_val)
-
-    # tsol, asol = topt._tc.sol_sample(topt._control[0], grid = 'control')
-    # qdotsol = topt._tc.sol_sample(topt._q_dot[0], grid = 'control')[1]
-
-    q_verify = [0]
-
-    for i in range(18):
-        dt = tsol[i+1] - tsol[i]
-        q_verify.append(q_verify[-1] + qdotsol[i]*dt + 0.5*dt**2*asol[i])
-
-    print(topt._tc.sol_sample(topt._control[0], grid = 'control'))
-    print(topt._tc.sol_sample(topt._q_dot[0], grid = 'control')[1])
-    print(topt._tc.sol_sample(topt._q[0], grid = 'control')[1])
-    print(q_verify)
+# if __name__ == '__main__':
+#
+#     print("No syntax errors")
+#     from tasho import robot as rob
+#     robot = rob.Robot("iiwa7")
+#     joint_acc_limit = 3 #rad/s^2
+#     robot.joint_acc_ub = joint_acc_limit
+#     robot.joint_acc_lb = -joint_acc_limit
+#     topt = Time_optimal(robot, 19, 'acceleration', control_rate_con = None)
+#     Ts = 0.2
+#     q_val = cs.DM.zeros(7, 19)
+#     for i in range(1,10):
+#         q_val[:, i] = q_val[:, 0] + 0.5*(Ts*i)**2*joint_acc_limit
+#     q_dot = 9*Ts*joint_acc_limit
+#     for i in range(10, 19):
+#         q_val[:, i] = q_val[:, 9] + q_dot*(i-9)*Ts - 0.5*(Ts*(i-9))**2*joint_acc_limit
+#
+#     # topt._tc.set_value(topt._q, q_val)
+#
+#     # topt._tc.set_ocp_solver('ipopt', {'ipopt':{'linear_solver':'ma27'}})
+#     # sol = topt._tc.solve_ocp()
+#     #
+#     #
+#     #
+#     # tsol, asol = topt._tc.sol_sample(topt._control, grid = 'control')
+#     # qdotsol = topt._tc.sol_sample(topt._q_dot, grid = 'control')[1]
+#
+#     topt.use_ma27()
+#     tsol, qdotsol, asol = topt.compute_time_opt_traj(q_val)
+#
+#     # tsol, asol = topt._tc.sol_sample(topt._control[0], grid = 'control')
+#     # qdotsol = topt._tc.sol_sample(topt._q_dot[0], grid = 'control')[1]
+#
+#     q_verify = [0]
+#
+#     for i in range(18):
+#         dt = tsol[i+1] - tsol[i]
+#         q_verify.append(q_verify[-1] + qdotsol[i]*dt + 0.5*dt**2*asol[i])
+#
+#     print(topt._tc.sol_sample(topt._control[0], grid = 'control'))
+#     print(topt._tc.sol_sample(topt._q_dot[0], grid = 'control')[1])
+#     print(topt._tc.sol_sample(topt._q[0], grid = 'control')[1])
+#     print(q_verify)
