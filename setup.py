@@ -22,7 +22,7 @@ setuptools.setup(
     url=URL,
     packages=setuptools.find_packages(),
     install_requires=[
-        'rockit-meco',
+        'rockit-meco>=0.1.28',
         'casadi>=3.4,<4.0',
         'numpy',
         'matplotlib',
