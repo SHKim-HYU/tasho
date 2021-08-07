@@ -13,8 +13,8 @@ def inv_T_matrix(T):
 
 def cross_vec2mat(v, format="MX"):
 
-    """ Takes in a 3 dimensonal vector and returns a skew symmetric matrix 
-	cross product matrix """
+    """Takes in a 3 dimensonal vector and returns a skew symmetric matrix
+    cross product matrix"""
 
     if format == "MX":
         R = cs.MX.zeros(3, 3)
@@ -63,3 +63,18 @@ def cross_vec2vec(x, y, format="MX"):
     v[2] = x[0] * y[1] - x[1] * y[0]
 
     return v
+
+
+def rotmat_to_axisangle(R):
+
+    cos_theta = (R[0, 0] + R[1, 1] + R[2, 2] - 1) / 2
+    unnormalized_axis = cs.vertcat(
+        (R[2, 1] - R[1, 2]), (R[0, 2] - R[2, 0]), (R[1, 0] - R[0, 1])
+    )
+    sin_theta = (cs.sqrt(cs.sumsqr(unnormalized_axis + 1e-4)) - 1e-2) / 2
+    # Adding by a small number to avoid singularity
+
+    theta = cs.atan2(sin_theta, cos_theta)
+    axis = unnormalized_axis / 2 / sin_theta
+
+    return theta, axis
