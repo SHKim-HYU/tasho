@@ -37,6 +37,17 @@ class TestTopt(unittest.TestCase):
 
         self.assertAlmostEqual(tsol[-1], 3.6, 6)
 
+        #Test with warm starting
+        q_verify = [0]
+        tsol, qdotsol, asol = topt.compute_time_opt_traj(self.q_val, qdotsol, asol)
+        for i in range(18):
+            dt = tsol[i+1] - tsol[i]
+            q_verify.append(q_verify[-1] + qdotsol[i][0]*dt + 0.5*dt**2*asol[i][0])
+
+            self.assertAlmostEqual(q_verify[i], self.q_val[0,i], 8)
+
+        self.assertAlmostEqual(tsol[-1], 3.6, 6)
+
     def test_jerk_bounded(self):
 
         topt = Time_optimal(self.robot, 19, 'acceleration', control_rate_con = 10)
