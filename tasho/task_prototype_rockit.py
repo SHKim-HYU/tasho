@@ -14,6 +14,7 @@ import numpy as np
 import casadi as cs
 from tasho import input_resolution
 from tasho import default_mpc_options
+from tasho.utils import geometry
 
 # This may be replaced by some method get_ocp_variables, which calls self.states, self.controls, ...
 from collections import namedtuple
@@ -42,7 +43,7 @@ class task_context:
 
         ocp = Ocp()
         if time is None:
-            stage1 = ocp.stage(T=FreeTime)
+            stage1 = ocp.stage(T=FreeTime(5))
             self.ocp_rate = None
         else:
             stage1 = ocp.stage(T=time)
@@ -181,7 +182,7 @@ class task_context:
 
         return state
 
-    def create_parameter(self, name, shape=(1, 1), port_or_property=1, stage=0):
+    def create_parameter(self, name, shape=(1, 1), port_or_property=1, stage=0, grid = None):
         """
         Creates a symbolic expression for a parameter. By default, also assigns a
         port which is relevant while deploying the controller on a robot.
@@ -201,7 +202,11 @@ class task_context:
             raise Exception(
                 "The parameter of the name " + name + " is already declared."
             )
-        parameter = ocp.parameter(shape[0], shape[1])
+
+        if grid == None:
+            parameter = ocp.parameter(shape[0], shape[1])
+        else:
+            parameter = ocp.parameter(shape[0], shape[1], grid = grid)
         self.parameters[name] = parameter
         self.tc_dict["parameters"][name] = {}  # declaring param in the tc dict
 
@@ -333,7 +338,7 @@ class task_context:
                 ocp.subject_to(
                     -slack_variable <= (expression - reference <= slack_variable)
                 )
-                ocp.add_objective(ocp.integral(slack_variable, grid="control") * weight)
+                ocp.add_objective(ocp.integral(cs.DM.ones(1, expression.shape[0])@slack_variable, grid="control") * weight)
             elif variable_type == "variable":
                 slack_variable = self.create_expression(
                     "slack", "variable", expression.shape
@@ -388,14 +393,28 @@ class task_context:
                             )
 
                             # better suited for L-BFGS ipopt, numerically better compared to full hessian during LCQ issue
-                            # ocp.subject_to(ocp.at_tf(cs.vertcat(rot_error[0,0], rot_error[1,1], rot_error[2,2])) == 1)
+                            # ocp.subject_to(
+                            #     ocp.at_tf(
+                            #         cs.vertcat(
+                            #             rot_error[0, 0],
+                            #             rot_error[1, 1],
+                            #             rot_error[2, 2],
+                            #         )
+                            #     )
+                            #     == 1
+                            # )
 
                             # Better suited for full Hessian ipopt because no LICQ issue
-                            s = ocp.variable()
-                            ocp.subject_to(ocp.at_tf(rot_error[0, 0]) - 1 >= s)
-                            ocp.subject_to(ocp.at_tf(rot_error[1, 1]) - 1 >= s)
-                            ocp.subject_to(ocp.at_tf(rot_error[2, 2]) - 1 >= s)
-                            ocp.subject_to(s == 0)
+                            # s = ocp.variable()
+                            # ocp.subject_to(ocp.at_tf(rot_error[0, 0]) - 1 >= s)
+                            # ocp.subject_to(ocp.at_tf(rot_error[1, 1]) - 1 >= s)
+                            # ocp.subject_to(ocp.at_tf(rot_error[2, 2]) - 1 >= s)
+                            # ocp.subject_to(s == 0)
+
+                            # Use the axis-angle to constrain the error
+                            theta_err, axis = geometry.rotmat_to_axisangle(rot_error)
+                            ocp.subject_to(ocp.at_tf(theta_err == 0))
+
                     else:
                         ocp.subject_to(
                             ocp.at_tf(final_con["expression"]) == final_con["reference"]
@@ -416,22 +435,30 @@ class task_context:
                                     ocp.at_tf(cs.sumsqr(trans_error))
                                     * final_con["trans_gain"]
                                 )
+                                # obj_rot = (
+                                #     ocp.at_tf(
+                                #         (
+                                #             (
+                                #                 rot_error[0, 0]
+                                #                 + rot_error[1, 1]
+                                #                 + rot_error[2, 2]
+                                #                 - 1
+                                #             )
+                                #             / 2
+                                #             - 1
+                                #         )
+                                #         ** 2
+                                #     )
+                                #     * 3
+                                #     * final_con["rot_gain"]
+                                # )
+                                theta_err, axis = geometry.rotmat_to_axisangle(
+                                    rot_error
+                                )
                                 obj_rot = (
-                                    ocp.at_tf(
-                                        (
-                                            (
-                                                rot_error[0, 0]
-                                                + rot_error[1, 1]
-                                                + rot_error[2, 2]
-                                                - 1
-                                            )
-                                            / 2
-                                            - 1
-                                        )
-                                        ** 2
-                                    )
-                                    * 3
+                                    ocp.at_tf(theta_err ** 2)
                                     * final_con["rot_gain"]
+                                    * 3
                                 )
                                 ocp.add_objective(obj_trans)
                                 ocp.add_objective(obj_rot)
@@ -441,12 +468,16 @@ class task_context:
                                     }
                             elif final_con["norm"] == "L1":
 
-                                cos_theta_error = (
-                                    rot_error[0, 0]
-                                    + rot_error[1, 1]
-                                    + rot_error[2, 2]
-                                    - 2
-                                ) * 0.5
+                                # cos_theta_error = (
+                                #     rot_error[0, 0]
+                                #     + rot_error[1, 1]
+                                #     + rot_error[2, 2]
+                                #     - 2
+                                # ) * 0.5
+
+                                theta_err, axis = geometry.rotmat_to_axisangle(
+                                    rot_error
+                                )
 
                                 slack_variable = self.create_expression(
                                     "slack_final_frame", "variable", (4, 1)
@@ -457,10 +488,7 @@ class task_context:
                                 )
                                 ocp.subject_to(
                                     -slack_variable[3]
-                                    <= (
-                                        ocp.at_tf(cos_theta_error) - 1
-                                        <= slack_variable[3]
-                                    )
+                                    <= (ocp.at_tf(theta_error) <= slack_variable[3])
                                 )
                                 obj_trans = (
                                     slack_variable[0]
@@ -475,7 +503,7 @@ class task_context:
                                         "obj": obj_trans + obj_rot
                                     }
                                     self.constraints[final_con["name"]][
-                                        "rot_error_cos"
+                                        "theta_error"
                                     ] = slack_variable[3]
                                     self.constraints[final_con["name"]][
                                         "trans_error"
@@ -536,22 +564,29 @@ class task_context:
                                     expression[0:3, 0:3].T, reference[0:3, 0:3]
                                 )
                                 if "norm" not in path_con or path_con["norm"] == "L2":
+                                    # obj_rot = (
+                                    #     ocp.integral(
+                                    #         (
+                                    #             (
+                                    #                 rot_error[0, 0]
+                                    #                 + rot_error[1, 1]
+                                    #                 + rot_error[2, 2]
+                                    #                 - 1
+                                    #             )
+                                    #             / 2
+                                    #             - 1
+                                    #         )
+                                    #         ** 2,
+                                    #         grid="control",
+                                    #     )
+                                    #     * 3
+                                    #     * path_con["rot_gain"]
+                                    # )
+                                    theta_err, axis = geometry.rotmat_to_axisangle(
+                                        rot_error
+                                    )
                                     obj_rot = (
-                                        ocp.integral(
-                                            (
-                                                (
-                                                    rot_error[0, 0]
-                                                    + rot_error[1, 1]
-                                                    + rot_error[2, 2]
-                                                    - 1
-                                                )
-                                                / 2
-                                                - 1
-                                            )
-                                            ** 2,
-                                            grid="control",
-                                        )
-                                        * 3
+                                        ocp.integral(theta_err ** 2, grid="control")
                                         * path_con["rot_gain"]
                                     )
                                     obj_trans = (
@@ -566,12 +601,9 @@ class task_context:
                                             "obj": obj_rot + obj_trans
                                         }
                                 elif path_con["norm"] == "L1":
-                                    cos_theta_error = (
-                                        rot_error[0, 0]
-                                        + rot_error[1, 1]
-                                        + rot_error[2, 2]
-                                        - 1
-                                    ) * 0.5
+                                    theta_err, axis = geometry.rotmat_to_axisangle(
+                                        rot_error
+                                    )
                                     slack_variable = self.create_expression(
                                         "slack_final_frame", "control", (4, 1)
                                     )
@@ -581,7 +613,7 @@ class task_context:
                                     )
                                     ocp.subject_to(
                                         -slack_variable[3]
-                                        <= (cos_theta_error - 1 <= slack_variable[3])
+                                        <= (theta_err <= slack_variable[3])
                                     )
                                     ocp.add_objective(
                                         ocp.sum(
@@ -609,8 +641,8 @@ class task_context:
                                             "obj": obj_con
                                         }
                                         self.constraints[path_con["name"]][
-                                            "rot_error_cos"
-                                        ] = cos_theta_error
+                                            "rot_error"
+                                        ] = slack_variable[3]
                                         self.constraints[path_con["name"]][
                                             "trans_error"
                                         ] = slack_variable[0:3]
@@ -840,7 +872,7 @@ class task_context:
         """
 
         ocp = self.stages[stage]
-        if "discretization_method" not in settings:
+        if "discretization method" not in settings:
             disc_method = "multiple shooting"
         else:
             disc_method = settings["discretization method"]
@@ -864,7 +896,7 @@ class task_context:
         else:
             raise Exception(
                 "ERROR: discretization with "
-                + settings["discretization_method"]
+                + settings["discretization method"]
                 + " is not defined"
             )
 
