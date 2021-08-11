@@ -217,7 +217,7 @@ tc.add_task_constraint(tunnel_constraints)
 
 # Define objective
 tc.add_objective(
-    tc.ocp.at_tf(
+    tc.stages[0].at_tf(
         1e-5
         * cs.sumsqr(
             symlin(
