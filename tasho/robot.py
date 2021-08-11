@@ -251,15 +251,17 @@ class Robot:
         # with open("./models/robots/" + self.name + ".json", "r") as f:
 
         # robots_dir = path.join(path.dirname(__file__), '../models/robots/')
-        
+
         # from pkg_resources import resource_filename
         # robots_dir = resource_filename('tasho', 'models/robots/')
 
-        import pathlib
-        robots_dir = str(pathlib.Path(__file__).parent) + '/../models/robots/'
+        # import pathlib
+        # robots_dir = str(pathlib.Path(__file__).parent) + '/../models/robots/'
 
         # print(robots_dir)
         # exit()
+
+        robots_dir = "./models/robots/"
 
         # with open("./models/robots/" + self.name + ".json", "r") as f:
         with open(robots_dir + self.name + ".json", "r") as f:
