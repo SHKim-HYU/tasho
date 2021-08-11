@@ -9,11 +9,11 @@
         "y": "0",
         "z": "-9.8100000000000005"
     },
-    "forward_kinematics_path" : "./models/robots/ABB/yumi/yumi_fk.casadi",
-    "forward_dynamics_path" : "./models/robots/ABB/yumi/yumi_fd.casadi",
-    "inverse_dynamics_path" : "./models/robots/ABB/yumi/yumi_id.casadi",
-    "Jacobian_forward_dynamics_path": "./models/robots/ABB/yumi/yumi_J_fd.casadi",
-    "Jacobian_inverse_dynamics_path": "./models/robots/ABB/yumi/yumi_J_id.casadi",
+    "forward_kinematics_path" : "ABB/yumi/yumi_fk.casadi",
+    "forward_dynamics_path" : "ABB/yumi/yumi_fd.casadi",
+    "inverse_dynamics_path" : "ABB/yumi/yumi_id.casadi",
+    "Jacobian_forward_dynamics_path": "ABB/yumi/yumi_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "ABB/yumi/yumi_J_id.casadi",
     "joints": {
         "yumi_joint_1_l": {
             "joint_types": "JointModelRZ",
