@@ -20,7 +20,7 @@ print("Task specification and visualization of contour-following example with MP
 robot_choice = "yumi"
 ocp_control = "acceleration_resolved"  #'acceleration_resolved' #'torque_resolved'
 
-robot = rob.Robot(robot_choice, analytical_derivatives=True)
+robot = rob.Robot(robot_choice, analytical_derivatives=False)
 
 # Update robot's parameters if needed
 if ocp_control == "acceleration_resolved":
@@ -214,6 +214,17 @@ ori_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
 tunnel_constraints = {"path_constraints": [pos_tunnel_con, ori_tunnel_con]}
 tc.add_task_constraint(tunnel_constraints)
 
+if ocp_control == "acceleration_resolved":
+    # Add torque constraints
+    torque_limits = {
+        "lub": True,
+        "hard": True,
+        "expression": symlin(robot.id(q,q_dot,q_ddot)),
+        "upper_limits": robot.joint_torque_ub,
+        "lower_limits": robot.joint_torque_lb,
+    }
+    torque_constraint = {"path_constraints": [torque_limits]}
+    tc.add_task_constraint(torque_constraint)
 
 # Define objective
 tc.add_objective(
@@ -298,7 +309,8 @@ sol = tc.solve_ocp()
 ################################################
 # MPC Simulation
 ################################################
-use_MPC_class = True
+print("@@@@@@@@@@@@@@@@@@ NOT USING MPC CLASS @@@@@@@@@@@@@@@@@@@")
+use_MPC_class = False
 
 if use_MPC_class:
 
