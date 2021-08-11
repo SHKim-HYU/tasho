@@ -7,7 +7,11 @@ import casadi as cs
 import numpy as np
 import matplotlib.pyplot as plt
 
+# Adding symbolic linearization for SCQP implementation
+from tasho.utils.symlin import symlin
+
 print("Task specification and visualization of contour-following example with MPC")
+# Using develop branch of Tasho
 
 ##########################################
 # Define robot and initial joint angles
@@ -190,15 +194,24 @@ def tun_err(q, s):
 # Discuss under the hood
 #
 
-tun_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
+pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
     "hard": False,
     "inequality": True,
-    "expression": tun_err(q, s),
+    "expression": symlin(pos_err(q, s)),
     "upper_limits": 0.01 ** 2,
     "gain": 100,
     "norm": "squaredL2",
 }
-tunnel_constraints = {"path_constraints": [tun_tunnel_con]}
+
+ori_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
+    "hard": False,
+    "inequality": True,
+    "expression": symlin(rot_err(q, s)),
+    "upper_limits": 0.01 ** 2,
+    "gain": 100,
+    "norm": "squaredL2",
+}
+tunnel_constraints = {"path_constraints": [pos_tunnel_con, ori_tunnel_con]}
 tc.add_task_constraint(tunnel_constraints)
 
 
@@ -207,22 +220,24 @@ tc.add_objective(
     tc.ocp.at_tf(
         1e-5
         * cs.sumsqr(
-            cs.vertcat(
-                1e-2 * q[0:8],
-                10 * q_dot[0:8],
-                1e-2 * (1 - s),
-                10 * s_dot,
-                10 * pos_err(q, s),
-                10 * rot_err(q, s),
+            symlin(
+                cs.vertcat(
+                    1e-2 * q[0:8],
+                    10 * q_dot[0:8],
+                    1e-2 * (1 - s),
+                    10 * s_dot,
+                    10 * pos_err(q, s),
+                    10 * rot_err(q, s),
+                )
             )
         )
     )
 )
 
 # Add regularization terms to the objective
-tc.add_regularization(expression=s_dot, reference=sdot_path, weight=20, norm="L2")
-tc.add_regularization(expression=pos_err(q, s), weight=1e-1, norm="L2")
-tc.add_regularization(expression=rot_err(q, s), weight=1e-1, norm="L2")
+tc.add_regularization(expression=s_dot, reference=symlin(sdot_path), weight=20, norm="L2")
+tc.add_regularization(expression=symlin(pos_err(q, s)), weight=1e-1, norm="L2")
+tc.add_regularization(expression=symlin(rot_err(q, s)), weight=1e-1, norm="L2")
 
 tc.add_regularization(
     expression=q, weight=1e-2, norm="L2", variable_type="state", reference=0
@@ -231,7 +246,7 @@ tc.add_regularization(
     expression=q_dot, weight=1e-2, norm="L2", variable_type="state", reference=0
 )
 tc.add_regularization(
-    expression=s, weight=1e-2, norm="L2", variable_type="state", reference=0
+    expression=s, weight=1e-2, norm="L2", variable_type="state", reference=1
 )
 tc.add_regularization(
     expression=s_dot, weight=1e-2, norm="L2", variable_type="state", reference=0
