@@ -9,11 +9,11 @@
         "y": "0",
         "z": "-9.8100000000000005"
     },
-    "forward_kinematics_path" : "Atlas/atlas_fk.casadi",
-    "forward_dynamics_path" : "Atlas/atlas_fd.casadi",
-    "inverse_dynamics_path" : "Atlas/atlas_id.casadi",
-    "Jacobian_forward_dynamics_path": "Atlas/atlas_J_fd.casadi",
-    "Jacobian_inverse_dynamics_path": "Atlas/atlas_J_id.casadi",
+    "forward_kinematics_path" : "./models/robots/Atlas/atlas_fk.casadi",
+    "forward_dynamics_path" : "./models/robots/Atlas/atlas_fd.casadi",
+    "inverse_dynamics_path" : "./models/robots/Atlas/atlas_id.casadi",
+    "Jacobian_forward_dynamics_path": "./models/robots/Atlas/atlas_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "./models/robots/Atlas/atlas_J_id.casadi",
     "joints": {
         "root_joint": {
             "joint_types": "JointModelFreeFlyer",

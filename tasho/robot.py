@@ -259,7 +259,9 @@ class Robot:
         robots_dir = "./models/robots/"
 
         # with open("./models/robots/" + self.name + ".json", "r") as f:
-        with open(robots_dir + self.name + ".json", "r") as f:
+        # with open(robots_dir + self.name + ".json", "r") as f:
+        with open("./models/robots/" + self.name + ".json", "r") as f:
+
             print("Loading robot params from json ...")
             json_dict = json.load(f)
 
@@ -350,14 +352,14 @@ class Robot:
             self.joint_acc_lb = _joints_acc_lb
         # TODO: Set ub or lb to infinity if they are not included in json
 
-        print(robots_dir + str(json_dict["forward_dynamics_path"]))
+        # print(str(json_dict["forward_dynamics_path"]))
 
-        self.fd = Function.load(robots_dir + str(json_dict["forward_dynamics_path"]))
-        self.id = Function.load(robots_dir + str(json_dict["inverse_dynamics_path"]))
-        self.fk = Function.load(robots_dir + str(json_dict["forward_kinematics_path"]))
+        self.fd = Function.load(str(json_dict["forward_dynamics_path"]))
+        self.id = Function.load(str(json_dict["inverse_dynamics_path"]))
+        self.fk = Function.load(str(json_dict["forward_kinematics_path"]))
 
-        self.J_fd = Function.load(robots_dir + str(json_dict["Jacobian_forward_dynamics_path"]))
-        self.J_id = Function.load(robots_dir + str(json_dict["Jacobian_inverse_dynamics_path"]))
+        self.J_fd = Function.load(str(json_dict["Jacobian_forward_dynamics_path"]))
+        self.J_id = Function.load(str(json_dict["Jacobian_inverse_dynamics_path"]))
 
         #####################################################################################
         # rename the jacobians due to casadi's assert of J_fd.name() == jac_+function.name()

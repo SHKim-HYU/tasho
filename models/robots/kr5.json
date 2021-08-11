@@ -9,11 +9,11 @@
         "y": "0",
         "z": "-9.8100000000000005"
     },
-    "forward_kinematics_path" : "KUKA/kr5/kr5_fk.casadi",
-    "forward_dynamics_path" : "KUKA/kr5/kr5_fd.casadi",
-    "inverse_dynamics_path" : "KUKA/kr5/kr5_id.casadi",
-    "Jacobian_forward_dynamics_path": "KUKA/kr5/kr5_J_fd.casadi",
-    "Jacobian_inverse_dynamics_path": "KUKA/kr5/kr5_J_id.casadi",
+    "forward_kinematics_path" : "./models/robots/KUKA/kr5/kr5_fk.casadi",
+    "forward_dynamics_path" : "./models/robots/KUKA/kr5/kr5_fd.casadi",
+    "inverse_dynamics_path" : "./models/robots/KUKA/kr5/kr5_id.casadi",
+    "Jacobian_forward_dynamics_path": "./models/robots/KUKA/kr5/kr5_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "./models/robots/KUKA/kr5/kr5_J_id.casadi",
     "joints": {
         "shoulder_yaw": {
             "joint_types": "JointModelRZ",

@@ -9,11 +9,11 @@
         "y": "0",
         "z": "-9.8100000000000005"
     },
-    "forward_kinematics_path" : "UniversalRobots/ur10/ur10_fk.casadi",
-    "forward_dynamics_path" : "UniversalRobots/ur10/ur10_fd.casadi",
-    "inverse_dynamics_path" : "UniversalRobots/ur10/ur10_id.casadi",
-    "Jacobian_forward_dynamics_path": "UniversalRobots/ur10/ur10_J_fd.casadi",
-    "Jacobian_inverse_dynamics_path": "UniversalRobots/ur10/ur10_J_id.casadi",
+    "forward_kinematics_path" : "./models/robots/UniversalRobots/ur10/ur10_fk.casadi",
+    "forward_dynamics_path" : "./models/robots/UniversalRobots/ur10/ur10_fd.casadi",
+    "inverse_dynamics_path" : "./models/robots/UniversalRobots/ur10/ur10_id.casadi",
+    "Jacobian_forward_dynamics_path": "./models/robots/UniversalRobots/ur10/ur10_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "./models/robots/UniversalRobots/ur10/ur10_J_id.casadi",
     "joints": {
         "shoulder_pan_joint": {
             "joint_types": "JointModelRZ",

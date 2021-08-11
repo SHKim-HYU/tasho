@@ -9,12 +9,12 @@
         "y": "0",
         "z": "-9.8100000000000005"
     },
-    "forward_kinematics_path": "MMO_500/mmo500_ppr/mmo500_ppr_fk.casadi",
-    "forward_dynamics_path": "MMO_500/mmo500_ppr/mmo500_ppr_fd.casadi",
-    "inverse_dynamics_path": "MMO_500/mmo500_ppr/mmo500_ppr_id.casadi",
-    "Jacobian_forward_dynamics_path": "MMO_500/mmo500_ppr/mmo500_ppr_J_fd.casadi",
-    "Jacobian_inverse_dynamics_path": "MMO_500/mmo500_ppr/mmo500_ppr_J_id.casadi",
-    "gravity_path" : "MMO_500/mmo500_ppr/mmo500_ppr_G.casadi",
+    "forward_kinematics_path": "./models/robots/MMO_500/mmo500_ppr/mmo500_ppr_fk.casadi",
+    "forward_dynamics_path": "./models/robots/MMO_500/mmo500_ppr/mmo500_ppr_fd.casadi",
+    "inverse_dynamics_path": "./models/robots/MMO_500/mmo500_ppr/mmo500_ppr_id.casadi",
+    "Jacobian_forward_dynamics_path": "./models/robots/MMO_500/mmo500_ppr/mmo500_ppr_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "./models/robots/MMO_500/mmo500_ppr/mmo500_ppr_J_id.casadi",
+    "gravity_path" : "./models/robots/MMO_500/mmo500_ppr/mmo500_ppr_G.casadi",
     "joints": {
         "lin_x_joint": {
             "joint_types": "JointModelPX",
