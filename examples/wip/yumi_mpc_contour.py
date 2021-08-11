@@ -169,9 +169,9 @@ def rot_err(q, s):
     path_rot_a = rot_path[:, 2]
 
     return 0.5 * (
-        geometry.cross_vec2vec(ee_rot_n, path_rot_n)
-        + geometry.cross_vec2vec(ee_rot_s, path_rot_s)
-        + geometry.cross_vec2vec(ee_rot_a, path_rot_a)
+        geometry.cross_prod(ee_rot_n, path_rot_n)
+        + geometry.cross_prod(ee_rot_s, path_rot_s)
+        + geometry.cross_prod(ee_rot_a, path_rot_a)
     )
 
 
@@ -270,10 +270,10 @@ tc.set_discretization_settings(disc_settings)
 ################################################
 # Set parameter values
 ################################################
-tc.ocp.set_value(q0, q_init)
-tc.ocp.set_value(q_dot0, [0] * robot.ndof)
-tc.ocp.set_value(s0, 0)
-tc.ocp.set_value(s_dot0, 0)
+tc.set_value(q0, q_init)
+tc.set_value(q_dot0, [0] * robot.ndof)
+tc.set_value(s0, 0)
+tc.set_value(s_dot0, 0)
 
 ################################################
 # Solve the OCP that describes the task
