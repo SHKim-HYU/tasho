@@ -153,10 +153,10 @@ if __name__ == '__main__':
 
 	# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 	# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'tol':1e-3}})
-	tc.ocp.set_value(q0, q0_contour)
-	tc.ocp.set_value(q_dot0, [0]*18)
-	tc.ocp.set_value(s0, 0)
-	tc.ocp.set_value(s_dot0, 0)
+	tc.set_value(q0, q0_contour)
+	tc.set_value(q_dot0, [0]*18)
+	tc.set_value(s0, 0)
+	tc.set_value(s_dot0, 0)
 	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
 	tc.set_discretization_settings(disc_settings)
 	#sol = tc.solve_ocp()

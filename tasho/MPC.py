@@ -78,7 +78,7 @@ class MPC:
         # set the parameter values
         for params_name in self.params_names:
 
-            tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
+            tc.set_value(tc.parameters[params_name], params_val[params_name])
 
         # set the initial guesses
 
