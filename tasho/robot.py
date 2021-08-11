@@ -10,8 +10,6 @@ import casadi as cs
 import numpy as np
 from tasho.utils import geometry
 
-from os import path
-
 # TODO: If input resolution has already been set for a previous task, you don't need to set it again
 
 
@@ -247,22 +245,9 @@ class Robot:
         self.joint_acc_lb = _lb
 
     def load_from_json(self, analytical_derivatives):
-        
-        # robots_dir = path.join(path.dirname(__file__), '../models/robots/')
-
-        # from pkg_resources import resource_filename
-        # robots_dir = resource_filename('tasho', 'models/robots/')
-
-        # import pathlib
-        # robots_dir = str(pathlib.Path(__file__).parent) + '/../models/robots/'
-
-        robots_dir = "./models/robots/"
-
+        print("Loading robot params from json ...")
         # with open("./models/robots/" + self.name + ".json", "r") as f:
-        # with open(robots_dir + self.name + ".json", "r") as f:
         with open("./models/robots/" + self.name + ".json", "r") as f:
-
-            print("Loading robot params from json ...")
             json_dict = json.load(f)
 
         self.ndof = int(json_dict["n_dof"])
@@ -351,8 +336,6 @@ class Robot:
             self.joint_acc_ub = _joints_acc_ub
             self.joint_acc_lb = _joints_acc_lb
         # TODO: Set ub or lb to infinity if they are not included in json
-
-        # print(str(json_dict["forward_dynamics_path"]))
 
         self.fd = Function.load(str(json_dict["forward_dynamics_path"]))
         self.id = Function.load(str(json_dict["inverse_dynamics_path"]))

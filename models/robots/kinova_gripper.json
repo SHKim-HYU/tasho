@@ -10,7 +10,7 @@
         "z": "0"
     },
     "forward_kinematics_path" : "./models/robots/Kinova/Gen3_2f_85/kinova_gripper_fk.casadi",
-    "forward_dynamics_path" : "./models/robots/inova/Gen3_2f_85/kinova_gripper_fd.casadi",
+    "forward_dynamics_path" : "./models/robots/Kinova/Gen3_2f_85/kinova_gripper_fd.casadi",
     "inverse_dynamics_path" : "./models/robots/Kinova/Gen3_2f_85/kinova_gripper_id.casadi",
     "Jacobian_forward_dynamics_path": "./models/robots/Kinova/Gen3_2f_85/kinova_gripper_J_fd.casadi",
     "Jacobian_inverse_dynamics_path": "./models/robots/Kinova/Gen3_2f_85/kinova_gripper_J_id.casadi",
