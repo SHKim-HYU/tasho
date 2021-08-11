@@ -1,6 +1,6 @@
 from casadi import Function, MX, symvar, veccat
 
-def lin(expr):
+def symlin(expr):
     # Get list of symbols s present in expression expr(s).
     s = symvar(expr)
     # Convert list into a column-vector of symbols x.
