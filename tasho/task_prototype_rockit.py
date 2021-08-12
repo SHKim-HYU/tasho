@@ -413,7 +413,7 @@ class task_context:
 
                             # Use the axis-angle to constrain the error
                             theta_err, axis = geometry.rotmat_to_axisangle(rot_error)
-                            ocp.subject_to(ocp.at_tf(theta_err == 0))
+                            ocp.subject_to(ocp.at_tf(cs.sqrt(theta_err**2 + 1e-4) - 1e-2 == 0))
 
                     else:
                         ocp.subject_to(
