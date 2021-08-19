@@ -762,7 +762,7 @@ class task_context:
                                 self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "squaredL2":
                             slack_variable = self.create_expression(
-                                "slack_path_con", "control", (1, 1)
+                                path_con["slack_name"], "control", (1, 1)
                             )
                             ocp.subject_to(
                                 cs.sumsqr(path_con["expression"])
