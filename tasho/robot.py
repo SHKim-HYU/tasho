@@ -9,6 +9,7 @@ import json
 import casadi as cs
 import numpy as np
 from tasho.utils import geometry
+from tasho.utils.symlin import symlin
 
 # TODO: If input resolution has already been set for a previous task, you don't need to set it again
 
@@ -27,7 +28,7 @@ class Robot:
     Here is a link to :py:meth:`__init__`.
     """
 
-    def __init__(self, name="kinova", analytical_derivatives=False):
+    def __init__(self, name="kinova", analytical_derivatives=False, scqp=False):
         """Start the Robot.
 
         :param name: Robots name to load functions.
@@ -47,6 +48,8 @@ class Robot:
         self.torque_ub = None
         self.torque_lb = None
         self.gravity = vertcat(0, 0, -9.81)
+
+        self.scqp = scqp
 
         self.load_from_json(analytical_derivatives)
 
@@ -385,6 +388,20 @@ class Robot:
             out_id = [self.id(self.id.sx_in(0), self.id.sx_in(1), self.id.sx_in(2))]
             self.id = Function("id", in_id, out_id, ["q", "q_dot", "q_ddot"], ["tau"], id_opts)
 
+        if self.scqp:
+
+            q_mx, dq_mx, ddq_mx, tau_mx = cs.MX.sym('q',self.ndof), cs.MX.sym('dq',self.ndof), cs.MX.sym('ddq',self.ndof), cs.MX.sym('tau',self.ndof)
+            
+            # Overwrite functions applying symlin to the output
+            in_fd = [q_mx, dq_mx, tau_mx]
+            out_fd = [symlin(self.fd(*in_fd))]
+            self.fd = Function(self.fd.name(), in_fd, out_fd, self.fd.name_in(), self.fd.name_out())
+
+            # Overwrite functions applying symlin to the output
+            in_id = [q_mx, dq_mx, ddq_mx]
+            out_id = [symlin(self.id(*in_id))]
+            self.id = Function(self.id.name(), in_id, out_id, self.id.name_in(), self.id.name_out())
+            
         # TODO: Add URDF path to json
         # self.urdf = Function.load(str(json_dict['urdf_path']))
 
