@@ -413,7 +413,11 @@ class task_context:
 
                             # Use the axis-angle to constrain the error
                             theta_err, axis = geometry.rotmat_to_axisangle(rot_error)
-                            ocp.subject_to(ocp.at_tf(cs.sqrt(theta_err**2 + 1e-4) - 1e-2 == 0))
+                            # ocp.subject_to(ocp.at_tf(cs.sqrt(theta_err**2 + 1e-4) - 1e-2 == 0))
+                            ocp.subject_to(ocp.at_tf(theta_err**2)== 0)
+                            # s = ocp.variable()
+                            # ocp.subject_to(-s <= (ocp.at_tf(theta_err) <= s))
+                            # ocp.subject_to(s == 0)
 
                     else:
                         ocp.subject_to(
@@ -480,22 +484,20 @@ class task_context:
                                 )
 
                                 slack_variable = self.create_expression(
-                                    "slack_final_frame", "variable", (4, 1)
+                                    "slack_final_frame", "variable", (2, 1)
                                 )
                                 ocp.subject_to(
-                                    -slack_variable[0:3]
-                                    <= (ocp.at_tf(trans_error) <= slack_variable[0:3])
+                                    -slack_variable[0]
+                                    <= (trans_error<= slack_variable[0])
                                 )
                                 ocp.subject_to(
-                                    -slack_variable[3]
-                                    <= (ocp.at_tf(theta_error) <= slack_variable[3])
+                                    -slack_variable[1]
+                                    <= (ocp.at_tf(theta_err) <= slack_variable[1])
                                 )
                                 obj_trans = (
                                     slack_variable[0]
-                                    + slack_variable[1]
-                                    + slack_variable[2]
                                 ) * final_con["trans_gain"]
-                                obj_rot = slack_variable[3] * final_con["rot_gain"] * 3
+                                obj_rot = slack_variable[1] * final_con["rot_gain"] * 3
                                 ocp.add_objective(obj_trans)
                                 ocp.add_objective(obj_rot)
                                 if "name" in final_con:
@@ -504,10 +506,10 @@ class task_context:
                                     }
                                     self.constraints[final_con["name"]][
                                         "theta_error"
-                                    ] = slack_variable[3]
+                                    ] = slack_variable[1]
                                     self.constraints[final_con["name"]][
                                         "trans_error"
-                                    ] = slack_variable[0:3]
+                                    ] = slack_variable[0]
 
                             else:
                                 raise Exception("Error")
@@ -605,36 +607,23 @@ class task_context:
                                         rot_error
                                     )
                                     slack_variable = self.create_expression(
-                                        "slack_final_frame", "control", (4, 1)
+                                        "slack_final_frame", "control", (2, 1)
                                     )
                                     ocp.subject_to(
-                                        -slack_variable[0:3]
-                                        <= (trans_error <= slack_variable[0:3])
+                                        -slack_variable[0]
+                                        <= (trans_error <= slack_variable[0])
                                     )
                                     ocp.subject_to(
-                                        -slack_variable[3]
-                                        <= (theta_err <= slack_variable[3])
+                                        theta_err <= slack_variable[1]
                                     )
-                                    ocp.add_objective(
-                                        ocp.sum(
-                                            (
-                                                slack_variable[0]
-                                                + slack_variable[1]
-                                                + slack_variable[2]
-                                            )
-                                        )
-                                        * path_con["trans_gain"]
-                                    )
-                                    ocp.add_objective(
-                                        ocp.sum(slack_variable[3])
-                                        * 3
-                                        * path_con["rot_gain"]
-                                    )
+                                    # ocp.subject_to(
+                                    #     0 <= slack_variable[1]
+                                    # )
+                                    ocp.add_objective(ocp.integral(slack_variable[0]* path_con["trans_gain"], grid = 'control') )
+                                    ocp.add_objective(ocp.integral(slack_variable[1]* path_con["rot_gain"], grid = 'control'))
                                     obj_con = (
                                         slack_variable[0]
                                         + slack_variable[1]
-                                        + slack_variable[2]
-                                        + slack_variable[3]
                                     )
                                     if "name" in path_con:
                                         self.constraints[path_con["name"]] = {
@@ -642,10 +631,10 @@ class task_context:
                                         }
                                         self.constraints[path_con["name"]][
                                             "rot_error"
-                                        ] = slack_variable[3]
+                                        ] = slack_variable[1]
                                         self.constraints[path_con["name"]][
                                             "trans_error"
-                                        ] = slack_variable[0:3]
+                                        ] = slack_variable[0]
                                 else:
                                     raise Exception("Error")
                         elif "norm" not in path_con or path_con["norm"] == "L2":

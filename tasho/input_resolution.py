@@ -75,7 +75,7 @@ def velocity_resolved(tc, robot, options):
     print("ERROR: Not implemented and probably not recommended")
 
 
-def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
+def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}, vb_ab = False):
 
     """Function returns the expressions for torque-resolved control
     with appropriate position, velocity and torque constraints added
@@ -102,7 +102,10 @@ def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
         q_ddot = robot.fd(q, q_dot, tau)
     else:
         q_ddot = tc.create_expression("q_ddot", "control", (robot.ndof, 1))
-        tau = robot.id(q, q_dot, q_ddot)
+        if vb_ab:
+            tau, vb, ab = robot.id(q, q_dot, q_ddot)
+        else:
+            tau = robot.id(q, q_dot, q_ddot)
 
     # expressions for initial joint position and joint velocity
     q0 = tc.create_expression("q0", "parameter", (robot.ndof, 1))
@@ -133,9 +136,10 @@ def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
         "expression": tau,
         "upper_limits": robot.joint_torque_ub,
         "lower_limits": robot.joint_torque_lb,
+        "include_first":True
     }
     joint_constraints = {"path_constraints": [pos_limits, vel_limits, torque_limits]}
-    tc.add_task_constraint(joint_constraints)
+    # tc.add_task_constraint(joint_constraints)
 
     # adding the initial constraints on joint position and velocity
     joint_init_con = {"expression": q, "reference": q0}
@@ -143,4 +147,7 @@ def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
     init_constraints = {"initial_constraints": [joint_init_con, joint_vel_init_con]}
     tc.add_task_constraint(init_constraints)
 
-    return q, q_dot, q_ddot, tau, q0, q_dot0
+    if vb_ab:
+        return q, q_dot, q_ddot, tau, q0, q_dot0, vb, ab
+    else:
+        return q, q_dot, q_ddot, tau, q0, q_dot0

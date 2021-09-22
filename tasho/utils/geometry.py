@@ -57,7 +57,7 @@ def cross_prod(x, y, format="MX"):
     return v
 
 
-def rotmat_to_axisangle(R, reg = 1e-2):
+def rotmat_to_axisangle(R, reg = 1e-6):
 
     cos_theta = (R[0, 0] + R[1, 1] + R[2, 2] - 1) / 2
     unnormalized_axis = cs.vertcat(
