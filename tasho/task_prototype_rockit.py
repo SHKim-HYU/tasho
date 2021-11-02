@@ -42,17 +42,9 @@ class task_context:
         """
 
         ocp = Ocp()
-        if time is None:
-            stage1 = ocp.stage(T=FreeTime(5))
-            self.ocp_rate = None
-        else:
-            stage1 = ocp.stage(T=time)
-            self.ocp_rate = time / horizon_steps
-
-        # ocp = Ocp(T = time)
         self.ocp = ocp
+        self.horizon = []
         self.stages = []
-        self.stages.append(stage1)
         self.tc_name = name
         self.states = {}
         self.controls = {}
@@ -67,7 +59,8 @@ class task_context:
 
         self.robots = {}
         self.OCPvars = None
-        self.horizon = horizon_steps
+
+        stage = self.create_stage(time, horizon_steps)
 
         self.tc_dict = {
             "states": {},
@@ -92,8 +85,31 @@ class task_context:
         self.mpc_solver = "sqpmethod"
         self.mpc_options = def_dict["sqp_ip_mumps"]["options"]
 
+
+    def create_stage(self, time = None, horizon_steps = 10):
+
+        """
+        Creates an OCP stage
+        :param time: The duration of the prediction horizon. Free-time problem if no argument is provided.
+        :type time: float
+
+        :param horizon_steps: Number of steps in the prediction horizon.
+        :type horizon_steps: int
+        """
+        if time == None:
+            stage = self.ocp.stage(T = FreeTime(5))
+            self.ocp_rate = None
+        else:
+            stage = self.ocp.stage(T = time)
+            self.ocp_rate = time / horizon_steps
+
+        self.horizon.append(horizon_steps)
+        self.stages.append(stage)
+
         # setting default discretization settings
-        self.set_discretization_settings(self.disc_settings)
+        self.set_discretization_settings(self.disc_settings, stage = len(self.horizon) - 1)
+
+        return stage
 
     def create_expression(self, name, type, shape, stage=0):
 
@@ -118,25 +134,25 @@ class task_context:
 
         if type == "state":
             state = ocp.state(shape[0], shape[1])
-            self.states[name] = state
+            self.states[name] = [state, stage]
 
             return state
 
         elif type == "control":
             control = ocp.control(shape[0], shape[1])
-            self.controls[name] = control
+            self.controls[name] = [control, stage]
 
             return control
 
         elif type == "parameter":
             parameter = ocp.parameter(shape[0], shape[1])
-            self.parameters[name] = parameter
+            self.parameters[name] = [parameter, stage]
 
             return parameter
 
         elif type == "variable":
             variable = ocp.variable(shape[0], shape[1])
-            self.variables[name] = variable
+            self.variables[name] = [variable, stage]
 
             return variable
 
@@ -168,11 +184,11 @@ class task_context:
         if name in self.states:
             raise Exception("The state of the name " + name + " is already declared.")
         state = ocp.state(shape[0], shape[1])  # creating state
-        self.states[name] = state  # adding the symbolic variable to list of states
+        self.states[name] = [state, stage]  # adding the symbolic variable to list of states
         self.tc_dict["states"][name] = {}  # recording state in the task context dict
 
         if init_parameter:
-            parameter = self.create_parameter(name + "0", shape)
+            parameter = self.create_parameter(name + "0", shape, stage = stage)
             ocp.subject_to(ocp.at_t0(state) == parameter)  # adding init eq constraint
             self.tc_dict["states"][name]["assoc_param"] = name + "0"  # associated param
             self.tc_dict["parameters"][name + "0"]["assoc_state"] = name
@@ -207,7 +223,7 @@ class task_context:
             parameter = ocp.parameter(shape[0], shape[1])
         else:
             parameter = ocp.parameter(shape[0], shape[1], grid = grid)
-        self.parameters[name] = parameter
+        self.parameters[name] = [parameter, stage]
         self.tc_dict["parameters"][name] = {}  # declaring param in the tc dict
 
         if port_or_property == 1:
@@ -259,7 +275,7 @@ class task_context:
                 "The parameter of the name " + name + " is already declared."
             )
         control = ocp.control(shape[0], shape[1])
-        self.controls[name] = control
+        self.controls[name] = [control, stage]
         self.tc_dict["controls"][name] = {}
 
         if outport == True:
@@ -877,11 +893,11 @@ class task_context:
             M = settings["order"]
 
         if disc_method == "multiple shooting":
-            ocp.method(MultipleShooting(N=self.horizon, M=M, intg=integrator))
+            ocp.method(MultipleShooting(N=self.horizon[stage], M=M, intg=integrator))
         elif disc_method == "single shooting":
-            ocp.method(SingleShooting(N=self.horizon, M=M, intg=integrator))
+            ocp.method(SingleShooting(N=self.horizon[stage], M=M, intg=integrator))
         elif disc_method == "direct collocation":
-            ocp.method(DirectCollocation(N=self.horizon, M=M))
+            ocp.method(DirectCollocation(N=self.horizon[stage], M=M))
         else:
             raise Exception(
                 "ERROR: discretization with "
@@ -1137,7 +1153,7 @@ class task_context:
         vars_db["inp_ports"] = self.tc_dict["inp_ports"]
         vars_db["out_ports"] = self.tc_dict["out_ports"]
         vars_db["props"] = self.tc_dict["props"]
-        vars_db["horizon"] = self.horizon
+        vars_db["horizon"] = self.horizon[0] #TODO: what to do here really?
         vars_db["mpc_ts"] = self.ocp_rate
         vars_db["ocp_fun_name"] = self.tc_name + "_ocp"
         vars_db["ocp_file"] = location + self.tc_name + "_ocp.casadi"
@@ -1208,11 +1224,13 @@ class task_context:
         op_xplm = []  # declaring the vector roll
         vars_db = {}
         counter = 0
-        ocp = self.stages[0]  # TODO iterate over all the stages!!
+        stage = 0
+
         for state in self.states.keys():
-            _, temp = ocp.sample(self.states[state], grid="control")
+            ocp = self.stages[self.states[state][1]]
+            _, temp = ocp.sample(self.states[state][0], grid="control")
             temp2 = []
-            for i in range(self.horizon + 1):
+            for i in range(self.horizon[stage] + 1):
                 temp2.append(temp[:, i])
             vars_db[state] = {"start": counter, "size": temp.shape[0]}
             op_xplm.append(cs.vcat(temp2))
@@ -1221,11 +1239,12 @@ class task_context:
 
         # obtain the opti variables related to control
         for control in self.controls.keys():
-            _, temp = ocp.sample(self.controls[control], grid="control")
+            ocp = self.stages[self.controls[control][1]]
+            _, temp = ocp.sample(self.controls[control][0], grid="control")
             temp2 = []
-            for i in range(self.horizon):
+            for i in range(self.horizon[stage]):
                 temp2.append(
-                    ocp._method.eval_at_control(ocp, self.controls[control], i)
+                    ocp._method.eval_at_control(ocp, self.controls[control][0], i)
                 )
             vars_db[control] = {
                 "start": counter,
@@ -1238,7 +1257,8 @@ class task_context:
 
         # obtain the opti variables related for variables
         for variable in self.variables.keys():
-            temp = ocp._method.eval_at_control(ocp, self.variables[variable], 0)
+            ocp = self.stages[self.variables[variable][1]]
+            temp = ocp._method.eval_at_control(ocp, self.variables[variable][0], 0)
             op_xplm.append(temp)
             vars_db[variable] = {
                 "start": counter,
@@ -1249,7 +1269,8 @@ class task_context:
             vars_db[variable]["end"] = counter
 
         for parameter in self.parameters.keys():
-            temp = ocp._method.eval_at_control(ocp, self.parameters[parameter], 0)
+            ocp = self.stages[self.parameters[parameter][1]]
+            temp = ocp._method.eval_at_control(ocp, self.parameters[parameter][0], 0)
             op_xplm.append(temp)
             vars_db[parameter] = {
                 "start": counter,
@@ -1259,6 +1280,7 @@ class task_context:
             counter += temp.shape[0]
             vars_db[parameter]["end"] = counter
 
+        ocp = self.stages[0]
         op_xplm.append(self.ocp._method.opti.lam_g)
         vars_db["lam_g"] = {
             "start": counter,

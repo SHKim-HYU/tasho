@@ -65,17 +65,17 @@ if __name__ == "__main__":
     task_objective = {"path_constraints": [vel_regularization, acc_regularization]}
     tc.add_task_constraint(task_objective)
 
-    tc.set_ocp_solver(
-        "ipopt",
-        {
-            "ipopt": {
-                "max_iter": 1000,
-                "hessian_approximation": "limited-memory",
-                "limited_memory_max_history": 5,
-                "tol": 1e-3,
-            }
-        },
-    )
+    # tc.set_ocp_solver(
+    #     "ipopt",
+    #     {
+    #         "ipopt": {
+    #             "max_iter": 1000,
+    #             "hessian_approximation": "limited-memory",
+    #             "limited_memory_max_history": 5,
+    #             "tol": 1e-3,
+    #         }
+    #     },
+    # )
     q0_val = [0] * 7
     q0_val = [
         -0.23081576,

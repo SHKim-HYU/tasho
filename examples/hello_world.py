@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    tc = tp.task_context(5)
+    tc = tp.task_context(time = 10, horizon_steps = 5)
 
     x = tc.create_state("x", (1, 1))
 
