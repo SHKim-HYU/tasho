@@ -63,7 +63,7 @@ if __name__ == "__main__":
     tc.stages[0].add_objective(tc.stages[0].sum(cs.sumsqr(q_ddot)*1e-2))
     # tc.stages[0].add_objective(tc.stages[0].sum(cs.sumsqr(q - [1]*7)))
     tc.stages[0].add_objective(tc.stages[0].sum(cs.sumsqr(fk_vals[0:3, 3] - cs.DM([0.5, 0.0, 0.5]))*1))
-    tc.set_ocp_solver("ipopt", {"expand":True, "ipopt":{"linear_solver":"ma27"}})
+    tc.set_ocp_solver("ipopt", {"expand":True, "ipopt":{"linear_solver":"mumps"}})
     tc.set_value(q0, [0] * 7)
     tc.set_value(q_dot0, [0] * 7)
     tc.set_initial(tau, robot.id([0]*7, [0]*7, [0]*7))

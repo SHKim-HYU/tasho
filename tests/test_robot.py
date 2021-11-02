@@ -130,7 +130,7 @@ class TestRobot(unittest.TestCase):
             int(len(tc.controls)), 1, "Size of system inputs is not correct"
         )
         self.assertEqual(
-            list(tc.parameters)[0], "q0", "Name of first parameter is not correct"
+            list(tc.parameters)[0], "q00", "Name of first parameter is not correct"
         )
 
         # print(list(rob_yumi.parameters)[0])
@@ -164,7 +164,7 @@ class TestRobot(unittest.TestCase):
             int(len(tc.controls)), 1, "Size of system inputs is not correct"
         )
         self.assertEqual(
-            list(tc.parameters)[0], "q0", "Name of first parameter is not correct"
+            list(tc.parameters)[0], "q00", "Name of first parameter is not correct"
         )
 
 
