@@ -305,7 +305,7 @@ if __name__ == "__main__":
     tc2.add_monitor(
     {
         "name": "termination_criteria",
-        "expression": cs.sqrt(cs.sumsqr(q_dot2)) - 0.001,
+        "expression": cs.sqrt(cs.sumsqr(q_dot1)) - 0.001,
         "reference": 0.0,  # doesn't matter
         "greater": True,  # doesn't matter
         "initial": True,
@@ -320,6 +320,6 @@ import pprint
 pprint.pprint(varsdb)
 
 #Load casadi function to test:
-casfun = cs.Function.load("/home/ajay/Desktop/bin_dropping_tc_ocp.casadi")
+casfun2 = cs.Function.load("/home/ajay/Desktop/bin_dropping_tc_ocp.casadi")
 
-sol_cg = casfun([0]*858)
+sol_cg = casfun2([0]*858)

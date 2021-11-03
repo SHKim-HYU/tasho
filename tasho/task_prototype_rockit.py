@@ -330,7 +330,7 @@ class task_context:
         :type reference: float or parameter
         """
 
-        ocp = self.stages[0]
+        ocp = self.stages[stage]
         if norm == "L2":
 
             if variable_type == "state" or variable_type == "control":
@@ -436,9 +436,19 @@ class task_context:
                             # ocp.subject_to(s == 0)
 
                     else:
-                        ocp.subject_to(
-                            ocp.at_tf(final_con["expression"]) == final_con["reference"]
-                        )
+
+                        if "inequality" not in final_con and "lub" not in final_con:
+                            ocp.subject_to(
+                                ocp.at_tf(final_con["expression"]) == final_con["reference"]
+                                )
+                        elif "inequality" in final_con:
+                            ocp.subject_to(
+                                ocp.at_tf(final_con["expression"]) <= final_con["upper_limits"]
+                                )
+                        else:
+                            ocp.subject_to(
+                                final_con["lower_limits"] <= (ocp.at_tf(final_con["expression"]) <= final_con["upper_limits"])
+                                )
 
                 else:
                     if "type" in final_con:
@@ -1190,7 +1200,7 @@ class task_context:
         # self.stages[0]._method.main_transcribe(self.stages[0])
         ocp_xplm, vars_db, ocp_xplm_out = self._unroll_controller_vars()
         if not cg_opts["jit"]:
-            ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm)
+            ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm_out)
         else:
             jit_opts = {
                 "jit": True,
@@ -1224,10 +1234,10 @@ class task_context:
         op_xplm = []  # declaring the vector roll
         vars_db = {}
         counter = 0
-        stage = 0
 
         for state in self.states.keys():
-            ocp = self.stages[self.states[state][1]]
+            stage = self.states[state][1]
+            ocp = self.stages[stage]
             _, temp = ocp.sample(self.states[state][0], grid="control")
             temp2 = []
             for i in range(self.horizon[stage] + 1):
@@ -1239,6 +1249,7 @@ class task_context:
 
         # obtain the opti variables related to control
         for control in self.controls.keys():
+            stage = self.controls[control][1]
             ocp = self.stages[self.controls[control][1]]
             _, temp = ocp.sample(self.controls[control][0], grid="control")
             temp2 = []
@@ -1257,7 +1268,8 @@ class task_context:
 
         # obtain the opti variables related for variables
         for variable in self.variables.keys():
-            ocp = self.stages[self.variables[variable][1]]
+            stage = self.variables[variable][1]
+            ocp = self.stages[stage]
             temp = ocp._method.eval_at_control(ocp, self.variables[variable][0], 0)
             op_xplm.append(temp)
             vars_db[variable] = {
@@ -1269,7 +1281,8 @@ class task_context:
             vars_db[variable]["end"] = counter
 
         for parameter in self.parameters.keys():
-            ocp = self.stages[self.parameters[parameter][1]]
+            stage = self.parameters[parameter][1]
+            ocp = self.stages[stage]
             temp = ocp._method.eval_at_control(ocp, self.parameters[parameter][0], 0)
             op_xplm.append(temp)
             vars_db[parameter] = {
@@ -1289,9 +1302,22 @@ class task_context:
         counter += self.ocp._method.opti.lam_g.shape[0]
         vars_db["lam_g"]["end"] = counter
 
+
         import copy
 
         op_xplm_out = copy.deepcopy(op_xplm)
+
+        #Appending the time_grid to the output
+        for st in range(len(self.stages)):
+            stage_now = self.stages[st]
+            _, t_grid = stage_now.sample(stage_now.t, grid = "control")
+            op_xplm_out.append(t_grid.T)
+            vars_db['time_grid_stage_'+str(st)] = {}
+            vars_db['time_grid_stage_'+str(st)]['start'] = counter
+            counter += t_grid.shape[1]
+            vars_db['time_grid_stage_'+str(st)]['end'] = counter
+            vars_db['time_grid_stage_'+str(st)]['size'] = t_grid.shape[1]
+
         # Add the monitor function to op_xplm
         monitors = self.monitors
         monitors_dict = {}
