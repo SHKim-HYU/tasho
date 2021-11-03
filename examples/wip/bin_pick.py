@@ -44,6 +44,7 @@ if __name__ == "__main__":
     box1 = {'b_height':0.3, 'b_max_x':1.0, 'b_max_y':-0.2, 'b_min_x':0.4, 'b_min_y':-0.8}
     box2 = {'b_height':0.3, 'b_max_x':1.0, 'b_max_y':0.8, 'b_min_x':0.4, 'b_min_y':0.2}
 
+    box_start = box1
     box_dest = box2
 
     robot = rob.Robot("ur10")
@@ -155,7 +156,7 @@ if __name__ == "__main__":
     except:
         print("Caught exception, trying thrice with random initializations")
         counter = 0
-        while counter < 10:
+        while counter < 3:
             q0_randstart = np.random.rand(6,1) - 0.5
             tc.set_initial(q1, q0_randstart)
             tc.set_initial(q2, q0_randstart, stage=1)
@@ -193,9 +194,132 @@ if __name__ == "__main__":
 
     #print json in a prettified form
     import pprint
-    # pprint.pprint(varsdb)
+    pprint.pprint(varsdb)
 
     #Load casadi function to test:
     casfun = cs.Function.load("/home/ajay/Desktop/bin_picking_tc_ocp.casadi")
 
-    # sol_cg = casfun([0]*1073)
+    sol_cg = casfun([0]*1168)
+
+
+
+
+
+
+
+
+
+
+
+
+    # implementing the drop off skill
+
+    if time_optimal:
+        tc2 = tp.task_context(horizon_steps = horizon_size)
+    else:
+        tc2 = tp.task_context(time= 0.5, horizon_steps = horizon_size)
+
+    q1, q_dot1, q_ddot1, q_init1, q_dot_init1 = input_resolution.acceleration_resolved(tc2, robot, {}, stage = 0)
+
+    fk_ee = fk_ee_fun(q1)
+
+    final_pose_z = {"hard": True, "inequality":True, "expression": -fk_ee[2,3], "upper_limits": -box_dest['b_height'] - obstacle_clearance}
+    final_pose_x = {"hard":True, "lub":True, "expression":fk_ee[0,3], "upper_limits":box_dest["b_max_x"], "lower_limits":box_dest["b_min_x"]}
+    final_pose_y = {"hard":True, "lub":True, "expression":fk_ee[1,3], "upper_limits":box_dest["b_max_y"], "lower_limits":box_dest["b_min_y"]}
+    tc2.add_task_constraint({"final_constraints":[final_pose_x, final_pose_y, final_pose_z]}, stage = 0)
+
+    tc2.add_regularization(q_dot1, 1e-3)
+    tc2.minimize_time(10, 0)
+    tc2.set_value(q_init1, q3_sol[-1], stage = 0)
+    tc2.set_value(q_dot_init1, [0]*6, stage = 0)
+    tc2.set_discretization_settings({})
+    tc2.set_ocp_solver("ipopt", {"ipopt":{"linear_solver":"ma27"}})
+
+
+    #creating the second stage: dropping off the payload
+    if not time_optimal:
+        stage2 = tc2.create_stage(time = 2, horizon_steps = 5)
+    else:
+        stage2 = tc2.create_stage(horizon_steps = 5)
+
+    q2, q_dot2, q_ddot2 = input_resolution.acceleration_resolved(tc2, robot, {'init_parameter':False}, stage = 1)
+
+
+    fk_vals2 = robot.fk(q2)[6]
+    fk_ee2 = fk_ee_fun(q2)
+    #Adding obstacle avoidance constraints
+    sep_hyp1 = tc2.create_control('sep_hyp', (4,1), stage=1)
+    # sep_hyp1 = cs.vertcat(sep_hyp1, cs.sqrt(1 - cs.sumsqr(sep_hyp1[1:3])))
+    obs_to_sep1 = sep_hyp1[0] + sep_hyp1[1:].T@cs.DM(cyl_bottom)
+    obs_to_sep2 = sep_hyp1[0] + sep_hyp1[1:].T@cs.DM(cyl_top)
+    ee_to_sep = sep_hyp1[0] + sep_hyp1[1:].T@fk_ee2[0:3,3]
+    flange_to_sep = sep_hyp1[0] + sep_hyp1[1:].T@fk_vals2[0:3,3]
+
+
+    #separating hyperplane unit norm
+    sh1_unit_norm = {"hard":True, "inequality":True, "expression":cs.sumsqr(sep_hyp1[1:]), "upper_limits":1.0, "include_first":True}
+    sh1_con_obs = {"hard":True, "inequality":True, "expression":cs.vertcat(obs_to_sep1, obs_to_sep2), "upper_limits":-obs_cyl['radius'] - obstacle_clearance, "include_first":True}
+    sh1_con_rob = {"hard":True, "inequality":True, "expression":-cs.vertcat(ee_to_sep, flange_to_sep), "upper_limits": - obstacle_clearance, "include_first":True}
+    tc2.add_task_constraint({"path_constraints":[sh1_unit_norm, sh1_con_obs, sh1_con_rob]}, stage = 1)
+
+    final_pose_z = {"hard": True, "inequality":True, "expression": -fk_ee2[2,3], "upper_limits": -box_start['b_height'] - obstacle_clearance}
+    final_pose_x = {"hard":True, "lub":True, "expression":fk_ee2[0,3], "upper_limits":box_start["b_max_x"] - obstacle_clearance, "lower_limits":box_start["b_min_x"] + obstacle_clearance}
+    final_pose_y = {"hard":True, "lub":True, "expression":fk_ee2[1,3], "upper_limits":box_start["b_max_y"] - obstacle_clearance, "lower_limits":box_start["b_min_y"] + obstacle_clearance}
+    final_vel_con = {"hard":True, "expression":q_dot2, "reference":0.0}
+    tc2.add_task_constraint({"final_constraints":[final_pose_x, final_pose_y, final_pose_z, final_vel_con]}, stage = 1)
+
+    tc2.add_regularization(q_dot2, 1e-3, stage = 1)
+    tc2.ocp.subject_to(tc2.stages[0].at_tf(q1) == stage2.at_t0(q2))
+    tc2.ocp.subject_to(tc2.stages[0].at_tf(q_dot1) == stage2.at_t0(q_dot2))
+    tc2.minimize_time(10, 1)
+
+    q0_start = q3_sol[-1]
+    # sol = tc2.solve_ocp()
+
+    try:
+        tc2.set_initial(q1, q0_start)
+        tc2.set_initial(q2, q0_start, stage=1)
+        sol = tc2.solve_ocp()
+
+    except:
+        print("Caught exception, trying thrice with random initializations")
+        counter = 0
+        while counter < 3:
+            q0_randstart = np.random.rand(6,1) - 0.5
+            tc2.set_initial(q1, q0_randstart)
+            tc2.set_initial(q2, q0_randstart, stage=1)
+            try:
+                sol = tc2.solve_ocp()
+                break;
+            except:
+                counter += 1
+
+    t_grid1, q1_sol = tc2.sol_sample(q1, stage = 0)
+    t_grid2, q2_sol = tc2.sol_sample(q2, stage = 1)
+
+    print("q1_sol", q1_sol)
+    print("q2_sol", q2_sol)
+    print("Time grids", t_grid1, t_grid2+t_grid1[-1])
+    print("Final pose", fk_ee_fun(q2_sol[-1]))
+
+    tc2.add_monitor(
+    {
+        "name": "termination_criteria",
+        "expression": cs.sqrt(cs.sumsqr(q_dot2)) - 0.001,
+        "reference": 0.0,  # doesn't matter
+        "greater": True,  # doesn't matter
+        "initial": True,
+    }
+)
+
+## Performing code-generation (to potentially deploy an orocos component)
+varsdb = tc2.generate_MPC_component("/home/ajay/Desktop/bin_dropping_", cg_opts)
+
+#print json in a prettified form
+import pprint
+pprint.pprint(varsdb)
+
+#Load casadi function to test:
+casfun = cs.Function.load("/home/ajay/Desktop/bin_dropping_tc_ocp.casadi")
+
+sol_cg = casfun([0]*858)
