@@ -19,6 +19,7 @@ from rockit import MultipleShooting, Ocp
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import copy
 
 if __name__ == "__main__":
 
@@ -26,11 +27,24 @@ if __name__ == "__main__":
 
     visualizationBullet = False
     horizon_size = 10
-    t_mpc = 0.5
-    max_joint_acc = 30 * 3.14159 / 180
-    max_joint_vel = 30 * 3.14159 / 180
-    time_optimal = False
-    horizon_period = 10 #in seconds
+    max_joint_acc = 500 * 3.14159 / 180
+    max_joint_vel = 40 * 3.14159 / 180
+    time_optimal = True
+    horizon_period = 2 #in seconds
+    pi = 3.14159
+    q0_start = [0.0, -pi/3, pi/3, -pi/2, -pi/2, 0.0]
+    q0_start = cs.DM([-0.55953752222222, -0.92502372222222, 1.1693696111111, -1.6929679444444, -1.570795, 0])
+    obstacle_clearance = 0.03
+
+    obs_cyl = {'radius':0.15, 'z_max': 0.4, 'center':[0.95*10, 0.00], 'z_min':0.0}
+    cyl_bottom = [obs_cyl['center'][0], obs_cyl['center'][1], obs_cyl['z_min']]
+    cyl_top = [obs_cyl['center'][0], obs_cyl['center'][1], obs_cyl['z_max']]
+    end_effector_height = 0.3
+    approach_distance = 0.075
+    box1 = {'b_height':0.3, 'b_max_x':1.0, 'b_max_y':-0.2, 'b_min_x':0.4, 'b_min_y':-0.8}
+    box2 = {'b_height':0.3, 'b_max_x':1.0, 'b_max_y':0.8, 'b_min_x':0.4, 'b_min_y':0.2}
+
+    box_dest = box2
 
     robot = rob.Robot("ur10")
 
@@ -46,44 +60,122 @@ if __name__ == "__main__":
 
     q1, q_dot1, q_ddot1, q_init1, q_dot_init1 = input_resolution.acceleration_resolved(tc, robot, {}, stage = 0)
 
+    # Computing the FK
     fk_vals1 = robot.fk(q1)[6]
+    fk_ee = fk_vals1
+    # Adding the gripper height to get the tip position
+    fk_ee[0:3, 3] += fk_vals1[0:3, 0:3]@cs.DM([end_effector_height, 0, 0])
+    fk_ee_fun = cs.Function('fk_ee', [q1], [fk_ee])
+
     T_goal = np.array(
         [
-            [-1.0, 0.0, 0.0, 0.4],
-            [0.0, 1.0, 0.0, -0.6],
-            [0.0, 0.0, -1.0, 0.4],
+            [0.0, 0.0, 1.0, 0.4],
+            [0.0, 1.0, 0.0, 0.6],
+            [-1.0, 0.0, 0.0, 0.2],
             [0.0, 0.0, 0.0, 1.0],
         ]
     )
 
-    final_vel = {"hard": True, "expression": q_dot1, "reference": 0}
-    final_pose = {"hard": True, "expression": fk_vals1, "reference": T_goal}
-    tc.add_task_constraint({"final_constraints":[final_vel, final_pose]}, stage = 0)
+    # final_vel = {"hard": True, "expression": q_dot1, "reference": 0}
+    final_pose_z = {"hard": True, "inequality":True, "expression": -fk_ee[2,3], "upper_limits": -box_dest['b_height']}
+    final_pose_x = {"hard":True, "lub":True, "expression":fk_ee[0,3], "upper_limits":box_dest["b_max_x"], "lower_limits":box_dest["b_min_x"]}
+    final_pose_y = {"hard":True, "lub":True, "expression":fk_ee[1,3], "upper_limits":box_dest["b_max_y"], "lower_limits":box_dest["b_min_y"]}
+    tc.add_task_constraint({"final_constraints":[final_pose_x, final_pose_y, final_pose_z]}, stage = 0)
+
+    #Adding obstacle avoidance constraints
+    sep_hyp1 = tc.create_control('sep_hyp', (4,1))
+    # sep_hyp1 = cs.vertcat(sep_hyp1, cs.sqrt(1 - cs.sumsqr(sep_hyp1[1:3])))
+    obs_to_sep1 = sep_hyp1[0] + sep_hyp1[1:].T@cs.DM(cyl_bottom)
+    obs_to_sep2 = sep_hyp1[0] + sep_hyp1[1:].T@cs.DM(cyl_top)
+    ee_to_sep = sep_hyp1[0] + sep_hyp1[1:].T@fk_ee[0:3,3]
+    flange_to_sep = sep_hyp1[0] + sep_hyp1[1:].T@fk_vals1[0:3,3]
+
+    #separating hyperplane unit norm
+    sh1_unit_norm = {"hard":True, "inequality":True, "expression":cs.sumsqr(sep_hyp1[1:]), "upper_limits":1.0, "include_first":True}
+    sh1_con_obs = {"hard":True, "inequality":True, "expression":cs.vertcat(obs_to_sep1, obs_to_sep2), "upper_limits":-obs_cyl['radius'] - obstacle_clearance, "include_first":True}
+    sh1_con_rob = {"hard":True, "inequality":True, "expression":-cs.vertcat(ee_to_sep, flange_to_sep), "upper_limits": - obstacle_clearance, "include_first":True}
+    tc.add_task_constraint({"path_constraints":[sh1_unit_norm, sh1_con_obs, sh1_con_rob]})
 
     tc.add_regularization(q_dot1, 1e-3)
-
-    tc.set_value(q_init1, [0]*6, stage = 0)
+    tc.minimize_time(10, 0)
+    tc.set_value(q_init1, q0_start, stage = 0)
     tc.set_value(q_dot_init1, [0]*6, stage = 0)
     tc.set_discretization_settings({})
     tc.set_ocp_solver("ipopt", {"ipopt":{"linear_solver":"ma27"}})
 
-    #creating the second stage
-    stage2 = tc.create_stage(time = 5, horizon_steps = 10)
+    #creating the second stage: reaching the desired approach motion start point
+    if not time_optimal:
+        stage2 = tc.create_stage(time = 2, horizon_steps = 5)
+    else:
+        stage2 = tc.create_stage(horizon_steps = 5)
+
     q2, q_dot2, q_ddot2 = input_resolution.acceleration_resolved(tc, robot, {'init_parameter':False}, stage = 1)
+
+    fk_ee2 = fk_ee_fun(q2)
+    T_goal_approach = cs.DM(copy.deepcopy(T_goal))
+    T_goal_approach[0:3,3] += cs.DM(T_goal_approach[0:3, 0:3])@cs.DM([-approach_distance, 0, 0])
+    final_pose_trans = {"hard": True, "expression": fk_ee2[0:3,3], "reference": T_goal_approach[0:3,3]}
+    #strictly enforce the direction of the axis. LICQ fails at the solution. So adding as inequality constraint for robustness
+    final_pose_rot = {"hard":True, "inequality":True, "expression":-fk_ee2[0:3,0].T@T_goal_approach[0:3,0], "upper_limits":-0.99}
+    tc.add_task_constraint({"final_constraints":[final_pose_trans, final_pose_rot]}, stage = 1)
 
     tc.ocp.subject_to(tc.stages[0].at_tf(q1) == stage2.at_t0(q2))
     tc.ocp.subject_to(tc.stages[0].at_tf(q_dot1) == stage2.at_t0(q_dot2))
-    # tc.set_value(q_init2, [0]*6, stage = 1)
-    # tc.set_value(q_dot_init2, [0]*6, stage = 1)
+    tc.add_regularization(q_dot2, 1e-3, stage = 1)
+    tc.minimize_time(10, 1)
 
-    sol = tc.solve_ocp()
+    # creating the third stage: reaching the desired position
+    if not time_optimal:
+        stage3 = tc.create_stage(time = 0.5, horizon_steps = 5)
+    else:
+        stage3 = tc.create_stage(horizon_steps = 5)
 
-    t_grid, q1_sol = tc.sol_sample(q1, stage = 0)
-    t_grid, q2_sol = tc.sol_sample(q2, stage = 1)
+    q3, q_dot3, q_ddot3 = input_resolution.acceleration_resolved(tc, robot, {'init_parameter':False}, stage = 2)
+    fk_ee3 = fk_ee_fun(q3)
+
+    # Pose constraints
+    final_pose_trans = {"hard": True, "expression": fk_ee3[0:3,3], "reference": T_goal[0:3,3]}
+    #strictly enforce the direction of the axis. LICQ fails at the solution. So adding as inequality constraint for robustness
+    final_pose_rot = {"hard":True, "inequality":True, "expression":-fk_ee3[0:3,0].T@T_goal_approach[0:3,0], "upper_limits":-0.99}
+
+    #terminal zero velocity constraint
+    final_vel_con = {"hard":True, "expression":q_dot2, "reference":0.0}
+    tc.add_task_constraint({"final_constraints":[final_pose_trans, final_pose_rot]}, stage = 2)
+
+    tc.add_regularization(q_dot3, 1e-3, stage = 2)
+    tc.ocp.subject_to(stage2.at_tf(q2) == stage3.at_t0(q3))
+    tc.ocp.subject_to(stage2.at_tf(q_dot2) == stage3.at_t0(q_dot3))
+    tc.minimize_time(10, 2)
+    # import pdb; pdb.set_trace()
+    try:
+        tc.set_initial(q1, q0_start)
+        tc.set_initial(q2, q0_start, stage=1)
+        tc.set_initial(q3, q0_start, stage=2)
+        sol = tc.solve_ocp()
+    except:
+        print("Caught exception, trying thrice with random initializations")
+        counter = 0
+        while counter < 10:
+            q0_randstart = np.random.rand(6,1) - 0.5
+            tc.set_initial(q1, q0_randstart)
+            tc.set_initial(q2, q0_randstart, stage=1)
+            tc.set_initial(q3, q0_randstart, stage=2)
+            try:
+                sol = tc.solve_ocp()
+                break;
+            except:
+                counter += 1
+
+
+    t_grid1, q1_sol = tc.sol_sample(q1, stage = 0)
+    t_grid2, q2_sol = tc.sol_sample(q2, stage = 1)
+    t_grid3, q3_sol = tc.sol_sample(q3, stage = 2)
 
     print("q1_sol", q1_sol)
     print("q2_sol", q2_sol)
-
+    print("q3_sol", q3_sol)
+    print("Time grids", t_grid1, t_grid2+t_grid1[-1], t_grid3 + t_grid2[-1] + t_grid1[-1])
+    print("Final pose", fk_ee_fun(q3_sol[-1]))
 
     tc.add_monitor(
     {
@@ -101,9 +193,9 @@ if __name__ == "__main__":
 
     #print json in a prettified form
     import pprint
-    pprint.pprint(varsdb)
+    # pprint.pprint(varsdb)
 
     #Load casadi function to test:
     casfun = cs.Function.load("/home/ajay/Desktop/bin_picking_tc_ocp.casadi")
 
-    sol_cg = casfun([0]*1054)
+    # sol_cg = casfun([0]*1073)
