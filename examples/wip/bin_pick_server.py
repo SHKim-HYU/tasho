@@ -27,8 +27,8 @@ if __name__ == "__main__":
 
     visualizationBullet = False
     horizon_size = 10
-    max_joint_acc = 500 * 3.14159 / 180
-    max_joint_vel = 40 * 3.14159 / 180
+    max_joint_acc_val = 100 * 3.14159 / 180
+    max_joint_vel_val = 40 * 3.14159 / 180
     time_optimal = True
     horizon_period = 2 #in seconds
     pi = 3.14159
@@ -37,10 +37,10 @@ if __name__ == "__main__":
     obstacle_clearance = 0.03
 
     obs_cyl = {'radius':0.15, 'z_max': 0.4, 'center':[0.95*10, 0.00], 'z_min':0.0}
-    cyl_bottom = [obs_cyl['center'][0], obs_cyl['center'][1], obs_cyl['z_min']]
-    cyl_top = [obs_cyl['center'][0], obs_cyl['center'][1], obs_cyl['z_max']]
+    cyl_bottom_val = [obs_cyl['center'][0], obs_cyl['center'][1], obs_cyl['z_min']]
+    cyl_top_val = [obs_cyl['center'][0], obs_cyl['center'][1], obs_cyl['z_max']]
     end_effector_height = 0.3
-    approach_distance = 0.075
+    approach_distance_val = 0.075
     box1 = {'b_height':0.3, 'b_max_x':1.0, 'b_max_y':-0.2, 'b_min_x':0.4, 'b_min_y':-0.8}
     box2 = {'b_height':0.3, 'b_max_x':1.0, 'b_max_y':0.8, 'b_min_x':0.4, 'b_min_y':0.2}
 
@@ -49,14 +49,31 @@ if __name__ == "__main__":
 
     robot = rob.Robot("ur10")
 
-    robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
-    robot.set_joint_velocity_limits(lb=-max_joint_vel, ub=max_joint_vel)
 
 
     if time_optimal:
         tc = tp.task_context(horizon_steps = horizon_size)
     else:
         tc = tp.task_context(time= horizon_period, horizon_steps = horizon_size)
+
+    obs_cyl_zmax = tc.create_parameter('obs_cyl_zmax_1', (1,1), stage = 0)
+    obs_cyl_zmin = tc.create_parameter('obs_cyl_zmin_1', (1,1), stage = 0)
+    obs_cyl_center = tc.create_parameter('obs_cyl_center_1', (2,1), stage = 0)
+    obs_cyl_radius = tc.create_parameter('obs_cyl_radius_1', (1,1), stage = 0)
+    tc.set_value(obs_cyl_zmax, cyl_top_val[2], stage = 0)
+    tc.set_value(obs_cyl_zmin, cyl_bottom_val[2], stage = 0)
+    tc.set_value(obs_cyl_radius, obs_cyl['radius'], stage = 0)
+    tc.set_value(obs_cyl_center, obs_cyl['center'], stage = 0)
+    cyl_bottom = cs.vertcat(obs_cyl_center, obs_cyl_zmin)
+    cyl_top = cs.vertcat(obs_cyl_center, obs_cyl_zmax)
+
+    max_joint_acc1 = tc.create_parameter('max_jacc_1', (1,1), stage = 0)
+    max_joint_vel1 = tc.create_parameter('max_jvel_1', (1,1), stage = 0)
+    robot.set_joint_acceleration_limits(lb=-max_joint_acc1, ub=max_joint_acc1)
+    robot.set_joint_velocity_limits(lb=-max_joint_vel1, ub=max_joint_vel1)
+
+    tc.set_value(max_joint_acc1, max_joint_acc_val, stage = 0)
+    tc.set_value(max_joint_vel1, max_joint_vel_val, stage = 0)
 
 
     q1, q_dot1, q_ddot1, q_init1, q_dot_init1 = input_resolution.acceleration_resolved(tc, robot, {}, stage = 0)
@@ -86,14 +103,14 @@ if __name__ == "__main__":
     #Adding obstacle avoidance constraints
     sep_hyp1 = tc.create_control('sep_hyp', (4,1))
     # sep_hyp1 = cs.vertcat(sep_hyp1, cs.sqrt(1 - cs.sumsqr(sep_hyp1[1:3])))
-    obs_to_sep1 = sep_hyp1[0] + sep_hyp1[1:].T@cs.DM(cyl_bottom)
-    obs_to_sep2 = sep_hyp1[0] + sep_hyp1[1:].T@cs.DM(cyl_top)
+    obs_to_sep1 = sep_hyp1[0] + sep_hyp1[1:].T@cyl_bottom
+    obs_to_sep2 = sep_hyp1[0] + sep_hyp1[1:].T@cyl_top
     ee_to_sep = sep_hyp1[0] + sep_hyp1[1:].T@fk_ee[0:3,3]
     flange_to_sep = sep_hyp1[0] + sep_hyp1[1:].T@fk_vals1[0:3,3]
 
     #separating hyperplane unit norm
     sh1_unit_norm = {"hard":True, "inequality":True, "expression":cs.sumsqr(sep_hyp1[1:]), "upper_limits":1.0, "include_first":True}
-    sh1_con_obs = {"hard":True, "inequality":True, "expression":cs.vertcat(obs_to_sep1, obs_to_sep2), "upper_limits":-obs_cyl['radius'] - obstacle_clearance, "include_first":True}
+    sh1_con_obs = {"hard":True, "inequality":True, "expression":cs.vertcat(obs_to_sep1, obs_to_sep2), "upper_limits":-obs_cyl_radius - obstacle_clearance, "include_first":True}
     sh1_con_rob = {"hard":True, "inequality":True, "expression":-cs.vertcat(ee_to_sep, flange_to_sep), "upper_limits": - obstacle_clearance, "include_first":True}
     tc.add_task_constraint({"path_constraints":[sh1_unit_norm, sh1_con_obs, sh1_con_rob]})
 
@@ -110,12 +127,23 @@ if __name__ == "__main__":
     else:
         stage2 = tc.create_stage(horizon_steps = 5)
 
+    max_joint_acc2 = tc.create_parameter('max_jacc_2', (1,1), stage = 1)
+    max_joint_vel2 = tc.create_parameter('max_jvel_2', (1,1), stage = 1)
+    robot.set_joint_acceleration_limits(lb=-max_joint_acc2, ub=max_joint_acc2)
+    robot.set_joint_velocity_limits(lb=-max_joint_vel2, ub=max_joint_vel2)
+
+    tc.set_value(max_joint_acc2, max_joint_acc_val, stage = 1)
+    tc.set_value(max_joint_vel2, max_joint_vel_val, stage = 1)
+
+    approach_distance = tc.create_parameter('approach_distance', (1,1), stage = 1)
+    tc.set_value(approach_distance, 0.075, stage = 1)
+
     q2, q_dot2, q_ddot2 = input_resolution.acceleration_resolved(tc, robot, {'init_parameter':False}, stage = 1)
 
+
     fk_ee2 = fk_ee_fun(q2)
-    T_goal_approach = cs.DM(copy.deepcopy(T_goal))
-    T_goal_approach[0:3,3] += cs.DM(T_goal_approach[0:3, 0:3])@cs.DM([-approach_distance, 0, 0])
-    final_pose_trans = {"hard": True, "expression": fk_ee2[0:3,3], "reference": T_goal_approach[0:3,3]}
+    T_goal_approach = cs.MX(copy.deepcopy(T_goal))
+    final_pose_trans = {"hard": True, "expression": fk_ee2[0:3,3], "reference": T_goal_approach[0:3,3] - T_goal_approach[0:3,0]*approach_distance}
     #strictly enforce the direction of the axis. LICQ fails at the solution. So adding as inequality constraint for robustness
     final_pose_rot = {"hard":True, "inequality":True, "expression":-fk_ee2[0:3,0].T@T_goal_approach[0:3,0], "upper_limits":-0.99}
     tc.add_task_constraint({"final_constraints":[final_pose_trans, final_pose_rot]}, stage = 1)
@@ -130,6 +158,14 @@ if __name__ == "__main__":
         stage3 = tc.create_stage(time = 0.5, horizon_steps = 5)
     else:
         stage3 = tc.create_stage(horizon_steps = 5)
+
+    max_joint_acc3 = tc.create_parameter('max_jacc_3', (1,1), stage = 2)
+    max_joint_vel3 = tc.create_parameter('max_jvel_3', (1,1), stage = 2)
+    robot.set_joint_acceleration_limits(lb=-max_joint_acc3, ub=max_joint_acc3)
+    robot.set_joint_velocity_limits(lb=-max_joint_vel3, ub=max_joint_vel3)
+
+    tc.set_value(max_joint_acc3, max_joint_acc_val, stage = 2)
+    tc.set_value(max_joint_vel3, max_joint_vel_val, stage = 2)
 
     q3, q_dot3, q_ddot3 = input_resolution.acceleration_resolved(tc, robot, {'init_parameter':False}, stage = 2)
     fk_ee3 = fk_ee_fun(q3)
@@ -199,7 +235,7 @@ if __name__ == "__main__":
     #Load casadi function to test:
     casfun = cs.Function.load("bin_picking_tc_ocp.casadi")
 
-    sol_cg = casfun([0]*1168)
+    # sol_cg = casfun([0]*1168)
 
 
 
@@ -218,6 +254,14 @@ if __name__ == "__main__":
         tc2 = tp.task_context(horizon_steps = horizon_size)
     else:
         tc2 = tp.task_context(time= 0.5, horizon_steps = horizon_size)
+
+    max_joint_acc1 = tc2.create_parameter('max_jacc_1', (1,1), stage = 0)
+    max_joint_vel1 = tc2.create_parameter('max_jvel_1', (1,1), stage = 0)
+    robot.set_joint_acceleration_limits(lb=-max_joint_acc1, ub=max_joint_acc1)
+    robot.set_joint_velocity_limits(lb=-max_joint_vel1, ub=max_joint_vel1)
+
+    tc2.set_value(max_joint_acc1, max_joint_acc_val, stage = 0)
+    tc2.set_value(max_joint_vel1, max_joint_vel_val, stage = 0)
 
     q1, q_dot1, q_ddot1, q_init1, q_dot_init1 = input_resolution.acceleration_resolved(tc2, robot, {}, stage = 0)
 
@@ -242,23 +286,43 @@ if __name__ == "__main__":
     else:
         stage2 = tc2.create_stage(horizon_steps = 5)
 
+    max_joint_acc2 = tc2.create_parameter('max_jacc_2', (1,1), stage = 1)
+    max_joint_vel2 = tc2.create_parameter('max_jvel_2', (1,1), stage = 1)
+    robot.set_joint_acceleration_limits(lb=-max_joint_acc2, ub=max_joint_acc2)
+    robot.set_joint_velocity_limits(lb=-max_joint_vel2, ub=max_joint_vel2)
+
+    tc2.set_value(max_joint_acc2, max_joint_acc_val, stage = 1)
+    tc2.set_value(max_joint_vel2, max_joint_vel_val, stage = 1)
+
     q2, q_dot2, q_ddot2 = input_resolution.acceleration_resolved(tc2, robot, {'init_parameter':False}, stage = 1)
 
+    obs_cyl_zmax = tc2.create_parameter('obs_cyl_zmax_2', (1,1), stage = 1)
+    obs_cyl_zmin = tc2.create_parameter('obs_cyl_zmin_2', (1,1), stage = 1)
+    obs_cyl_center = tc2.create_parameter('obs_cyl_center_2', (2,1), stage = 1)
+    obs_cyl_radius = tc2.create_parameter('obs_cyl_radius_2', (1,1), stage = 1)
+    tc2.set_value(obs_cyl_zmax, cyl_top_val[2], stage = 1)
+    tc2.set_value(obs_cyl_zmin, cyl_bottom_val[2], stage = 1)
+    tc2.set_value(obs_cyl_radius, obs_cyl['radius'], stage = 1)
+    tc2.set_value(obs_cyl_center, obs_cyl['center'], stage = 1)
+    cyl_bottom = cs.vertcat(obs_cyl_center, obs_cyl_zmin)
+    cyl_top = cs.vertcat(obs_cyl_center, obs_cyl_zmax)
 
     fk_vals2 = robot.fk(q2)[6]
     fk_ee2 = fk_ee_fun(q2)
     #Adding obstacle avoidance constraints
     sep_hyp1 = tc2.create_control('sep_hyp', (4,1), stage=1)
     # sep_hyp1 = cs.vertcat(sep_hyp1, cs.sqrt(1 - cs.sumsqr(sep_hyp1[1:3])))
-    obs_to_sep1 = sep_hyp1[0] + sep_hyp1[1:].T@cs.DM(cyl_bottom)
-    obs_to_sep2 = sep_hyp1[0] + sep_hyp1[1:].T@cs.DM(cyl_top)
+    obs_to_sep1 = sep_hyp1[0] + sep_hyp1[1:].T@cyl_bottom
+    obs_to_sep2 = sep_hyp1[0] + sep_hyp1[1:].T@cyl_top
     ee_to_sep = sep_hyp1[0] + sep_hyp1[1:].T@fk_ee2[0:3,3]
     flange_to_sep = sep_hyp1[0] + sep_hyp1[1:].T@fk_vals2[0:3,3]
 
 
+
+
     #separating hyperplane unit norm
     sh1_unit_norm = {"hard":True, "inequality":True, "expression":cs.sumsqr(sep_hyp1[1:]), "upper_limits":1.0, "include_first":True}
-    sh1_con_obs = {"hard":True, "inequality":True, "expression":cs.vertcat(obs_to_sep1, obs_to_sep2), "upper_limits":-obs_cyl['radius'] - obstacle_clearance, "include_first":True}
+    sh1_con_obs = {"hard":True, "inequality":True, "expression":cs.vertcat(obs_to_sep1, obs_to_sep2), "upper_limits":-obs_cyl_radius - obstacle_clearance, "include_first":True}
     sh1_con_rob = {"hard":True, "inequality":True, "expression":-cs.vertcat(ee_to_sep, flange_to_sep), "upper_limits": - obstacle_clearance, "include_first":True}
     tc2.add_task_constraint({"path_constraints":[sh1_unit_norm, sh1_con_obs, sh1_con_rob]}, stage = 1)
 
@@ -322,4 +386,4 @@ pprint.pprint(varsdb)
 #Load casadi function to test:
 casfun2 = cs.Function.load("bin_dropping_tc_ocp.casadi")
 
-sol_cg = casfun2([0]*858)
+# sol_cg = casfun2([0]*858)
