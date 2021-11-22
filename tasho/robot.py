@@ -187,6 +187,8 @@ class Robot:
                 _ub = vertcat(_ub, inf)
         elif isinstance(ub, Real):
             _ub = ub
+        elif isinstance(ub, cs.MX):
+            _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
@@ -200,6 +202,8 @@ class Robot:
             for i in range(1, ndof):
                 _lb = vertcat(_lb, -inf)
         elif isinstance(lb, Real):
+            _lb = lb
+        elif isinstance(lb, cs.MX):
             _lb = lb
         else:
             if len(lb) != ndof:
@@ -222,6 +226,8 @@ class Robot:
                 _ub = vertcat(_ub, inf)
         elif isinstance(ub, Real):
             _ub = ub
+        elif isinstance(ub, cs.MX):
+            _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
@@ -235,6 +241,8 @@ class Robot:
             for i in range(1, ndof):
                 _lb = vertcat(_lb, -inf)
         elif isinstance(lb, Real):
+            _lb = lb
+        elif isinstance(lb, cs.MX):
             _lb = lb
         else:
             if len(lb) != ndof:

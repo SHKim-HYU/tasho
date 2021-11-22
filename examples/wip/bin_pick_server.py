@@ -27,8 +27,6 @@ if __name__ == "__main__":
 
     visualizationBullet = False
     horizon_size = 10
-    max_joint_acc_val = 100 * 3.14159 / 180
-    max_joint_vel_val = 40 * 3.14159 / 180
     time_optimal = True
     horizon_period = 2 #in seconds
     pi = 3.14159
@@ -49,7 +47,8 @@ if __name__ == "__main__":
 
     robot = rob.Robot("ur10")
 
-
+    max_joint_acc_val = [100 * 3.14159 / 180]*robot.ndof
+    max_joint_vel_val = [40 * 3.14159 / 180]*robot.ndof
 
     if time_optimal:
         tc = tp.task_context(horizon_steps = horizon_size)
@@ -67,8 +66,8 @@ if __name__ == "__main__":
     cyl_bottom = cs.vertcat(obs_cyl_center, obs_cyl_zmin)
     cyl_top = cs.vertcat(obs_cyl_center, obs_cyl_zmax)
 
-    max_joint_acc1 = tc.create_parameter('max_jacc_1', (1,1), stage = 0)
-    max_joint_vel1 = tc.create_parameter('max_jvel_1', (1,1), stage = 0)
+    max_joint_acc1 = tc.create_parameter('max_jacc_1', (robot.ndof,1), stage = 0)
+    max_joint_vel1 = tc.create_parameter('max_jvel_1', (robot.ndof,1), stage = 0)
     robot.set_joint_acceleration_limits(lb=-max_joint_acc1, ub=max_joint_acc1)
     robot.set_joint_velocity_limits(lb=-max_joint_vel1, ub=max_joint_vel1)
 
@@ -127,8 +126,8 @@ if __name__ == "__main__":
     else:
         stage2 = tc.create_stage(horizon_steps = 5)
 
-    max_joint_acc2 = tc.create_parameter('max_jacc_2', (1,1), stage = 1)
-    max_joint_vel2 = tc.create_parameter('max_jvel_2', (1,1), stage = 1)
+    max_joint_acc2 = tc.create_parameter('max_jacc_2', (robot.ndof,1), stage = 1)
+    max_joint_vel2 = tc.create_parameter('max_jvel_2', (robot.ndof,1), stage = 1)
     robot.set_joint_acceleration_limits(lb=-max_joint_acc2, ub=max_joint_acc2)
     robot.set_joint_velocity_limits(lb=-max_joint_vel2, ub=max_joint_vel2)
 
@@ -159,8 +158,8 @@ if __name__ == "__main__":
     else:
         stage3 = tc.create_stage(horizon_steps = 5)
 
-    max_joint_acc3 = tc.create_parameter('max_jacc_3', (1,1), stage = 2)
-    max_joint_vel3 = tc.create_parameter('max_jvel_3', (1,1), stage = 2)
+    max_joint_acc3 = tc.create_parameter('max_jacc_3', (robot.ndof,1), stage = 2)
+    max_joint_vel3 = tc.create_parameter('max_jvel_3', (robot.ndof,1), stage = 2)
     robot.set_joint_acceleration_limits(lb=-max_joint_acc3, ub=max_joint_acc3)
     robot.set_joint_velocity_limits(lb=-max_joint_vel3, ub=max_joint_vel3)
 
@@ -199,7 +198,7 @@ if __name__ == "__main__":
             tc.set_initial(q3, q0_randstart, stage=2)
             try:
                 sol = tc.solve_ocp()
-                break;
+                break
             except:
                 counter += 1
 
@@ -255,8 +254,8 @@ if __name__ == "__main__":
     else:
         tc2 = tp.task_context(time= 0.5, horizon_steps = horizon_size)
 
-    max_joint_acc1 = tc2.create_parameter('max_jacc_1', (1,1), stage = 0)
-    max_joint_vel1 = tc2.create_parameter('max_jvel_1', (1,1), stage = 0)
+    max_joint_acc1 = tc2.create_parameter('max_jacc_1', (robot.ndof,1), stage = 0)
+    max_joint_vel1 = tc2.create_parameter('max_jvel_1', (robot.ndof,1), stage = 0)
     robot.set_joint_acceleration_limits(lb=-max_joint_acc1, ub=max_joint_acc1)
     robot.set_joint_velocity_limits(lb=-max_joint_vel1, ub=max_joint_vel1)
 
@@ -286,8 +285,8 @@ if __name__ == "__main__":
     else:
         stage2 = tc2.create_stage(horizon_steps = 5)
 
-    max_joint_acc2 = tc2.create_parameter('max_jacc_2', (1,1), stage = 1)
-    max_joint_vel2 = tc2.create_parameter('max_jvel_2', (1,1), stage = 1)
+    max_joint_acc2 = tc2.create_parameter('max_jacc_2', (robot.ndof,1), stage = 1)
+    max_joint_vel2 = tc2.create_parameter('max_jvel_2', (robot.ndof,1), stage = 1)
     robot.set_joint_acceleration_limits(lb=-max_joint_acc2, ub=max_joint_acc2)
     robot.set_joint_velocity_limits(lb=-max_joint_vel2, ub=max_joint_vel2)
 
