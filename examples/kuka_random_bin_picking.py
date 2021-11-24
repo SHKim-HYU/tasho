@@ -150,7 +150,7 @@ if __name__ == "__main__":
         joint_indices = [0, 1, 2, 3, 4, 5, 6]
 
         # begin the visualization of applying OCP solution in open loop
-        ts, q_dot_sol = sol.sample(q_dot, grid="control")
+        ts, q_dot_sol = tc.sol_sample(q_dot, grid="control")
         obj.resetJointState(kukaID, joint_indices, q0_val)
         obj.setController(
             kukaID, "velocity", joint_indices, targetVelocities=q_dot_sol[0]
