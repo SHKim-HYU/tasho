@@ -930,8 +930,8 @@ class task_context:
         ocp = self.stages[stage]
         ocp.set_value(expr, value)
 
-    def sol_sample(self, expr, grid="control", stage=0):
-        t, x_sol = self.sol(self.stages[stage]).sample(expr, grid=grid)
+    def sol_sample(self, expr, grid="control", stage=0,**kwargs):
+        t, x_sol = self.sol(self.stages[stage]).sample(expr, grid=grid,**kwargs)
         return t, x_sol
 
     def sol_value(self, expr, stage=0):
