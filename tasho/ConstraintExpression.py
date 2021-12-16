@@ -86,3 +86,21 @@ class ConstraintExpression:
                 penalty = con_dict['penalty']
                 assert penalty == 'quad' or penalty == 'L1' or penalty == 'L2', "Penalty must be 'quad', 'L1' or 'L2'"
                 con_dict['norm'] = con_dict['penalty']
+
+        self._constraint_dict = con_dict
+
+        if 'id' not in kwargs:
+            self._id = name
+        else:
+            self._id = id + '_' + name
+
+    def change_weight(self, new_weight):
+        self._constraint_dict['gain'] = new_weight
+    
+    @property
+    def id(self):
+        return self.id
+
+    @property
+    def constraint_dict(self):
+        return self._constraint_dict

@@ -45,6 +45,8 @@ class Variable:
         elif type == 'variable':
             self._x = tc.create_variable(self.id, shape)
 
+        self._children_variables = set(self.x)
+
 
     @property
     def x(self):
@@ -57,5 +59,9 @@ class Variable:
     @property
     def name(self):
         return self._name
+
+    @property
+    def children_variables(self):
+        return self._children_variables
 
 
