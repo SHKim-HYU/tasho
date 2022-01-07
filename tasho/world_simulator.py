@@ -23,7 +23,6 @@ class world_simulator:
         p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())  # optionally
         p.setTimeStep(physics_ts)
-        p.setTimeStep(physics_ts)
         p.setGravity(0, 0, -9.81)
         if plane_spawn:
             planeId = p.loadURDF("plane.urdf")
@@ -178,6 +177,15 @@ class world_simulator:
 
         return jointStates
 
+    def readJointPositions(self, robotID, joint_indices):
+
+        joint_pos = []
+        joint_states = p.getJointStates(robotID, joint_indices)
+        for j in joint_indices:
+            joint_pos.append(joint_states[j][0])
+
+        return joint_pos
+
     def enableJointForceSensor(self, robotID, joint_indices):
 
         """Wrapper function around pybullet to activate computation
@@ -235,7 +243,8 @@ class world_simulator:
                 joint_indices,
                 p.POSITION_CONTROL,
                 targetPositions=targetPositions,
-                targetVelocities=targetVelocities,
+                # targetVelocities=targetVelocities,
+                forces = [200]*len(targetVelocities)
             )
         elif controller_type == "torque":
             if not self.torque_control_mode:

@@ -4,7 +4,7 @@ class Variable:
     A class for Variable data-type.
     """
 
-    def __init__(self, name, type, shape, mid = ''):
+    def __init__(self, name, mid, type, shape):
         """
         Constructs the variable object.
 
@@ -42,9 +42,6 @@ class Variable:
         elif type == 'variable':
             self._x = tc.create_variable(self.uid, shape)
 
-        self._children_variables = set(self)
-
-
     @property
     def x(self):
         return self._x
@@ -60,9 +57,3 @@ class Variable:
     @property 
     def uid(self):
         return self._uid
-
-    @property
-    def children_variables(self):
-        return self._children_variables
-
-

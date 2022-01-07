@@ -6,7 +6,7 @@ class ConstraintExpression:
     A class defining the constraint expression object. This object forms the backbone of all the constraints added in the OCP.
     """
 
-    def __init__(self, name, expression, constraint_hardness, **kwargs):
+    def __init__(self, name, mid, expression, constraint_hardness, **kwargs):
 
         """
         A constructor for a constraint. Either reference, ub, lb or both lb and ub must be passed as an argument. If both reference and
@@ -25,8 +25,8 @@ class ConstraintExpression:
         :param constraint_hardness: 'hard' for hard constraint. 'soft' for soft constraint.
         :type constraint_hardness: String
 
-        :param id: An identifier from the code creating the constraint.
-        :type id: String
+        :param mid: An identifier from the code creating the constraint.
+        :type mid: String
 
         :param reference: (optional, keyword argument) The reference that the expression must follow
         :type reference: CasADi DM, Python list or Numpy vector
@@ -43,7 +43,8 @@ class ConstraintExpression:
         :param weight: (optional, keyword argument) Must be passed for soft constraints. It is the weight on the constraint violation penalty.
         :type weight: Double
         """
-
+        assert isinstance(name, str)
+        assert isinstance(expression, Expression)
         assert constraint_hardness == 'hard' or constraint_hardness =='soft', "constraint_hardness must be either 'hard' or 'soft'"
 
         if isinstance(expression, Expression):
@@ -89,17 +90,20 @@ class ConstraintExpression:
 
         self._constraint_dict = con_dict
 
-        if 'id' not in kwargs:
-            self._id = name
-        else:
-            self._id = id + '_' + name
+        self._name = name
+        self._mid = mid
+        self._uid = mid + '_' + name
 
     def change_weight(self, new_weight):
         self._constraint_dict['gain'] = new_weight
     
     @property
-    def id(self):
-        return self.id
+    def mid(self):
+        return self._mid
+
+    @property
+    def uid(self):
+        return self._uid
 
     @property
     def constraint_dict(self):

@@ -68,7 +68,7 @@ class Robot:
         """
         self.name = name
 
-    def set_kinematic_jacobian(self, name, q):
+    def set_kinematic_jacobian(self, q, name = 'rob_jac'):
         """Creates a function that computes the kinematic jacobian of the robot
 
         :param name: Name to be set for the returned function
@@ -103,7 +103,7 @@ class Robot:
                 flag = True
 
         # constructing and returning the function
-        jac_fun = cs.Function(name, [q_sym], [jac, jac_rot_vec])
+        jac_fun = cs.Function(name, [q_sym], [cs.vertcat(jac_rot_vec, jac)])
         self.trans_jacobian = jac_fun
         return jac_fun
 

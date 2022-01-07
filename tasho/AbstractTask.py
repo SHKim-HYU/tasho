@@ -23,21 +23,25 @@ class AbstractTask:
         self._logger = logging.getLogger('AT_' + id)
         
 
-    def add_variable(self, name, type, shape, id = ''):
+    def create_variable(self, name, mid, type, shape):
 
-        var = Variable(name, type, shape, self._tc, id)
+        var = Variable(name, mid, type, shape)
         assert var.uid not in self._variables, name + " already used for a variable with the same meta-id."
         self._variables[var.uid] = var
 
         return var
 
+    def substitute_variable(self):
+
+        raise Exception("Not implemented")
+
     def remove_variable(self):
 
         raise Exception("Not implemented")
 
-    def add_expression(self, name, expression, children = None):
+    def create_expression(self, name, mid, expression, *parents):
         
-        expr = Expression(name, expression, id = self._id, children = children)
+        expr = Expression(name, mid, expression, *parents)
         assert expr.uid not in self._expressions, name + " already used for an expression with the same meta-id."
         self._expressions[expr.uid] = expr
 
@@ -47,9 +51,9 @@ class AbstractTask:
 
         raise Exception("Not implemented")
 
-    def add_constraint_expression(self, name, expression, constraint_hardness, **kwargs):
+    def add_constraint_expression(self, name, mid, expression, constraint_hardness, **kwargs):
 
-        con_expr = ConstraintExpression(name, expression, constraint_hardness, **kwargs)
+        con_expr = ConstraintExpression(name, mid, expression, constraint_hardness, **kwargs)
         assert con_expr.uid not in self._constraint_expressions, con_expr.uid + " already used for a constraint expression."
         self._constraint_expressions[con_expr.uid] = con_expr
 
@@ -91,6 +95,23 @@ class AbstractTask:
             assert (x, arg.uid) not in self._constraints, "The imposed constraint is already present among constraints of the task."
             
             self._constraints[(x, arg.uid)] = (x, arg)
+
+    def remove_initial_constraints(self, *args):
+
+        raise Exception("Not implemented")
+
+    def remove_path_constraints(self, *args):
+
+        raise Exception("Not implemented")
+
+    def remove_terminal_constraints(self, *args):
+
+        raise Exception("Not implemented")
+
+    def _remove_x_constraint(self, x, *args):
+
+        raise Exception("Not implemented")
+            
 
     def include_subtask(self, task2):
 
