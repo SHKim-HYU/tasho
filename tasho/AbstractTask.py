@@ -1,4 +1,6 @@
 from tasho import Variable, ConstraintExpression, Expression
+import logging
+import casadi as cs
 
 class AbstractTask:
     """
@@ -6,6 +8,7 @@ class AbstractTask:
     """
 
     _name = 'AbstractClass'
+    _symb = cs.MX.sym
 
     def __init__(self, tc, id):
         
@@ -14,15 +17,17 @@ class AbstractTask:
         self._constraint_expressions = {}
         self._constraints = {}
         self._sub_tasks = {}
-        self._id = id + '_' + self._name
-        self._tc = tc
+        self._magic_numbers = {}
+        self._id = id
+        # self._tc = tc
+        self._logger = logging.getLogger('AT_' + id)
         
 
-    def add_variable(self, name, type, shape):
+    def add_variable(self, name, type, shape, id = ''):
 
-        var = Variable(name, type, shape, self._tc, self._id)
-        assert name not in self._variables, name + " already used for a variable in the task."
-        self._variables[name] = var
+        var = Variable(name, type, shape, self._tc, id)
+        assert var.uid not in self._variables, name + " already used for a variable with the same meta-id."
+        self._variables[var.uid] = var
 
         return var
 
@@ -33,8 +38,8 @@ class AbstractTask:
     def add_expression(self, name, expression, children = None):
         
         expr = Expression(name, expression, id = self._id, children = children)
-        assert name not in self._expressions, name + " already used for an expression in the task."
-        self._expressions[name] = expr
+        assert expr.uid not in self._expressions, name + " already used for an expression with the same meta-id."
+        self._expressions[expr.uid] = expr
 
         return expr
 
@@ -45,27 +50,57 @@ class AbstractTask:
     def add_constraint_expression(self, name, expression, constraint_hardness, **kwargs):
 
         con_expr = ConstraintExpression(name, expression, constraint_hardness, **kwargs)
-        assert name not in self._constraint_expressions, name + " already used for a constraint expression."
-        self._constraint_expressions[name] = con_expr
+        assert con_expr.uid not in self._constraint_expressions, con_expr.uid + " already used for a constraint expression."
+        self._constraint_expressions[con_expr.uid] = con_expr
 
         return con_expr
 
-    def add_path_constraint(self):
+    def add_path_constraints(self, *args):
 
-        raise Exception("Not implemented")
+        """
+        Impose all the constraints passed as parameters over the entire OCP horizon.
+        """
 
-    def add_terminal_constraint(self):
+        self._add_x_constraint("path", *args)
 
-        raise Exception("Not implemented")
+    def add_terminal_constraints(self, *args):
 
-    def add_initial_constraint(self):
+        """
+        Impose the constraints passed as parameters only as the terminal constraints of the OCP.
+        """
 
-        raise Exception("Not implemented")
+        self._add_x_constraints("terminal", *args)
 
-    def compose_within(self, task2):
+    def add_initial_constraints(self, *args):
+
+        """
+        Impose the constraints passed as parameters as the initial constraints of the OCP.
+        """
+
+        self._add_x_constraints("initial", *args)
+
+    def _add_x_constraint(self, x, *args):
+
+        """
+        Impose the constrainsts passed as the arguments as either path, terminal or initial constraints depending on x.
+        """
+
+        for arg in args:
+            
+            assert isinstance(arg, ConstraintExpression), "All arguments are expected to be constraint expressions."
+            assert (x, arg.uid) not in self._constraints, "The imposed constraint is already present among constraints of the task."
+            
+            self._constraints[(x, arg.uid)] = (x, arg)
+
+    def include_subtask(self, task2):
 
         """
         Mutator function that composes the constraints of task2 with the constraints of the object.
+        Composition for the variables are based on IDs. If any variables or expressions have the same ID, they are assumed
+        to refer to the same entity. 
+
+        For tasks, at the moment all the tasks are directly added. There is no checking for duplicates. Only the IDs
+        of each task should be unique.
         """
         
         assert task2.id not in self._sub_tasks, task2.id + " already one of the sub tasks."
@@ -74,34 +109,38 @@ class AbstractTask:
         # Composing the variables.
         for var in task2.variables:
 
-            assert var.id not in self.variables
-            self._variables[var.id] = var
+            if var.uid not in self.variables:
+                self._variables[var.uid] = var
+            else:
+                self._logger.info("Ignoring the variable " + var.uid + " in task2 because a variable with an identical uid exists in task1.")
+                var = self._variables[var.uid]
 
         # Composing the expressions
-        for expr in task2.variables:
+        for expr in task2.expressions:
             
-            assert expr.id not in self._expressions
-            self._expressions[expr.id] = expr
+            if expr.uid not in self._expressions:
+                self._expressions[expr.uid] = expr
+            else:
+                self._logger.info("Ignoring the expression " + expr.uid + " in task2 because an expression with an identical uid exists in task1.")
+                expr = self._expressions[expr.uid]
+
 
         # Composing the constraint expressions
         for con_expr in task2._constraint_expressions:
 
-            assert con_expr.id not in self._constraint_expressions
-            self._constraint_expressions[con_expr.id] = con_expr
+            if con_expr.uid not in self._constraint_expressions:
+                self._constraint_expressions[con_expr.uid] = con_expr
+                #TODO: Make a smarter composition rather than a blind intersection of all different constraints.
+            else:
+                self.logger.info("Ignoring the constraint expression in task2 because a constraint expression with the same uid exists in task1")
+                con_expr = self._constraint_expressions[con_expr.uid]
 
         for cons in task2._constraints:
 
-            assert cons.id not in self._constraints
-            self._constraints[cons.id] = cons
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, name):
-        assert isinstance(name, str), "Non-string type passed as a name"
-        self._name = name
+            if (cons[0], cons[1].uid) not in self._constraints:
+                self._constraints[(cons[0], cons.uid)] = (cons[0], cons)
+            else:
+                raise Exception("Not implemented.")
         
     @property
     def id(self):
