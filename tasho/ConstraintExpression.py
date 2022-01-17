@@ -1,4 +1,6 @@
-from tasho import Expression as Expression
+from tasho.Expression import Expression
+from tasho.Variable import Variable
+
 import casadi as cs
 
 class ConstraintExpression:
@@ -44,16 +46,10 @@ class ConstraintExpression:
         :type weight: Double
         """
         assert isinstance(name, str)
-        assert isinstance(expression, Expression)
+        assert isinstance(expression, Expression) or isinstance(expression, Variable), "Unknown type passed as an Expression"
         assert constraint_hardness == 'hard' or constraint_hardness =='soft', "constraint_hardness must be either 'hard' or 'soft'"
 
-        if isinstance(expression, Expression):
-            self._symx = expression.x
-        elif isinstance(expression, cs.MX):
-            self._symx = expression
-        else:
-            raise Exception("expression of unknown type passed as an argument")
-
+        self._expr = expression
         con_dict = {}
         if 'reference' in kwargs:
             con_dict['equality'] = True
@@ -66,6 +62,7 @@ class ConstraintExpression:
             con_dict['inequality'] = True
             con_dict['upper_limits'] = kwargs['upper_limits']
         elif 'lb' in kwargs:
+            raise Exception("Lower limits not implemented, please reformulate as upper limits.")
             self._symx = -self._symx
             con_dict['inequality'] = True
             con_dict['upper_limits'] = kwargs['upper_limits']
