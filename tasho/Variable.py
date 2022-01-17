@@ -1,3 +1,6 @@
+import casadi as cs
+import tasho #import Expression
+
 class Variable:
 
     """
@@ -28,27 +31,30 @@ class Variable:
         self._uid = mid + '_' + name
 
         assert isinstance(type, str), "Must pass String. \n Instead you passed " + str(type(type))
-        assert type == 'state' or type == 'variable' or type == 'control' or type == 'parameter', "Unrecognized variable type requested."
+        assert type == 'state' or type == 'variable' or type == 'control' or type == 'parameter' or type == 'magic_number', "Unrecognized variable type requested."
+        self._type = type
+        self._shape = shape
+
+        #If the type is a magic number, store the value as a number
+        if type == 'magic_number':
+            self._x = None
+        else:
+            self._x = cs.MX.sym(self._uid, *shape)
+    
+    # setting the derivative of state variable
+    def set_der(self, expr):
         
-        if type == 'state':
-            self._x = tc.create_state(self.uid, shape)
-
-        elif type == 'control':
-            self._x = tc.create_control(self.uid, shape)
-
-        elif type == 'parameter':
-            self._x = tc.create_parameter(self.uid, shape)
-
-        elif type == 'variable':
-            self._x = tc.create_variable(self.uid, shape)
+        assert self.type == 'state', "Attempting to set derivative to a non-state variable"
+        assert isinstance(expr, tasho.Expression.Expression)
+        self._der = expr
 
     @property
     def x(self):
         return self._x
 
     @property
-    def id(self):
-        return self._id
+    def mid(self):
+        return self._mid
 
     @property
     def name(self):
@@ -57,3 +63,13 @@ class Variable:
     @property 
     def uid(self):
         return self._uid
+
+    @property
+    def shape(self):
+        return self._shape
+
+    @property 
+    def type(self):
+        return self._type
+
+    
