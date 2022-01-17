@@ -1,4 +1,4 @@
-from tasho import Variable as Variable
+from tasho.Variable import Variable
 
 class Expression(Variable):
     """
@@ -28,30 +28,38 @@ class Expression(Variable):
         self._mid = mid
         self._uid = mid + '_' + name
 
+        #TODO: shouldn't the reference to parents be in the task class instead?
         self._parents = parents
-        self._x = self.evaluate_expression()
+        # self._x = self.evaluate_expression()
 
-        #TODO: should this be in the task class instead?
+        
         self._parent_variables = set()
         for parent in parents:
 
             if isinstance(parent, Expression):
-                self._parent_variables.union(parent.parents_variables)
+                self._parent_variables |= parent.parents_variables
             elif isinstance(parent, Variable):
-                self._parent_variables.union(parent)
+                self._parent_variables |= set([parent.uid])
             else:
                 raise Exception("Must not reach here")
 
-    def evaluate_expression(self):
+    def evaluate_expression(self, task):
 
         """
         Evaluates the expression function
         """
-
-        args = [arg.x for arg in self._parents]
-        x = self._expr_fun(*args)
+        args = []
+        for arg in self._parents:
+            if arg.uid in task.variables:
+                args.append(task.variables[arg.uid]._x)
+            elif arg.uid in task.expressions:
+                args.append(task.expressions[arg.uid]._x)
+            else:
+                raise Exception("Should not reach here")
+        # args = [task.variables[arg.uid].x for arg in self._parents if arg.uid in task.variables]
+        self._x = self._expr_fun(*args)
         
-        return x
+        return self._x
 
 
 
