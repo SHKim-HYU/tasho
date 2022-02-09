@@ -49,11 +49,11 @@ class Expression(Variable):
         Evaluates the expression function
         """
         args = []
-        for arg in self._parents:
-            if arg.uid in task.variables:
-                args.append(task.variables[arg.uid]._x)
-            elif arg.uid in task.expressions:
-                args.append(task.expressions[arg.uid]._x)
+        for arg in self._parent_uid:
+            if arg in task.variables:
+                args.append(task.variables[arg]._x)
+            elif arg in task.expressions:
+                args.append(task.expressions[arg]._x)
             else:
                 raise Exception("Should not reach here")
         # args = [task.variables[arg.uid].x for arg in self._parents if arg.uid in task.variables]

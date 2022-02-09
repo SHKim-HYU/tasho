@@ -21,6 +21,7 @@ class Task:
         self._uid = mid + '_' + name
 
         self._variables = {}
+        self._state_dynamics = {} #for state variables, stores an expression for either continuous-time or a discrete-time dynamics
         self._expressions = {}
         self._constraint_expressions = {}
         self._constraints = {}
@@ -72,11 +73,38 @@ class Task:
         assert old_var.type == new_var.type, "Attempting to substitute variable with a variable of wrong type"
         assert old_var.shape == new_var.shape, "Attempting to substitute variable with a variable of different shape"
         self._variables[old_var.uid] = new_var
+        self._expressions[old_var.uid] = new_var
         new_var._uid = old_var.uid
 
     def remove_variable(self):
 
         raise Exception("Not implemented")
+
+    def set_der(self, var, dyn):
+
+        """
+        Sets the derivative of a given state variable to a given expression.
+
+        :param var: The state variable whose derivative is being set.
+        :type var: tasho.Variable of type "state"
+
+        :param dyn: The expression for the derivative of var.
+        :type var: tasho.Variable or tasho.Expression
+        """
+
+        assert var.type == 'state', "Attempting to set derivative to a non-state variable"
+        assert isinstance(var, Variable)
+        assert var.uid in self._variables, "Attempting to assign derivative to a state that does not exist in the task."
+        assert isinstance(dyn, Variable), "The derivative is not an expression"
+        assert dyn.uid in self._expressions or dyn.uid in self._variables, "The derivative expression does not exist in the task."
+
+        self._state_dynamics[var.uid] = ['der', dyn.uid]
+
+
+    def set_next(self, var, dyn):
+
+        raise Exception("Not implemented")
+
 
     def create_expression(self, name, mid, expression, *parents):
         

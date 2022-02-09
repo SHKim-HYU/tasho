@@ -43,13 +43,6 @@ class Variable:
         else:
             self._x = cs.MX.sym(self._uid, *shape)
     
-    # setting the derivative of state variable
-    def set_der(self, expr):
-        
-        assert self.type == 'state', "Attempting to set derivative to a non-state variable"
-        assert isinstance(expr, tasho.Expression.Expression)
-        self._der = expr.uid
-
     @property
     def x(self):
         return self._x
