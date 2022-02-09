@@ -30,6 +30,7 @@ class Variable:
         self._mid = mid
         self._uid = mid + '_' + name
         self._parents = []
+        self._parent_uid = []
 
         assert isinstance(type, str), "Must pass String. \n Instead you passed " + str(type(type))
         assert type == 'state' or type == 'variable' or type == 'control' or type == 'parameter' or type == 'magic_number', "Unrecognized variable type requested."
@@ -78,6 +79,10 @@ class Variable:
     @property
     def parents(self):
         return self._parents
+
+    @property 
+    def parent_uid(self):
+        return self._parent_uid
 
     @property
     def der(self):

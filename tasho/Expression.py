@@ -31,7 +31,7 @@ class Expression(Variable):
         #TODO: shouldn't the reference to parents be in the task class instead?
         self._parents = parents
         # self._x = self.evaluate_expression()
-
+        self._parent_uid = [x.uid for x in parents]
         
         self._parent_variables = set()
         for parent in parents:

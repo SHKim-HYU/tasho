@@ -1,8 +1,10 @@
+from numpy import isin
 from tasho.Variable import Variable
 from tasho.ConstraintExpression import ConstraintExpression
 from tasho.Expression import Expression
 import logging
 import casadi as cs
+import networkx as nx
 
 class Task:
     """
@@ -26,7 +28,23 @@ class Task:
         self._magic_numbers = {}
         self._monitors = {}
         self._logger = logging.getLogger('AT_' + self._uid)
+        self.graph = nx.DiGraph()
         
+    def _add_to_graph(self, entity):
+        """
+        Adds a variable, expression, constraint expression or a constraint to the graph.
+        """
+        if isinstance(entity, Variable):
+            self.graph.add_node(entity.uid)
+            for x in entity._parent_uid: self.graph.add_edge(x, entity.uid)
+
+        elif isinstance(entity, ConstraintExpression):
+            self.graph.add_node(entity.uid)
+            self.graph.add_edge(entity.expr, entity.uid)
+
+        elif isinstance(entity, (str, str)):
+            self.graph.add_node(entity)
+            self.graph.add_edge(entity[1], entity)
 
     def create_variable(self, name, mid, type, shape):
 
@@ -34,17 +52,23 @@ class Task:
         assert var.uid not in self._variables, name + " already used for a variable with the same meta-id."
         self._variables[var.uid] = var
 
+        assert var.uid not in self._expressions, name + " already used for an expression"
+        self._expressions[var.uid] = var
+
+        self._add_to_graph(var)
+
         return var
 
     def add_variable(self, var):
 
         if var.uid not in self._variables:
             self._variables[var.uid] = var
+            self._add_to_graph(var)
             return
         self._logger.info("Not adding variable " + var.uid + " because a variable with identical uid already exists.")
         
     def substitute_variable(self, old_var, new_var):
-
+        """ TODO: Recheck """
         assert old_var.type == new_var.type, "Attempting to substitute variable with a variable of wrong type"
         assert old_var.shape == new_var.shape, "Attempting to substitute variable with a variable of different shape"
         self._variables[old_var.uid] = new_var
@@ -59,12 +83,13 @@ class Task:
         expr = Expression(name, mid, expression, *parents)
         assert expr.uid not in self._expressions, name + " already used for an expression with the same meta-id."
         self._expressions[expr.uid] = expr
-
+        self._add_to_graph(expr)
         return expr
 
     def add_expression(self, expr):
         if expr.uid not in self._expressions:
             self._expressions[expr.uid] = expr
+            self._add_to_graph(expr)
         else:
             self._logger.info("Not adding expression " + expr.uid + " because an expression with identical uid already exists.")
 
@@ -87,13 +112,14 @@ class Task:
         con_expr = ConstraintExpression(name, mid, expression, constraint_hardness, **kwargs)
         assert con_expr.uid not in self._constraint_expressions, con_expr.uid + " already used for a constraint expression."
         self._constraint_expressions[con_expr.uid] = con_expr
-
+        self._add_to_graph(con_expr)
         return con_expr
 
     def add_constraint_expression(self, expr):
 
         if expr.uid not in self._constraint_expressions:
             self._constraint_expressions[expr.uid] = expr
+            self._add_to_graph(expr)
         else:
             self._logger.info("Not adding constraint expression " + expr.uid + " because a constraint expression with an identical uid exists.")
 
@@ -134,7 +160,8 @@ class Task:
             
             if arg.expr not in self._expressions:
                 self.add_expr_recursively(arg._expression)
-            self._constraints[(x, arg.uid)] = (x, arg)
+            self._constraints[(x, arg.uid)] = (x, arg.uid)
+            self._add_to_graph((x, arg.uid))
 
     def remove_initial_constraints(self, *args):
 
@@ -195,8 +222,9 @@ class Task:
         # Composing constraints
         for cons in task2._constraints:
 
-            if (cons[0], cons[1].uid) not in self._constraints:
-                self._constraints[(cons[0], cons.uid)] = (cons[0], cons)
+            if cons not in self._constraints:
+                self._constraints[cons] = cons
+                self._add_to_graph(cons)
             else:
                 raise Exception("Not implemented.")
         
