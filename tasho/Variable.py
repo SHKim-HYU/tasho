@@ -29,6 +29,7 @@ class Variable:
         self._name = name
         self._mid = mid
         self._uid = mid + '_' + name
+        self._parents = []
 
         assert isinstance(type, str), "Must pass String. \n Instead you passed " + str(type(type))
         assert type == 'state' or type == 'variable' or type == 'control' or type == 'parameter' or type == 'magic_number', "Unrecognized variable type requested."
@@ -46,11 +47,13 @@ class Variable:
         
         assert self.type == 'state', "Attempting to set derivative to a non-state variable"
         assert isinstance(expr, tasho.Expression.Expression)
-        self._der = expr
+        self._der = expr.uid
 
     @property
     def x(self):
         return self._x
+
+    
 
     @property
     def mid(self):
@@ -66,10 +69,18 @@ class Variable:
 
     @property
     def shape(self):
-        return self._shape
+        return self._x.shape
 
     @property 
     def type(self):
         return self._type
+
+    @property
+    def parents(self):
+        return self._parents
+
+    @property
+    def der(self):
+        return self._der
 
     

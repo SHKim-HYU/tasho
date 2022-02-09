@@ -61,8 +61,3 @@ class Expression(Variable):
         
         return self._x
 
-
-
-    @property
-    def parents(self):
-        return self._parents

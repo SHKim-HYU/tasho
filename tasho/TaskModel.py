@@ -1,26 +1,31 @@
-from tasho import Variable, ConstraintExpression, Expression
+from tasho.Variable import Variable
+from tasho.ConstraintExpression import ConstraintExpression
+from tasho.Expression import Expression
 import logging
 import casadi as cs
 
-class AbstractTask:
+class Task:
     """
-    AbstractTask, the base class to build abstract tasks from. 
+    Task, the base class to build abstract tasks from. 
     """
 
     _name = 'AbstractClass'
     _symb = cs.MX.sym
 
-    def __init__(self, tc, id):
+    def __init__(self, name, mid):
         
+        self._name = name
+        self._mid = mid
+        self._uid = mid + '_' + name
+
         self._variables = {}
         self._expressions = {}
         self._constraint_expressions = {}
         self._constraints = {}
         self._sub_tasks = {}
         self._magic_numbers = {}
-        self._id = id
-        # self._tc = tc
-        self._logger = logging.getLogger('AT_' + id)
+        self._monitors = {}
+        self._logger = logging.getLogger('AT_' + self._uid)
         
 
     def create_variable(self, name, mid, type, shape):
@@ -31,9 +36,19 @@ class AbstractTask:
 
         return var
 
-    def substitute_variable(self):
+    def add_variable(self, var):
 
-        raise Exception("Not implemented")
+        if var.uid not in self._variables:
+            self._variables[var.uid] = var
+            return
+        self._logger.info("Not adding variable " + var.uid + " because a variable with identical uid already exists.")
+        
+    def substitute_variable(self, old_var, new_var):
+
+        assert old_var.type == new_var.type, "Attempting to substitute variable with a variable of wrong type"
+        assert old_var.shape == new_var.shape, "Attempting to substitute variable with a variable of different shape"
+        self._variables[old_var.uid] = new_var
+        new_var._uid = old_var.uid
 
     def remove_variable(self):
 
@@ -47,17 +62,40 @@ class AbstractTask:
 
         return expr
 
+    def add_expression(self, expr):
+        if expr.uid not in self._expressions:
+            self._expressions[expr.uid] = expr
+        else:
+            self._logger.info("Not adding expression " + expr.uid + " because an expression with identical uid already exists.")
+
+    def add_expr_recursively(self, expr):
+
+        if expr.uid in self._expressions or expr.uid in self._variables: return
+        
+        if isinstance(expr, Expression): 
+            map(self.add_expr_recursively, expr._parents)
+            self.add_expression(expr)
+        elif isinstance(expr, Variable): self.add_variable(expr)
+        else: raise Exception("Must not reach here!")
+
     def remove_expression(self):
 
         raise Exception("Not implemented")
 
-    def add_constraint_expression(self, name, mid, expression, constraint_hardness, **kwargs):
+    def create_constraint_expression(self, name, mid, expression, constraint_hardness, **kwargs):
 
         con_expr = ConstraintExpression(name, mid, expression, constraint_hardness, **kwargs)
         assert con_expr.uid not in self._constraint_expressions, con_expr.uid + " already used for a constraint expression."
         self._constraint_expressions[con_expr.uid] = con_expr
 
         return con_expr
+
+    def add_constraint_expression(self, expr):
+
+        if expr.uid not in self._constraint_expressions:
+            self._constraint_expressions[expr.uid] = expr
+        else:
+            self._logger.info("Not adding constraint expression " + expr.uid + " because a constraint expression with an identical uid exists.")
 
     def add_path_constraints(self, *args):
 
@@ -73,7 +111,7 @@ class AbstractTask:
         Impose the constraints passed as parameters only as the terminal constraints of the OCP.
         """
 
-        self._add_x_constraints("terminal", *args)
+        self._add_x_constraint("terminal", *args)
 
     def add_initial_constraints(self, *args):
 
@@ -81,7 +119,7 @@ class AbstractTask:
         Impose the constraints passed as parameters as the initial constraints of the OCP.
         """
 
-        self._add_x_constraints("initial", *args)
+        self._add_x_constraint("initial", *args)
 
     def _add_x_constraint(self, x, *args):
 
@@ -94,24 +132,41 @@ class AbstractTask:
             assert isinstance(arg, ConstraintExpression), "All arguments are expected to be constraint expressions."
             assert (x, arg.uid) not in self._constraints, "The imposed constraint is already present among constraints of the task."
             
+            if arg.expr not in self._expressions:
+                self.add_expr_recursively(arg._expression)
             self._constraints[(x, arg.uid)] = (x, arg)
 
     def remove_initial_constraints(self, *args):
 
-        raise Exception("Not implemented")
+        """
+        Remove the initial constraints passed as arguments.
+        """
+
+        self._remove_x_constraint("initial", *args)
 
     def remove_path_constraints(self, *args):
 
-        raise Exception("Not implemented")
+        """
+        Remove the path constraints passed as arguments.
+        """
+
+        self._remove_x_constraint("path", *args)
 
     def remove_terminal_constraints(self, *args):
 
-        raise Exception("Not implemented")
+        """
+        Remove terminal constraints passed as arguments.
+        """
+
+        self._remove_x_constraint("path", *args)
 
     def _remove_x_constraint(self, x, *args):
 
-        raise Exception("Not implemented")
-            
+        for arg in args:
+            assert isinstance(arg, ConstraintExpression), "All arguments must be constraint expressions."
+            assert (x, arg.uid) in self._constraints, "Attempting to remove a constraint not present."
+
+            self._constraints.pop((x, arg.uid))          
 
     def include_subtask(self, task2):
 
@@ -128,34 +183,16 @@ class AbstractTask:
         self._sub_tasks[task2.id]
 
         # Composing the variables.
-        for var in task2.variables:
-
-            if var.uid not in self.variables:
-                self._variables[var.uid] = var
-            else:
-                self._logger.info("Ignoring the variable " + var.uid + " in task2 because a variable with an identical uid exists in task1.")
-                var = self._variables[var.uid]
+        map(self.add_variable, task2._variables.values())
 
         # Composing the expressions
-        for expr in task2.expressions:
-            
-            if expr.uid not in self._expressions:
-                self._expressions[expr.uid] = expr
-            else:
-                self._logger.info("Ignoring the expression " + expr.uid + " in task2 because an expression with an identical uid exists in task1.")
-                expr = self._expressions[expr.uid]
-
-
+        map(self.add_expression, task2._expressions.values())
+        
         # Composing the constraint expressions
-        for con_expr in task2._constraint_expressions:
+        #TODO: Make a smarter composition rather than a blind intersection of all different constraints.
+        map(self.add_constraint_expression, task2._constraint_expressions.values())
 
-            if con_expr.uid not in self._constraint_expressions:
-                self._constraint_expressions[con_expr.uid] = con_expr
-                #TODO: Make a smarter composition rather than a blind intersection of all different constraints.
-            else:
-                self.logger.info("Ignoring the constraint expression in task2 because a constraint expression with the same uid exists in task1")
-                con_expr = self._constraint_expressions[con_expr.uid]
-
+        # Composing constraints
         for cons in task2._constraints:
 
             if (cons[0], cons[1].uid) not in self._constraints:
@@ -170,6 +207,10 @@ class AbstractTask:
     @property
     def variables(self):
         return self._variables
+        
+    @property
+    def expressions(self):
+        return self._expressions
 
     @property
     def constraints(self):
@@ -180,14 +221,14 @@ class AbstractTask:
         return self._constraint_expressions
 
 
-def compose(self, id, tc, *args):
+def compose(self, name, mid, *args):
 
     """ 
     Creates a new task by composing all the tasks that are passed as arguments to the function.
     and returns this new task.
     """
 
-    task = AbstractTask(tc, id)
+    task = Task(name, mid)
 
     for arg in args:
         task.compose_within(arg)

@@ -49,7 +49,8 @@ class ConstraintExpression:
         assert isinstance(expression, Expression) or isinstance(expression, Variable), "Unknown type passed as an Expression"
         assert constraint_hardness == 'hard' or constraint_hardness =='soft', "constraint_hardness must be either 'hard' or 'soft'"
 
-        self._expr = expression
+        self._expr = expression.uid
+        self._expression = expression
         con_dict = {}
         if 'reference' in kwargs:
             con_dict['equality'] = True
@@ -101,6 +102,10 @@ class ConstraintExpression:
     @property
     def uid(self):
         return self._uid
+
+    @property
+    def expr(self):
+        return self._expr
 
     @property
     def constraint_dict(self):
