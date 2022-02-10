@@ -24,16 +24,15 @@ if __name__ == "__main__":
     dyn_x_fun = lambda x, u : cs.vertcat(x[1], u)
     dyn_x = hello_task.create_expression("x_dot", "Hello_world", dyn_x_fun, x, u)
     dyn_x.evaluate_expression(hello_task)
-    x.set_der(dyn_x)
+    hello_task.set_der(x, dyn_x)
 
     # change the variable x and verify that the expressions dependant also change
-    # y = Variable("y", "Hello_task", "state", (2,1))
-    # y.set_der(dyn_x)
-    # hello_task.substitute_variable(x, y)
-    # assert hello_task.variables["Hello_world_x"] == y
-    # assert (dyn_x._x[0] == x._x[1]) == cs.MX(1)
-    # dyn_x.evaluate_expression(hello_task)
-    # assert (dyn_x._x[0] == y._x[1]) == cs.MX(1)
+    y = Variable("y", "Hello_task", "state", (2,1))
+    hello_task.substitute_variable(x, y)
+    assert hello_task.variables["Hello_world_x"] == y
+    assert (dyn_x._x[0] == x._x[1]) == cs.MX(1)
+    dyn_x.evaluate_expression(hello_task)
+    assert (dyn_x._x[0] == y._x[1]) == cs.MX(1)
     y = x
 
     x_con0 = hello_task.create_constraint_expression("x0_con", "vec-equality", y, 'hard', reference = [0, 0])

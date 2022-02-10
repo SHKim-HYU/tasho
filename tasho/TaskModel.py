@@ -43,7 +43,7 @@ class Task:
             self.graph.add_node(entity.uid)
             self.graph.add_edge(entity.expr, entity.uid)
 
-        elif isinstance(entity, (str, str)):
+        elif isinstance(entity[0], str) and isinstance(entity[1], str):
             self.graph.add_node(entity)
             self.graph.add_edge(entity[1], entity)
 
@@ -126,7 +126,7 @@ class Task:
         if expr.uid in self._expressions or expr.uid in self._variables: return
         
         if isinstance(expr, Expression): 
-            map(self.add_expr_recursively, expr._parents)
+            for p in expr._parents: self.add_expr_recursively(p)
             self.add_expression(expr)
         elif isinstance(expr, Variable): self.add_variable(expr)
         else: raise Exception("Must not reach here!")
@@ -188,6 +188,7 @@ class Task:
             
             if arg.expr not in self._expressions:
                 self.add_expr_recursively(arg._expression)
+            self.add_constraint_expression(arg)
             self._constraints[(x, arg.uid)] = (x, arg.uid)
             self._add_to_graph((x, arg.uid))
 
@@ -238,14 +239,14 @@ class Task:
         self._sub_tasks[task2.id]
 
         # Composing the variables.
-        map(self.add_variable, task2._variables.values())
+        list(map(self.add_variable, task2._variables.values()))
 
         # Composing the expressions
-        map(self.add_expression, task2._expressions.values())
+        list(map(self.add_expression, task2._expressions.values()))
         
         # Composing the constraint expressions
         #TODO: Make a smarter composition rather than a blind intersection of all different constraints.
-        map(self.add_constraint_expression, task2._constraint_expressions.values())
+        list(map(self.add_constraint_expression, task2._constraint_expressions.values()))
 
         # Composing constraints
         for cons in task2._constraints:

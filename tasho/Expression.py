@@ -30,18 +30,8 @@ class Expression(Variable):
 
         #TODO: shouldn't the reference to parents be in the task class instead?
         self._parents = parents
-        # self._x = self.evaluate_expression()
+        self._x = expr_fun(*[p.x for p in parents]) #placeholder MX expression
         self._parent_uid = [x.uid for x in parents]
-        
-        self._parent_variables = set()
-        for parent in parents:
-
-            if isinstance(parent, Expression):
-                self._parent_variables |= parent.parents_variables
-            elif isinstance(parent, Variable):
-                self._parent_variables |= set([parent.uid])
-            else:
-                raise Exception("Must not reach here")
 
     def evaluate_expression(self, task):
 

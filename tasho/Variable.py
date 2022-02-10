@@ -7,7 +7,7 @@ class Variable:
     A class for Variable data-type.
     """
 
-    def __init__(self, name, mid, type, shape):
+    def __init__(self, name, mid, type, shape, value = None):
         """
         Constructs the variable object.
 
@@ -22,7 +22,9 @@ class Variable:
 
         :param mid: Meta-id that specifies type of the variable.
         :type mid: String
-        
+
+        :param value: (optional) in case the type is a magic number, value is the matrix with the desired magic numbers.
+        :type value: Casadi DM or numpy matrix
         """
         
         assert isinstance(name, str), "Wrong type " + str(type(name)) + " passed as an argument for variable name." 
@@ -33,13 +35,14 @@ class Variable:
         self._parent_uid = []
 
         assert isinstance(type, str), "Must pass String. \n Instead you passed " + str(type(type))
-        assert type == 'state' or type == 'variable' or type == 'control' or type == 'parameter' or type == 'magic_number', "Unrecognized variable type requested."
+        assert type in ['state', 'variable', 'control', 'parameter', 'magic_number'], "Unrecognized variable type requested."
         self._type = type
         self._shape = shape
 
         #If the type is a magic number, store the value as a number
         if type == 'magic_number':
-            self._x = None
+            assert value is not None, "No value assigned to the magic number"
+            self._x = cs.DM(value)
         else:
             self._x = cs.MX.sym(self._uid, *shape)
     
