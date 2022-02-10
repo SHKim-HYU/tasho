@@ -21,6 +21,6 @@ def BoxConstraint(expression, lb, ub, name = None):
     """
 
     if name == None: name = expression.uid
-    con = ConstraintExpression(name, "box_constraint", expression, "hard", ub = ub, lb = lb)
+    con = ConstraintExpression(name, "limits", expression, "hard", ub = ub, lb = lb)
     return con
 

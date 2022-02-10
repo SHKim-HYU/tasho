@@ -8,7 +8,7 @@ from examples.templates.Regularization import Regularization
 def P2P(robot, link_name, goal_pose, current_location, rot_tol = 1e-3):
 
     """
-    Abstract task that returns a point-to-point motion task object.
+    Abstract task that returns a jointspace point-to-point motion task object.
 
     :param robot: the robot on which the P2P motion task must be executed.
     :type robot: Tasho robot object.
@@ -19,16 +19,16 @@ def P2P(robot, link_name, goal_pose, current_location, rot_tol = 1e-3):
     :param goal_pose: The desired pose of the specified link of the specified robot.
     :type goal_pose: SE(3) 4X4 matrix
 
-    :param current_location: Current pose of the robot arm.
+    :param current_location: Current jointspace pose of the robot arm.
     :type current_location: n-dimensional vector.
     """
 
     p2p = Task(robot.name, "P2P")
     
     # creating the state and control variables
-    q = p2p.create_variable(robot.name, "jointpos", "state", (robot.nq, 1))
-    qd = p2p.create_variable(robot.name, "jointvel", "state", (robot.nq, 1))
-    qdd = p2p.create_variable(robot.name, "jointacc", "control", (robot.nq, 1))
+    q = p2p.create_variable(robot.name, "q", "state", (robot.nq, 1))
+    qd = p2p.create_variable(robot.name, "qd", "state", (robot.nq, 1))
+    qdd = p2p.create_variable(robot.name, "qdd", "control", (robot.nq, 1))
 
     # setting the derivatives of the position and velocity terms
     p2p.set_der(q, qd)

@@ -5,6 +5,7 @@ from tasho.Expression import Expression
 import logging
 import casadi as cs
 import networkx as nx
+import pydot
 
 class Task:
     """
@@ -256,6 +257,48 @@ class Task:
                 self._add_to_graph(cons)
             else:
                 raise Exception("Not implemented.")
+
+    def write_task_graph(self, name):
+        """
+        Write the task graph in to an SVG file saved at the file location.
+
+        :param name: The argument should pass the SVG file name and the location in the following format "file_location/filename.svg" 
+        :type name: string
+        """
+        
+        graph = nx.drawing.nx_pydot.to_pydot(self.graph)
+
+        # set all the expression nodes to ellipses with green color
+        for expr in self._expressions:
+            node = graph.get_node(expr)[0]
+            node.set_shape('ellipse')
+            node.set_color('green')
+
+        # set all the variable nodes to circles and assign color based on the type
+        for var in self._variables.values():
+            node = graph.get_node(var.uid)[0]
+            node.set_shape("doubleoctagon")
+            type_to_color = {"state":"green", "control":"cyan", "parameter":"blue", "variable":"yellow", "magic_number":"red"}
+            node.set_color(type_to_color[var.type])
+
+        # set all the constraint expressions to hexagons
+        for var in self._constraint_expressions:
+            node = graph.get_node(var)[0]
+            node.set_shape("hexagon")
+            node.set_color("magenta")
+
+        # set all the constraints to boxes
+        for var in self._constraints:
+            node = graph.get_node(f'"(\'{var[0]}\', \'{var[1]}\')"')[0]
+            node.set_shape("box")
+            node.set_color("purple")
+
+        # TODO: add the derivative edges
+        for var in self._state_dynamics:
+            graph.add_edge(pydot.Edge(self._state_dynamics[var][1], var, edge_color = 'violet', style = 'dashed'))
+
+        assert name[-4:] == '.svg', "The file format should be .svg"
+        graph.write_svg(name)
         
     @property
     def id(self):
