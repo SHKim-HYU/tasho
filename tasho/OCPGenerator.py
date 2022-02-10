@@ -77,10 +77,10 @@ class OCPGenerator:
     def _evaluate_expressions(self, expr, task, exprs_evaluated):
 
         # verify that all parent expressions are evaluated
-        for parent in expr.parents:
-            if parent.uid not in exprs_evaluated:
+        for parent in expr._parent_uid:
+            if parent not in exprs_evaluated:
                 #if parent not evaluated, evaluate it
-                self._evaluate_expressions(parent, task, exprs_evaluated)
+                self._evaluate_expressions(task._expressions[parent], task, exprs_evaluated)
         
         expr.evaluate_expression(task)
         

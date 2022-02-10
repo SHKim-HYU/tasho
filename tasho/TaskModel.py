@@ -69,13 +69,40 @@ class Task:
             return
         self._logger.info("Not adding variable " + var.uid + " because a variable with identical uid already exists.")
         
-    def substitute_variable(self, old_var, new_var):
-        """ TODO: Recheck """
-        assert old_var.type == new_var.type, "Attempting to substitute variable with a variable of wrong type"
+    def substitute_expression(self, old_var, new_var):
+
+        """ 
+        Substitutes any expression/variable in the task with another expression/variable. 
+
+        :param old_var: The expression being replaced.
+        :type old_var: tasho.Expression or tasho.Variable
+
+        :param new_var: The replacing expression
+        :type new_var: tasho.Expression or tasho.Variable
+        """
+
         assert old_var.shape == new_var.shape, "Attempting to substitute variable with a variable of different shape"
-        self._variables[old_var.uid] = new_var
-        self._expressions[old_var.uid] = new_var
-        new_var._uid = old_var.uid
+
+        # remove the derivative of the old variable
+        if isinstance(old_var, Variable): self._state_dynamics.pop(old_var.uid)
+
+        # assign the new variable as the derivative of other expressions that had the old variable as the derivative
+        for x in self._state_dynamics.values():
+            if x[1] == old_var.uid: x[1] = new_var.uid
+
+        # Assign the new var to all the children of the old variable
+        for c in self.graph.successors(old_var.uid): 
+            i = self._expressions[c]._parent_uid.index(old_var.uid)
+            self._expressions[c]._parent_uid[i] = new_var.uid
+            self.graph.add_edge(new_var.uid, self._expressions[c].uid) # adding a new connection in the graph
+
+        self.add_expr_recursively(new_var) # adding all the ancestors of new_var recursively
+        
+        if isinstance(old_var, Variable): self._variables.pop(old_var.uid) #deleting the old variable
+        self._expressions.pop(old_var.uid)
+
+        #remove the old node from the graph
+        self.graph.remove_node(old_var.uid)
 
     def remove_variable(self):
 
@@ -293,7 +320,6 @@ class Task:
             node.set_shape("box")
             node.set_color("purple")
 
-        # TODO: add the derivative edges
         for var in self._state_dynamics:
             graph.add_edge(pydot.Edge(self._state_dynamics[var][1], var, edge_color = 'violet', style = 'dashed'))
 

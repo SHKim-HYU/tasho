@@ -25,17 +25,14 @@ if __name__ == "__main__":
     dyn_x = hello_task.create_expression("x_dot", "Hello_world", dyn_x_fun, x, u)
     dyn_x.evaluate_expression(hello_task)
     hello_task.set_der(x, dyn_x)
+    hello_task.write_task_graph("before_sub.svg")
 
     # change the variable x and verify that the expressions dependant also change
-    y = Variable("y", "Hello_task", "state", (2,1))
-    hello_task.substitute_variable(x, y)
-    assert hello_task.variables["Hello_world_x"] == y
-    assert (dyn_x._x[0] == x._x[1]) == cs.MX(1)
-    dyn_x.evaluate_expression(hello_task)
-    assert (dyn_x._x[0] == y._x[1]) == cs.MX(1)
-    y = x
+    y = Variable("y", "Hello_world", "state", (2,1))
+    hello_task.substitute_expression(x, y)
+    hello_task.set_der(y, dyn_x)
 
-    x_con0 = hello_task.create_constraint_expression("x0_con", "vec-equality", y, 'hard', reference = [0, 0])
+    x_con0 = hello_task.create_constraint_expression("x0_con", "vec_equality", y, 'hard', reference = [0, 0])
     hello_task.add_initial_constraints(x_con0)
 
     x0_expr = hello_task.create_expression("x_pos", "Hello_world", lambda y: y[0], y)
@@ -45,11 +42,7 @@ if __name__ == "__main__":
     con_reg = hello_task.create_constraint_expression("con_reg", "equality", u, 'soft', reference = 0,  weight = 1e-3)
     hello_task.add_path_constraints(con_reg)
 
-    import matplotlib.pyplot as plt
-    plt.plot()
-    nx.draw(hello_task.graph, with_labels = True, font_weight = 'bold', node_size = 1000)
-    plt.show(block = True)
-    #creating an OCP object
+    hello_task.write_task_graph("after_sub.svg")
 
     OCP_gen = OCPGenerator(hello_task, False, {"time_period": 1, "horizon_steps":10})
     OCP_gen.tc.solve_ocp()
