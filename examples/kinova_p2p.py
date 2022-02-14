@@ -3,7 +3,8 @@
 import sys
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution
-from tasho import robot as rob
+# from tasho import robot as rob
+from robotsMECO import Robot as rob
 import casadi as cs
 from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
