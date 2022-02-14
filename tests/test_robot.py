@@ -1,5 +1,6 @@
 import unittest
-from tasho import robot as rb
+# from tasho import robot as rb
+from robotsMECO import Robot as rb
 from tasho import task_prototype_rockit as tp
 from tasho import problem_template as pt
 import numpy as np
