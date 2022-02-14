@@ -11,7 +11,7 @@ stages:
     - yum install -y git
     - rm -rf .pip
     - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose networkx pybullet==2.7.2
-    - pip install git+https://gitlab.kuleuven.be/meco-software/robot-models-meco@main
+    - pip install git+https://gitlab.kuleuven.be/meco-software/robot-models-meco.git@main
     - python setup.py install
     - rm -rfv /tmp/*
   cache:
