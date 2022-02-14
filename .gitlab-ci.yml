@@ -9,7 +9,8 @@ stages:
   before_script:
     - source activate tasho-base
     - rm -rf .pip
-    - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet==2.7.2
+    - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose networkx pybullet==2.7.2
+    - pip install git+https://gitlab.kuleuven.be/meco-software/robot-models-meco@main
     - python setup.py install
     - rm -rfv /tmp/*
   cache:
