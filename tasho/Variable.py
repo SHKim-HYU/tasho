@@ -72,6 +72,10 @@ class Variable:
     def type(self):
         return self._type
 
+    @type.setter
+    def type(self, a):
+        self._type = a
+
     @property
     def parents(self):
         return self._parents
@@ -80,8 +84,5 @@ class Variable:
     def parent_uid(self):
         return self._parent_uid
 
-    @property
-    def der(self):
-        return self._der
 
     

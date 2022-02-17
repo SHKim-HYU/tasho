@@ -7,6 +7,7 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 import time
+import robotsmeco
 
 class world_simulator:
     def __init__(self, plane_spawn=True, bullet_gui=True, physics_ts=1.0 / 240):
@@ -86,7 +87,7 @@ class world_simulator:
     def add_robot(
         self, position, orientation, robot_name=None, robot_urdf=None, fixedBase=True
     ):
-
+        package_path = robotsmeco.__path__[0]
         if robot_name != None:
             if robot_name == "yumi":
                 robotID = p.loadURDF(
@@ -121,6 +122,13 @@ class world_simulator:
             elif robot_name == "atlas":
                 robotID = p.loadURDF(
                     "/models/robots/Atlas/Atlas_description/urdf/atlas.urdf",
+                    position,
+                    orientation,
+                    useFixedBase=fixedBase,
+                )
+            elif robot_name == "franka_panda":
+                robotID = p.loadURDF(package_path + 
+                    "/robots/Franka/Panda/franka_description/franka.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
@@ -312,7 +320,6 @@ class world_simulator:
 
 if __name__ == "__main__":
     obj = world_simulator()
-
     position = [0.5, 0.0, 0.25]
     orientation = [0.0, 0.0, 0.0, 1.0]
     pose = {"position": position, "orientation": orientation}
@@ -321,11 +328,11 @@ if __name__ == "__main__":
     radius = 0.2
     weight = 100
 
-    obj.add_cylinder(radius, height, weight, pose)
+    # obj.add_cylinder(radius, height, weight, pose)
 
     # adding yumi robot to the bullet environment
     position = [-0.5, 0.0, 0.25]
-    yumiID = obj.add_robot(position, orientation, "yumi")
+    yumiID = obj.add_robot(position, orientation, "franka_panda")
 
     jointInfo = obj.getJointInfoArray(yumiID)
     print(jointInfo)

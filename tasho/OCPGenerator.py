@@ -57,6 +57,9 @@ class OCPGenerator:
             elif con.expr in task.variables:
                 con.constraint_dict['expression'] = task.variables[con.expr].x
 
+            # dict_vals = ['upper_limits', 'lower_limits', ['reference']]
+            # if 'lb' in con:
+
             
             if x == "initial":
                 self.tc.add_task_constraint({"initial_constraints":[con.constraint_dict]}, stage = stage_number)

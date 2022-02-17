@@ -9,6 +9,8 @@ from rockit import (
     FreeTime,
     SingleShooting,
     DirectCollocation,
+    UniformGrid,
+    
 )
 import numpy as np
 import casadi as cs

@@ -48,6 +48,16 @@ class Task:
             self.graph.add_node(entity)
             self.graph.add_edge(entity[1], entity)
 
+    def _remove_from_graph(self, entity):
+        """
+        Recursively removes the expression and all its descendents from the graph
+        """
+        children =  list(self.graph.successors(entity))
+        for child in children:
+            if self.graph.has_node(child): self._remove_from_graph(child)
+
+        self.graph.remove_node(entity)
+
     def create_variable(self, name, mid, type, shape):
 
         var = Variable(name, mid, type, shape)
@@ -178,6 +188,19 @@ class Task:
             self._add_to_graph(expr)
         else:
             self._logger.info("Not adding constraint expression " + expr.uid + " because a constraint expression with an identical uid exists.")
+
+    def remove_constraint_expression(self, expr):
+
+        assert expr.uid in self.constraint_expressions
+
+        con_types = ["initial", "path", "terminal"]
+        for con in con_types:
+            if (con, expr.uid) in self._constraints:
+                self._remove_x_constraint(con, expr)
+
+        self._constraint_expressions.pop(expr.uid)
+        
+        self._remove_from_graph(expr.uid)
 
     def add_path_constraints(self, *args):
 
