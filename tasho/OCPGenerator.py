@@ -1,5 +1,9 @@
+from ast import Expr
 from tasho import task_prototype_rockit as tp
 import copy
+
+from tasho.Expression import Expression
+from tasho.Variable import Variable
 
 class OCPGenerator:
 
@@ -57,8 +61,14 @@ class OCPGenerator:
             elif con.expr in task.variables:
                 con.constraint_dict['expression'] = task.variables[con.expr].x
 
-            # dict_vals = ['upper_limits', 'lower_limits', ['reference']]
-            # if 'lb' in con:
+            # Converting other parameters of task constraints to their MX expressions
+            dict_vals = ['upper_limits', 'lower_limits', 'reference', 'gain']
+            for  d in dict_vals:
+                if d in con.constraint_dict:
+                    if isinstance(con.constraint_dict[d], Expression):
+                        con.constraint_dict[d] = task.expresssions[con.constraint_dict[d].uid].x
+                    elif isinstance(con.constraint_dict[d], Variable):
+                        con.constraint_dict[d] = task.variables[con.constraint_dict[d].uid].x
 
             
             if x == "initial":
@@ -73,8 +83,12 @@ class OCPGenerator:
             if var.type == 'state':
                 assert task._state_dynamics[var.uid][0] == 'der'
                 var_der_uid = task._state_dynamics[var.uid][1]
-                self.tc.set_dynamics(var.x, task.expressions[var_der_uid].x, stage_number)
-
+                if var_der_uid in task.expressions:
+                    self.tc.set_dynamics(var.x, task.expressions[var_der_uid].x, stage_number)
+                elif var_der_uid in task.variables:
+                    self.tc.set_dynamics(var.x, task.variables[var_der_uid].x, stage_number)
+                else:
+                    raise Exception("Should not reach here")
 
 
     def _evaluate_expressions(self, expr, task, exprs_evaluated):

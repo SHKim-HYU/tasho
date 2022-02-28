@@ -58,14 +58,14 @@ class Task:
 
         self.graph.remove_node(entity)
 
-    def create_variable(self, name, mid, type, shape):
+    def create_variable(self, name, mid, type, shape, value = None):
 
-        var = Variable(name, mid, type, shape)
+        var = Variable(name, mid, type, shape, value)
         assert var.uid not in self._variables, name + " already used for a variable with the same meta-id."
         self._variables[var.uid] = var
 
         assert var.uid not in self._expressions, name + " already used for an expression"
-        self._expressions[var.uid] = var
+        # self._expressions[var.uid] = var
 
         self._add_to_graph(var)
 
@@ -94,7 +94,7 @@ class Task:
         assert old_var.shape == new_var.shape, "Attempting to substitute variable with a variable of different shape"
 
         # remove the derivative of the old variable
-        if isinstance(old_var, Variable): self._state_dynamics.pop(old_var.uid)
+        if isinstance(old_var, Variable) and old_var.type == 'state': self._state_dynamics.pop(old_var.uid)
 
         # assign the new variable as the derivative of other expressions that had the old variable as the derivative
         for x in self._state_dynamics.values():
@@ -109,14 +109,40 @@ class Task:
         self.add_expr_recursively(new_var) # adding all the ancestors of new_var recursively
         
         if isinstance(old_var, Variable): self._variables.pop(old_var.uid) #deleting the old variable
-        self._expressions.pop(old_var.uid)
+        else:   self._expressions.pop(old_var.uid)
 
         #remove the old node from the graph
         self.graph.remove_node(old_var.uid)
 
-    def remove_variable(self):
 
-        raise Exception("Not implemented")
+    def remove_expression(self, expr):
+
+        """ 
+        Deletes a variable or expression from the task. All the successor nodes of the expression are also deleted.
+        Also delete the entries where this variable/expression is a derivative of some other state variable.
+        """
+
+        # TODO: remove derivative entries
+        if isinstance(expr, Variable) and not isinstance(expr, Expression) and expr.type == 'state': self._state_dynamics.pop(expr.uid)
+
+        children = list(self.graph.successors(expr.uid))
+        for c in children:
+            if c in self.expressions:
+                self.remove_expression(self.expressions[c])
+            elif c in self.variables:
+                self.remove_expression(self.variables[c])
+            elif c in self.constraint_expressions:
+                self.remove_constraint_expression(self.constraint_expressions[c])
+
+        if isinstance(expr, Expression):
+            self.expressions.pop(expr.uid)
+        elif isinstance(expr, Variable):
+            self.variables.pop(expr.uid)
+        else:
+            raise Exception("Should not reach here")
+        self.graph.remove_node(expr.uid)
+        
+        # raise Exception("Not implemented")
 
     def set_der(self, var, dyn):
 
@@ -168,10 +194,6 @@ class Task:
             self.add_expression(expr)
         elif isinstance(expr, Variable): self.add_variable(expr)
         else: raise Exception("Must not reach here!")
-
-    def remove_expression(self):
-
-        raise Exception("Not implemented")
 
     def create_constraint_expression(self, name, mid, expression, constraint_hardness, **kwargs):
 
@@ -286,8 +308,8 @@ class Task:
         of each task should be unique.
         """
         
-        assert task2.id not in self._sub_tasks, task2.id + " already one of the sub tasks."
-        self._sub_tasks[task2.id]
+        assert task2.uid not in self._sub_tasks, task2.uid + " already one of the sub tasks."
+        self._sub_tasks[task2.uid] = task2
 
         # Composing the variables.
         list(map(self.add_variable, task2._variables.values()))
@@ -307,6 +329,14 @@ class Task:
                 self._add_to_graph(cons)
             else:
                 raise Exception("Not implemented.")
+
+        # include the derivative information in the subtask
+        for d in task2._state_dynamics:
+            if d not in self._state_dynamics:
+                self._state_dynamics[d] = task2._state_dynamics[d]
+                
+            else:
+                self._logger.info(f"Derivative for {d} already exists in original task. Ignoring the derivative in task2" )
 
     def write_task_graph(self, name):
         """
@@ -350,8 +380,8 @@ class Task:
         graph.write_svg(name)
         
     @property
-    def id(self):
-        return self._id
+    def uid(self):
+        return self._uid
 
     @property
     def variables(self):
