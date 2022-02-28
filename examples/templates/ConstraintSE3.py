@@ -3,7 +3,7 @@ from tasho.Expression import Expression
 from tasho.Variable import Variable
 from tasho.utils.geometry import rotmat_to_axisangle2
 
-def ConstraintSE3(expression, reference, rot_tol = 1e-2):
+def ConstraintSE3(expression, reference, rot_tol = 1e-4):
 
     assert expression.shape == (4,4), "The SE3 expression does not have the 4X4 shape"
     assert reference.shape == (4,4), "The SE3 reference does not have the 4X4 shape"

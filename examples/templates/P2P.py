@@ -37,17 +37,17 @@ def P2P(robot, link_name, goal_pose, current_location, rot_tol = 1e-3):
     # Current pose of the specified link
     fk_pose = Expression(robot.name, "pose_"+str(link_name), lambda q : robot.fk(q)[link_name], q)
 
-    # Adding the joint position, velocity and acceleration limits
-    p2p.add_path_constraints(BoxConstraint(q, robot.joint_lb, robot.joint_ub),
-                            BoxConstraint(qd, robot.joint_vel_lb, robot.joint_vel_ub),
-                            BoxConstraint(qdd, robot.joint_acc_lb, robot.joint_acc_ub),
-                            Regularization(qdd, 1e-3))
-
     joint_pos_residual = Expression(q.uid +"_"+ current_location.uid, "error", lambda q, c : q - c, q, current_location)
 
     # Add the initial joint position constraint
     p2p.add_initial_constraints(ConstraintExpression(q.uid, "equality", joint_pos_residual, "hard", reference = 0),
                                 ConstraintExpression(qd.uid, "stationary", qd, "hard", reference = 0))
+
+    # Adding the joint position, velocity and acceleration limits
+    p2p.add_path_constraints(BoxConstraint(q, robot.joint_lb, robot.joint_ub),
+                            BoxConstraint(qd, robot.joint_vel_lb, robot.joint_vel_ub),
+                            BoxConstraint(qdd, robot.joint_acc_lb, robot.joint_acc_ub),
+                            Regularization(qdd, 1e-3))
 
     # Pose error between the specified link and the desired link
     p2p.add_terminal_constraints(*ConstraintSE3(fk_pose, goal_pose, rot_tol),

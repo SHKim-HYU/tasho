@@ -24,11 +24,11 @@ def BoxConstraint(expression, lb, ub, name = None):
     """
 
     if name == None: name = expression.uid
-    if isinstance(ub, Variable) or isinstance(lb, Variable):
-        box_expr = Expression(name, "limits_expr", lambda x, u, l : cs.vertcat(x- u, l - x), expression, ub, lb)
-        con = ConstraintExpression(name, "limits", box_expr, "hard", ub = 0)
-    else:
-        con = ConstraintExpression(name, "limits", expression, "hard", ub = ub, lb = lb)
+    # if isinstance(ub, Variable) or isinstance(lb, Variable):
+    #     box_expr = Expression(name, "limits_expr", lambda x, u, l : cs.vertcat(x- u, l - x), expression, ub, lb)
+    #     con = ConstraintExpression(name, "limits", box_expr, "hard", ub = 0)
+    # else:
+    con = ConstraintExpression(name, "limits", expression, "hard", ub = ub, lb = lb)
 
     
     return con
