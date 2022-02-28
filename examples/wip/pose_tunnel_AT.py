@@ -1,5 +1,7 @@
+import casadi as cs
 from time import sleep
 from examples.templates.P2P import P2P
+from examples.templates.SE3_tunnel import SE3Tunnel
 from examples.templates.Regularization import Regularization
 from tasho.Variable import Variable
 from robotsmeco import Robot as rob
@@ -7,55 +9,62 @@ from tasho.OCPGenerator import OCPGenerator
 import numpy as np
 
 
+vel_limit = 0.5 #m/s
+acc_limit = 2.0 #m/s^2
+
+trans_tunnel_size = 0.02
+rot_tunnel_size = 5/3.14159/180
+
 case = 1
 
 if case == 1:
     robot = rob.Robot("kinova")
     link_name = 7
-    goal_pose = Variable(robot.name, "goal_pose", "magic_number", (4,4), np.array(
-            [[0, 1, 0, 0.6], [1, 0, 0, 0.0], [0, 0, -1, 0.25], [0, 0, 0, 1]]
-        ))
-    q0 = [1.0193752249977548, -0.05311582280659044, -2.815452580946695,
-        1.3191046402052224, 2.8582660722530533, 1.3988994390898029,1.8226311094569714,
-    ]
-elif case == 2:
-    robot = rob.Robot("franka_panda")
-    link_name = 7
+    a_p = 0.2
+    z_p = 0.1
+    SE3_path_fun = lambda s : cs.vertcat(
+                        cs.horzcat(cs.DM([[0, 1, 0], [1, 0, 0], [0, 0, -1]]), 
+                            cs.vertcat(0.6+z_p*cs.sin(s*(4*np.pi)), 0.0+a_p*cs.sin(s*(2*np.pi)), 0.25+a_p*cs.sin(s*(2*np.pi))*cs.cos(s*(2*np.pi)))), 
+                        cs.DM([0, 0, 0, 1]).T)
     goal_pose = Variable(robot.name, "goal_pose", "magic_number", (4,4), np.array(
             [[-1, 0, 0, 0.6], [0, 1, 0, 0.35], [0, 0, -1, 0.25], [0, 0, 0, 1]]
         ))
+    q0 = [ 0.42280387,  1.56128753, -2.07387664,  1.1543891,   1.7809308,   2.03112421,
+   4.02677039]
 
-    q0 = [-2.41764669e-01,  2.46839298e-01,  2.56913581e-01, -1.96144913e+00,
-  -8.14570796e-02,  2.19022196e+00, -2.29644958e+00]
-    q0 = [0]*7
+
+tunnel_task = SE3Tunnel("contouring", SE3_path_fun, vel_limit, acc_limit, trans_tunnel_size, rot_tunnel_size)
     
-# robot.name = ""
 robot.set_joint_acceleration_limits(lb=-360*3.14159/180, ub=360*3.14159/180)
 ndof = robot.nq
 q_current = Variable(robot.name, "jointpos_init", 'magic_number', (ndof, 1), q0)
-# q_current = [0]*7
 
-
-# Using the template to create the P2P task
+# # Using the template to create the P2P task
 task_P2P = P2P(robot, link_name, goal_pose, q_current, 0.001)
+# Removing the goal pose of P2P because not relevant for tunnel-following
+task_P2P.remove_expression(goal_pose)
 
-task_P2P.write_task_graph("after_sub.svg")
-#Adjusting the regularization for better convergence
-reg_jacc = task_P2P.constraint_expressions['reg_qdd_'+robot.name].change_weight(0.1)
-task_P2P.add_path_constraints(Regularization(task_P2P.variables['qd_'+robot.name], 1))
+# Substituting the SE3_traj in tunnel-following with the fk_pose of the robot
+tunnel_task.substitute_expression(tunnel_task.variables['SE3_traj_contouring'], task_P2P.expressions["pose_7_kinova"])
+
+# Including task_P2P within to create the tunnel-following task
+tunnel_task.include_subtask(task_P2P)
+# tunnel_task.write_task_graph("tunnel_following.svg")
+# task_P2P.write_task_graph("task_tunnel_p2p.svg")
 
 # Substituting a variable
-
-horizon_steps = 10
-horizon_period = 3.0
-OCP_gen = OCPGenerator(task_P2P, False, {"time_period": horizon_period, "horizon_steps":horizon_steps})
+horizon_steps = 30
+horizon_period = 3
+OCP_gen = OCPGenerator(tunnel_task, False, {"time_period": horizon_period, "horizon_steps":horizon_steps})
 q_ocp = OCP_gen.stage_tasks[0].variables['q_'+robot.name].x
 OCP_gen.tc.set_initial(q_ocp, q0)
 OCP_gen.tc.set_ocp_solver("ipopt", {"ipopt":{"linear_solver":"ma27"}})
 OCP_gen.tc.solve_ocp()
 
+st = OCP_gen.stage_tasks[0]
+print(OCP_gen.tc.sol_sample(st.expressions['SE3_path_contouring'].x))
 t_grid, qsol = OCP_gen.tc.sol_sample(q_ocp)
-print(qsol)
+# print(qsol)
 t_grid, q_dot_sol = OCP_gen.tc.sol_sample(OCP_gen.stage_tasks[0].variables['qd_'+robot.name].x)
 
 # Visualization
