@@ -56,7 +56,12 @@ horizon_period = 3.0
 OCP_gen = OCPGenerator(task_P2P, False, {"time_period": horizon_period, "horizon_steps":horizon_steps})
 q_ocp = OCP_gen.stage_tasks[0].variables['q_'+robot.name].x
 OCP_gen.tc.set_initial(q_ocp, q0)
-OCP_gen.tc.set_ocp_solver("ipopt", {"ipopt":{"linear_solver":"ma27"}})
+
+OCP_gen.tc.set_ocp_solver(
+    "ipopt", 
+    # {"ipopt":{"linear_solver":"ma27"}}
+)
+
 OCP_gen.tc.solve_ocp()
 
 t_grid, qsol = OCP_gen.tc.sol_sample(q_ocp)
@@ -75,7 +80,7 @@ if SIMULATE:
     orientation = [0.0, 0.0, 0.0, 1.0]
     robotID = obj.add_robot(position, orientation, robot.name)
     joint_indices = [0, 1, 2, 3, 4, 5, 6]
-    
+
     obj.resetJointState(robotID, joint_indices, q0)
 
     for i in range(horizon_steps + 1):

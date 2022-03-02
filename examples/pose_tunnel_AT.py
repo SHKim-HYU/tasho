@@ -64,7 +64,12 @@ horizon_period = 3
 OCP_gen = OCPGenerator(tunnel_task, False, {"time_period": horizon_period, "horizon_steps":horizon_steps})
 q_ocp = OCP_gen.stage_tasks[0].variables['q_'+robot.name].x
 OCP_gen.tc.set_initial(q_ocp, q0)
-OCP_gen.tc.set_ocp_solver("ipopt", {"ipopt":{"linear_solver":"ma27"}})
+
+OCP_gen.tc.set_ocp_solver(
+    "ipopt", 
+    # {"ipopt":{"linear_solver":"ma27"}} 
+)
+
 OCP_gen.tc.solve_ocp()
 
 st = OCP_gen.stage_tasks[0]
@@ -87,7 +92,7 @@ if SIMULATE:
     joint_indices = [0, 1, 2, 3, 4, 5, 6]
 
     obj.resetJointState(robotID, joint_indices, q0)
-    
+
     for i in range(horizon_steps + 1):
         sleep(horizon_period*0.5/horizon_steps)
         obj.resetJointState(
