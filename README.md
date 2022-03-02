@@ -21,6 +21,11 @@ To install the toolbox (ideally into a virtual environment) just run the setup.p
 python setup.py install
 ```
 
+Alternatively, you can install Tasho via pip using the following command:
+```
+pip install git+https://gitlab.kuleuven.be/meco-software/tasho.git@main
+```
+
 ### Submitting an issue
 
 Please submit an issue if you want to report a bug or propose new features.

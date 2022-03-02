@@ -1,0 +1,68 @@
+{
+    "name": "panda",
+    "n_dof": "7",
+    "n_joints": "8",
+    "n_q": "7",
+    "n_frames": "21",
+    "gravity": {
+        "x": "0",
+        "y": "0",
+        "z": "-9.8100000000000005"
+    },
+    "forward_kinematics_path": "panda_fk.casadi",
+    "forward_dynamics_path": "panda_fd.casadi",
+    "inverse_dynamics_path": "panda_id.casadi",
+    "Jacobian_forward_dynamics_path": "panda_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "panda_J_id.casadi",
+    "joints": {
+        "panda_joint1": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "2.8973",
+            "joint_pos_lb": "-2.8973",
+            "joint_torque_limit": "87",
+            "joint_vel_limit": "2.1749999999999998"
+        },
+        "panda_joint2": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "1.7627999999999999",
+            "joint_pos_lb": "-1.7627999999999999",
+            "joint_torque_limit": "87",
+            "joint_vel_limit": "2.1749999999999998"
+        },
+        "panda_joint3": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "2.8973",
+            "joint_pos_lb": "-2.8973",
+            "joint_torque_limit": "87",
+            "joint_vel_limit": "2.1749999999999998"
+        },
+        "panda_joint4": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "-0.069800000000000001",
+            "joint_pos_lb": "-3.0718000000000001",
+            "joint_torque_limit": "87",
+            "joint_vel_limit": "2.1749999999999998"
+        },
+        "panda_joint5": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "2.8973",
+            "joint_pos_lb": "-2.8973",
+            "joint_torque_limit": "12",
+            "joint_vel_limit": "2.6099999999999999"
+        },
+        "panda_joint6": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "3.7524999999999999",
+            "joint_pos_lb": "-0.017500000000000002",
+            "joint_torque_limit": "12",
+            "joint_vel_limit": "2.6099999999999999"
+        },
+        "panda_joint7": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "2.8973",
+            "joint_pos_lb": "-2.8973",
+            "joint_torque_limit": "12",
+            "joint_vel_limit": "2.6099999999999999"
+        }
+    }
+}
