@@ -97,8 +97,8 @@ class world_simulator:
                     useFixedBase=fixedBase,
                 )
             elif robot_name == "kinova":
-                robotID = p.loadURDF(
-                    "/models/robots/Kinova/Gen3/kortex_description/urdf/JACO3_URDF_V11.urdf",
+                robotID = p.loadURDF(package_path + 
+                    "/robots/Kinova/Gen3/kortex_description/urdf/JACO3_URDF_V11.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
