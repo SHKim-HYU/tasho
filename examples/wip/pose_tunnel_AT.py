@@ -1,8 +1,8 @@
 import casadi as cs
 from time import sleep
-from examples.templates.P2P import P2P
-from examples.templates.SE3_tunnel import SE3Tunnel
-from examples.templates.Regularization import Regularization
+from tasho.templates.P2P import P2P
+from tasho.templates.SE3_tunnel import SE3Tunnel
+from tasho.templates.Regularization import Regularization
 from tasho.Variable import Variable
 from robotsmeco import Robot as rob
 from tasho.OCPGenerator import OCPGenerator
