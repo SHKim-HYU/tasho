@@ -1,9 +1,9 @@
 from tasho.ConstraintExpression import ConstraintExpression
 from tasho.TaskModel import Task
 from tasho.Expression import Expression
-from examples.templates.BoxConstraint import BoxConstraint
-from examples.templates.ConstraintSE3 import ConstraintSE3
-from examples.templates.Regularization import Regularization
+from tasho.templates.BoxConstraint import BoxConstraint
+from tasho.templates.ConstraintSE3 import ConstraintSE3
+from tasho.templates.Regularization import Regularization
 
 def P2P(robot, link_name, goal_pose, current_location, rot_tol = 1e-3):
 

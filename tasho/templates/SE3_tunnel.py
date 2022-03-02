@@ -2,11 +2,11 @@
 Implements a tunnel-following task in SE(3). 
 
 """
-from examples.templates.BoxConstraint import BoxConstraint
-from examples.templates.ConstraintSE3 import ConstraintSE3
+from tasho.templates.BoxConstraint import BoxConstraint
+from tasho.templates.ConstraintSE3 import ConstraintSE3
 from tasho.ConstraintExpression import ConstraintExpression
 import casadi as cs
-from examples.templates.Regularization import Regularization
+from tasho.templates.Regularization import Regularization
 from tasho.TaskModel import Task
 from tasho.Expression import Expression
 
