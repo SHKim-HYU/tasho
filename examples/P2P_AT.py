@@ -6,6 +6,8 @@ from robotsmeco import Robot as rob
 from tasho.OCPGenerator import OCPGenerator
 import numpy as np
 
+# Use the SIMULATE variable to enable simulation on PyBullet
+SIMULATE = False
 
 case = 1
 
@@ -39,8 +41,11 @@ q_current = Variable(robot.name, "jointpos_init", 'magic_number', (ndof, 1), q0)
 # Using the template to create the P2P task
 task_P2P = P2P(robot, link_name, goal_pose, q_current, 0.001)
 
-task_P2P.write_task_graph("after_sub.svg")
-#Adjusting the regularization for better convergence
+# Uncomment the following line to generate the task graph
+# task_P2P.write_task_graph("after_sub.svg")
+
+
+# Adjusting the regularization for better convergence
 reg_jacc = task_P2P.constraint_expressions['reg_qdd_'+robot.name].change_weight(0.1)
 task_P2P.add_path_constraints(Regularization(task_P2P.variables['qd_'+robot.name], 1))
 
@@ -58,22 +63,26 @@ t_grid, qsol = OCP_gen.tc.sol_sample(q_ocp)
 print(qsol)
 t_grid, q_dot_sol = OCP_gen.tc.sol_sample(OCP_gen.stage_tasks[0].variables['qd_'+robot.name].x)
 
-# Visualization
-from tasho import world_simulator
-import pybullet as p
-obj = world_simulator.world_simulator()
-# Add robot to the world environment
-position = [0.0, 0.0, 0.0]
-orientation = [0.0, 0.0, 0.0, 1.0]
-robotID = obj.add_robot(position, orientation, robot.name)
-joint_indices = [0, 1, 2, 3, 4, 5, 6]
-obj.resetJointState(robotID, joint_indices, q0)
-for i in range(horizon_steps + 1):
-    sleep(horizon_period*0.5/horizon_steps)
-    obj.resetJointState(
-        robotID, joint_indices, qsol[i]
+if SIMULATE:
+    # Visualization
+    from tasho import world_simulator
+    import pybullet as p
+
+    obj = world_simulator.world_simulator()
+
+    # Add robot to the world environment
+    position = [0.0, 0.0, 0.0]
+    orientation = [0.0, 0.0, 0.0, 1.0]
+    robotID = obj.add_robot(position, orientation, robot.name)
+    joint_indices = [0, 1, 2, 3, 4, 5, 6]
+    
+    obj.resetJointState(robotID, joint_indices, q0)
+
+    for i in range(horizon_steps + 1):
+        sleep(horizon_period*0.5/horizon_steps)
+        obj.resetJointState(
+            robotID, joint_indices, qsol[i]
     )
 
-
-sleep(0.5)
-obj.end_simulation()
+    sleep(0.5)
+    obj.end_simulation()

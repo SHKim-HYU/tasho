@@ -20,7 +20,9 @@ dyn_x_fun = lambda x, u : cs.vertcat(x[1], u)
 dyn_x = hello_task.create_expression("x_dot", "Hello_world", dyn_x_fun, x, u)
 dyn_x.evaluate_expression(hello_task)
 hello_task.set_der(x, dyn_x)
-hello_task.write_task_graph("before_sub.svg")
+
+# Uncomment the following line to generate the task graph - before the substitution
+# hello_task.write_task_graph("before_sub.svg")
 
 # change the variable x and verify that the expressions dependant also change
 y = Variable("y", "Hello_world", "state", (2,1))
@@ -37,7 +39,8 @@ hello_task.add_terminal_constraints(x_conT)
 con_reg = hello_task.create_constraint_expression("con_reg", "equality", u, 'soft', reference = 0,  weight = 1e-3)
 hello_task.add_path_constraints(con_reg)
 
-hello_task.write_task_graph("after_sub.svg")
+# Uncomment the following line to generate the task graph - after the substitution
+# hello_task.write_task_graph("after_sub.svg")
 
 OCP_gen = OCPGenerator(hello_task, False, {"time_period": 1, "horizon_steps":10})
 OCP_gen.tc.solve_ocp()
