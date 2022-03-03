@@ -15,16 +15,21 @@
 
 ### Installing
 
-To install the toolbox (ideally into a virtual environment) just run the setup.py script with the install parameter. It will install your application into the virtualenv site-packages folder and also download and install all dependencies:
+**Option 1**: You can install Tasho (ideally into a virtual environment) via pip using the following command:
 
-```
-python setup.py install
-```
-
-Alternatively, you can install Tasho via pip using the following command:
 ```
 pip install git+https://gitlab.kuleuven.be/meco-software/tasho.git@main
 ```
+
+**Option 2**: Alternatively, you can clone this repository and install Tasho from source. You just need to (i) clone the repository, (ii) move into Tasho's root directory, and (iii) run the `setup.py` script with the `install` option. It will install your application into the virtualenv site-packages folder and also download and install all dependencies:
+
+```
+git clone https://gitlab.kuleuven.be/meco-software/tasho.git
+cd tasho
+python setup.py install
+```
+You could also use the `develop` option, instead of `install`, during the execution of `setup.py` as `python setup.py develop`. 
+This has the advantage of just installing a link to the site-packages folder instead of copying the data over. You can then modify/update the source code without having to run `python setup.py install` again after every change.
 
 ### Submitting an issue
 
