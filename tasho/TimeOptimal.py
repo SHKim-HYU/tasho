@@ -5,9 +5,9 @@
 import casadi as cs
 import numpy as np
 from tasho import task_prototype_rockit as tp
-from rockit import MultipleShooting, FreeGrid, DirectCollocation, SingleShooting
+from rockit import MultipleShooting, FreeGrid
 
-class Time_optimal:
+class TimeOptimal:
 
     """
     Class for creating an object that computes time-optimal trajectories for

@@ -1,5 +1,5 @@
 import unittest
-from tasho.time_optimal import Time_optimal
+from tasho.TimeOptimal import TimeOptimal
 import casadi as cs
 
 
@@ -24,7 +24,7 @@ class TestTopt(unittest.TestCase):
 
     def test_acc_bounded(self):
 
-        topt = Time_optimal(self.robot, 19, 'acceleration', control_rate_con = None)
+        topt = TimeOptimal(self.robot, 19, 'acceleration', control_rate_con = None)
         tsol, qdotsol, asol = topt.compute_time_opt_traj(self.q_val)
 
         q_verify = [0]
@@ -50,7 +50,7 @@ class TestTopt(unittest.TestCase):
 
     def test_jerk_bounded(self):
 
-        topt = Time_optimal(self.robot, 19, 'acceleration', control_rate_con = 10)
+        topt = TimeOptimal(self.robot, 19, 'acceleration', control_rate_con = 10)
         tsol, qdotsol, asol = topt.compute_time_opt_traj(self.q_val)
 
         q_verify = [0]
@@ -65,7 +65,7 @@ class TestTopt(unittest.TestCase):
 
     def test_torque_bounded(self):
 
-        topt = Time_optimal(self.robot, 19, 'torque')
+        topt = TimeOptimal(self.robot, 19, 'torque')
         tsol, qdotsol, asol = topt.compute_time_opt_traj(self.q_val)
 
         q_verify = [0]
@@ -80,7 +80,7 @@ class TestTopt(unittest.TestCase):
 
     def test_torque_rate_bounded(self):
 
-        topt = Time_optimal(self.robot, 19, 'torque', control_rate_con = 200)
+        topt = TimeOptimal(self.robot, 19, 'torque', control_rate_con = 200)
         tsol, qdotsol, asol = topt.compute_time_opt_traj(self.q_val)
 
         q_verify = [0]
