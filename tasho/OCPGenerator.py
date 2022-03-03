@@ -26,7 +26,7 @@ class OCPGenerator:
 
 
 
-    def append_task(self, task : TaskModel.Task, FreeTime, discretization_settings, exclude_continuity = None, include_continuity = None, generic_inter_stage_constraints = None):
+    def append_task(self, task : TaskModel.Task, FreeTime, discretization_settings, exclude_continuity = [], include_continuity = [], generic_inter_stage_constraints = []):
 
         if FreeTime:
             stage = self.tc.create_stage(horizon_steps=discretization_settings["horizon_steps"])
@@ -60,9 +60,9 @@ class OCPGenerator:
         for con in generic_inter_stage_constraints:
             lambda_args = []
             for s in con[1]:
-                lambda_args.append(prev_stage.at_tf(prev_stage_task.variables[s.uid]))
+                lambda_args.append(prev_stage.at_tf(prev_stage_task.variables[s.uid].x))
             for s in con[2]:
-                lambda_args.append(curr_stage_task.at_t0(curr_stage_task.variables[s.uid]))
+                lambda_args.append(stage.at_t0(curr_stage_task.variables[s.uid].x))
 
             expr = con[0](*lambda_args)
             if con[3] is not None:

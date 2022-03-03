@@ -63,10 +63,9 @@ class ConstraintExpression:
             con_dict['inequality'] = True
             con_dict['upper_limits'] = kwargs['ub']
         elif 'lb' in kwargs:
-            raise Exception("Lower limits not implemented, please reformulate as upper limits.")
-            self._symx = -self._symx
+            # raise Exception("Lower limits not implemented, please reformulate as upper limits.")
             con_dict['inequality'] = True
-            con_dict['upper_limits'] = kwargs['upper_limits']
+            con_dict['lower_limits'] = kwargs['lb']
         else:
             raise Exception("Neither reference, lb or ub passed as constraint for the expression")
 

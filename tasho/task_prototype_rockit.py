@@ -538,10 +538,16 @@ class task_context:
                                 path_con["expression"] <= path_con["upper_limits"]
                             )
                         else:
-                            ocp.subject_to(
-                                path_con["expression"] <= path_con["upper_limits"],
-                                include_first=False,
-                            )
+                            if "upper_limits" in path_con:
+                                ocp.subject_to(
+                                    path_con["expression"] <= path_con["upper_limits"],
+                                    include_first=False,
+                                )
+                            elif "lower_limits" in path_con:
+                                ocp.subject_to(
+                                    path_con["expression"] >= path_con["lower_limits"],
+                                    include_first=False,
+                                )
                     else:
                         con_violation = cs.fmax(
                             path_con["expression"] - path_con["upper_limits"], 0

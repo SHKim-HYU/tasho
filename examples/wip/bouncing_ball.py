@@ -1,79 +1,77 @@
-# This shows a very simple application of the multi-stage application using Tasho
+# This shows a simple example for multi-stage optimization using Tasho
 
-from tkinter import HORIZONTAL
-from tasho.task_prototype_rockit import task_context as tp
-import casadi as cs
-import numpy as np
+from tasho import TaskModel
+from tasho.ConstraintExpression import ConstraintExpression
+from examples.templates.Regularization import Regularization
+from tasho.OCPGenerator import OCPGenerator
 import matplotlib.pyplot as plt
-from tasho.utils import dist_computation
-import time
 
-def bounce_stage(stage):
+# Defining a toy task, for a ball that is falling freely in space
+def ball_task(name):
+    bouncing_ball = TaskModel.Task(name, "2d_freefall")
 
-    # tc = task_context(horizon_size = 20)
-    x = tc.create_state('x'+str(stage), (1,1), stage = stage)
-    xd = tc.create_expression('xd'+str(stage), 'variable', (1,1), stage = stage)
+    x = bouncing_ball.create_variable('x', 'pos', 'state', (1,1))
+    y = bouncing_ball.create_variable('y', 'pos', 'state', (1,1))
 
-    y = tc.create_state('y'+str(stage), (1,1), stage = stage)
-    yd = tc.create_state('yd'+str(stage), (1,1), stage = stage)
-    ydd = -9.81
+    xd = bouncing_ball.create_variable('x', 'vel', 'variable', (1,1))
+    yd = bouncing_ball.create_variable('y', 'vel', 'state', (1,1))
+    grav = bouncing_ball.create_variable('grav', 'constant', 'magic_number', (1,1), -9.81)
 
-    tc.set_dynamics(x, xd, stage = stage)
-    tc.set_dynamics(y, yd, stage = stage)
-    tc.set_dynamics(yd, ydd, stage = stage)
+    bouncing_ball.set_der(x, xd)
+    bouncing_ball.set_der(y, yd)
+    bouncing_ball.set_der(yd, grav)
 
-    y_con = {"hard":True, 'inequality':True, 'expression':-y, 'upper_limits':0}
-    y_hit_ground = {"hard":True, 'expression':y, 'reference':0}
-    tc.add_task_constraint({"path_constraints":[y_con]}, stage = stage)
-    tc.add_task_constraint({"final_constraints":[y_hit_ground]}, stage = stage)
+    y_above_ground = ConstraintExpression("ball_above_ground", "", y, 'hard', lb = 0)
+    y_hit_ground = ConstraintExpression("ball_hit_ground", "eq", y, 'hard', reference = 0)
 
-    tc.add_regularization(x, 1e-3, stage=stage)
-    tc.add_regularization(y, 1e-3, stage=stage)
-    tc.add_regularization(yd, 1e-3, stage=stage)
+    # adding regularization for numerical reasons, will not affect the dynamics
+    bouncing_ball.add_path_constraints(y_above_ground, 
+                                    Regularization(x, 1e-3), 
+                                    Regularization(y, 1e-3),
+                                    Regularization(yd, 1e-3))
+    bouncing_ball.add_terminal_constraints(y_hit_ground)
 
-
-
-    return [x, xd, y, yd]
+    return bouncing_ball
 
 horizon_steps = 20
 coeff = 0.9 #coefficient of restitution
 
-tc = tp(horizon_steps=horizon_steps, time_init_guess=1.0)
-stage0 = tc.stages[0]
-state0 = bounce_stage(0)
+number_bounces = 5
+start_pos = [0,1]
+goal_x = 10
 
-stage1 = tc.create_stage(horizon_steps=horizon_steps, time_init_guess=1.0)
-state1 = bounce_stage(1)
+bounce_tasks = []
+for i in range(number_bounces):
+    bounce_tasks.append(ball_task("bounce_" + str(i)))
 
-# Add inter-stage constraints
-for i in range(3):
-    tc.ocp.subject_to(stage0.at_tf(state0[i]) == stage1.at_t0(state1[i]))
+# add initial pose constraints
+bounce_tasks[0].add_initial_constraints(
+    ConstraintExpression("x", "start_pos", bounce_tasks[0].variables['pos_x'], 'hard', reference = start_pos[0]),
+    ConstraintExpression("y", "start_pos", bounce_tasks[0].variables['pos_y'], 'hard', reference = start_pos[1]))
 
-# collision with ground impulse
-tc.ocp.subject_to(stage0.at_tf(state0[3])*0.9 == -stage1.at_t0(state1[3]))
-tc.ocp.subject_to(stage0.at_tf(state0[1]) == stage1.at_t0(state1[1]))
+# add position constraint at the end of the bounce`
+bounce_tasks[-1].add_terminal_constraints(
+    ConstraintExpression("x", "final_pos_con", bounce_tasks[-1].variables['pos_x'], 'hard', reference = goal_x))
 
-init_vel = {'hard':True, 'lub':True, 'expression':cs.vertcat(state0[1], state0[3]), 'lower_limits':[-10, -10], 'upper_limits':[10,10]}
-init_pos = {'hard':True, 'expression':cs.vertcat(state0[0], state0[2]), 'reference': [0, 1]}
-tc.add_task_constraint({'initial_constraints':[init_pos, init_vel]}, stage = 0)
+transcription_options = {"horizon_steps" : horizon_steps}
+OCP_gen = OCPGenerator(bounce_tasks[0], True, transcription_options)
 
-tc.set_initial(state1[2], 1, stage = 1)
-tc.set_initial(state0[2], 1, stage = 0)
-# tc.ocp.set_initial(stage0.T, 1)
+# append the next bounces to create multi-stage problem
+for i in range(1, number_bounces):
+    collision_impulse = [lambda a, b: coeff*a+b, [bounce_tasks[i-1].variables['vel_y']], [bounce_tasks[i].variables['vel_y']], 0]
+    x_vel_const = [lambda a, b: a - b, [bounce_tasks[i-1].variables['vel_x']], [bounce_tasks[i-1].variables['vel_x']], 0]
+    OCP_gen.append_task(bounce_tasks[i], True, transcription_options, exclude_continuity=[bounce_tasks[i].variables["vel_y"]], generic_inter_stage_constraints= [collision_impulse, x_vel_const])
 
-final_pos = {'hard':True, 'equality':True, 'expression':state1[0], 'reference':10}
-tc.add_task_constraint({'final_constraints':[final_pos]}, stage = 1)
-
-tc.solve_ocp()
-
-
-_, x_traj0 = tc.sol_sample(state0[0], stage = 0)
-_, x_traj1 = tc.sol_sample(state1[0], stage = 1)
-
-_, y_traj0 = tc.sol_sample(state0[2], stage = 0)
-_, y_traj1 = tc.sol_sample(state1[2], stage = 1)
+tc = OCP_gen.tc
+OCP_gen.tc.solve_ocp()
 
 plt.figure()
-plt.plot(x_traj0, y_traj0)
-plt.plot(x_traj1, y_traj1)
+for i in range(number_bounces):
+
+
+    _, x_traj = tc.sol_sample(OCP_gen.stage_tasks[i].variables['pos_x'].x, stage = i)
+    _, y_traj = tc.sol_sample(OCP_gen.stage_tasks[i].variables['pos_y'].x, stage = i)
+
+    plt.plot(x_traj, y_traj)
+
 plt.show()
