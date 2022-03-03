@@ -1,5 +1,5 @@
 from tasho import task_prototype_rockit as tp
-from tasho import input_resolution, world_simulator
+from tasho import input_resolution, WorldSimulator
 from tasho import robot as rob
 from tasho import MPC
 from tasho.utils import geometry
@@ -317,10 +317,10 @@ use_MPC_class = True
 if use_MPC_class:
 
     # Create world simulator based on pybullet
-    from tasho import world_simulator
+    from tasho import WorldSimulator
     import pybullet as p
 
-    obj = world_simulator.world_simulator(bullet_gui=True)
+    obj = WorldSimulator.WorldSimulator(bullet_gui=True)
 
     # Add robot to the world environment
     position = [0.0, 0.0, 0.0]

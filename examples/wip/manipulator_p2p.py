@@ -1,7 +1,7 @@
 ## OCP for point-to-point motion and visualization of a KUKA robot arm
 
 from tasho import task_prototype_rockit as tp
-from tasho import input_resolution, world_simulator
+from tasho import input_resolution, WorldSimulator
 from tasho import robot as rob
 import casadi as cs
 import numpy as np
@@ -22,10 +22,10 @@ if __name__ == '__main__':
 	#Different OCP options
 	time_optimal = False
 	coll_avoid = False
-	frame_constraint = False
+	frame_constraint = True
 	robot_choice = 'iiwa7' #
 	ocp_control =  'acceleration_resolved' #'torque_resolved' #
-	L1_pathcost = True #Heuristically time optimal solution
+	L1_pathcost = False #Heuristically time optimal solution
 
 	robot = rob.Robot(robot_choice)
 
@@ -75,7 +75,7 @@ if __name__ == '__main__':
 	tc.set_initial(q, q0_val)
 	q_init_random = robot.generate_random_configuration()
 	# q_init_random = [-1.2925769493873958, 1.6948105720448297, -1.8663904352037908, 0.6752120689663585, -0.169008150759685, 0.1202290569932778, 2.147437378108014]
-	tc.set_initial(q, q_init_random)
+	# tc.set_initial(q, q_init_random)
 	final_vel = {'hard':True, 'expression':q_dot, 'reference':0}
 	if frame_constraint:
 		final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 	print(robot.fk(q_sol[-1,:])[6][0:3,0:3]@T_goal[0:3,0:3])
 
 	#visualizing the results
-	obj = world_simulator.world_simulator(plane_spawn = True, bullet_gui = True)
+	obj = WorldSimulator.WorldSimulator(plane_spawn = True, bullet_gui = True)
 	obj.visualization_realtime = True
 	position = [0.0, 0.0, 0.0]
 	orientation = [0.0, 0.0, 0.0, 1.0]

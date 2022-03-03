@@ -70,10 +70,10 @@ t_grid, q_dot_sol = OCP_gen.tc.sol_sample(OCP_gen.stage_tasks[0].variables['qd_'
 
 if SIMULATE:
     # Visualization
-    from tasho import world_simulator
+    from tasho import WorldSimulator
     import pybullet as p
 
-    obj = world_simulator.world_simulator()
+    obj = WorldSimulator.WorldSimulator()
 
     # Add robot to the world environment
     position = [0.0, 0.0, 0.0]

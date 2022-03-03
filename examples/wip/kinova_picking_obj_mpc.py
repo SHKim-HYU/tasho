@@ -129,10 +129,10 @@ visualizationBullet = True
 if visualizationBullet:
 
     # Create world simulator based on pybullet
-    from tasho import world_simulator
+    from tasho import WorldSimulator
     import pybullet as p
 
-    obj = world_simulator.world_simulator()
+    obj = WorldSimulator.WorldSimulator()
 
     # Add robot to the world environment
     position = [0.0, 0.0, 0.0]

@@ -175,9 +175,9 @@ if __name__ == '__main__':
 
 	if visualizationBullet:
 
-		from tasho import world_simulator
+		from tasho import WorldSimulator
 
-		obj = world_simulator.world_simulator()
+		obj = WorldSimulator.WorldSimulator()
 
 		position = [0.0, 0.0, 0.0]
 		orientation = [0.0, 0.0, 0.0, 1.0]
@@ -210,10 +210,10 @@ if __name__ == '__main__':
 
 	elif bullet_mpc_nr:
 
-		from tasho import world_simulator
+		from tasho import WorldSimulator
 		from tasho import MPC
 
-		bullet_world = world_simulator.world_simulator()
+		bullet_world = WorldSimulator.WorldSimulator()
 
 		position = [0., 0., 0.]
 		orientation = [0., 0., 0., 1.]
