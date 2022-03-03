@@ -200,6 +200,7 @@ pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
     "expression": symlin(pos_err(q, s)),
     "upper_limits": 0.01 ** 2,
     "gain": 100,
+    "slack_name": 'trans_tun',
     "norm": "squaredL2",
 }
 
@@ -209,6 +210,7 @@ ori_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
     "expression": symlin(rot_err(q, s)),
     "upper_limits": 0.01 ** 2,
     "gain": 100,
+    "slack_name": 'rot_tun',
     "norm": "squaredL2",
 }
 tunnel_constraints = {"path_constraints": [pos_tunnel_con, ori_tunnel_con]}
@@ -310,7 +312,7 @@ sol = tc.solve_ocp()
 # MPC Simulation
 ################################################
 print("@@@@@@@@@@@@@@@@@@ NOT USING MPC CLASS @@@@@@@@@@@@@@@@@@@")
-use_MPC_class = False
+use_MPC_class = True
 
 if use_MPC_class:
 

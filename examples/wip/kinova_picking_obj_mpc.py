@@ -18,7 +18,7 @@ print("Moving-object picking with Kinova Gen3")
 robot = rob.Robot("kinova", analytical_derivatives=False)
 
 # Update robot's parameters if needed
-max_joint_acc = 60 * 3.14159 / 180
+max_joint_acc = 90 * 3.14159 / 180
 robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
 
 # Define initial conditions of the robot
@@ -30,7 +30,7 @@ q_dot_init = [0] * robot.ndof
 ################################################
 
 # Select prediction horizon and sample time for the MPC execution
-horizon_size = 20
+horizon_size = 10
 t_mpc = 0.1
 
 # Initialize the task context object
@@ -112,9 +112,9 @@ tc.set_discretization_settings(disc_settings)
 ################################################
 # Set parameter values
 ################################################
-tc.ocp.set_value(cube_pos, [0.5, 0, 0.25])
-tc.ocp.set_value(q0, q_init)
-tc.ocp.set_value(q_dot0, q_dot_init)
+tc.set_value(cube_pos, [0.5, 0, 0.25])
+tc.set_value(q0, q_init)
+tc.set_value(q_dot0, q_dot_init)
 
 ################################################
 # Solve the OCP that describes the task
@@ -163,8 +163,8 @@ if visualizationBullet:
     joint_indices = [0, 1, 2, 3, 4, 5, 6]
 
     # Begin the visualization by applying the initial control signal
-    ts, q_sol = sol.sample(q, grid="control")
-    ts, q_dot_sol = sol.sample(q_dot, grid="control")
+    ts, q_sol = tc.sol_sample(q, grid="control")
+    ts, q_dot_sol = tc.sol_sample(q_dot, grid="control")
     obj.resetJointState(kinovaID, joint_indices, q_init)
     obj.setController(
         kinovaID, "velocity", joint_indices, targetVelocities=q_dot_sol[0]
@@ -189,19 +189,21 @@ if visualizationBullet:
         print("Predicted position of cube", predicted_pos)
 
         # Set parameter values
-        tc.ocp.set_value(q0, q_sol[1])
-        tc.ocp.set_value(q_dot0, q_dot_sol[1])
-        tc.ocp.set_value(cube_pos, predicted_pos)
+        tc.set_value(q0, q_sol[1])
+        tc.set_value(q_dot0, q_dot_sol[1])
+        tc.set_value(cube_pos, predicted_pos)
 
         # Solve the ocp
         sol = tc.solve_ocp()
 
         # Sample the solution for the next MPC execution
-        ts, q_sol = sol.sample(q, grid="control")
-        ts, q_dot_sol = sol.sample(q_dot, grid="control")
+        ts, q_sol = tc.sol_sample(q, grid="control")
+        _, q_dot_sol = tc.sol_sample(q_dot, grid="control")
+        _, q_ddot_sol = tc.sol_sample(q_ddot)
 
-        tc.ocp.set_initial(q, q_sol.T)
-        tc.ocp.set_initial(q_dot, q_dot_sol.T)
+        tc.set_initial(q, q_sol.T)
+        tc.set_initial(q_dot, q_dot_sol.T)
+        tc.set_initial(q_ddot, q_ddot_sol.T)
 
         # Set control signal to the simulated robot
         obj.setController(
