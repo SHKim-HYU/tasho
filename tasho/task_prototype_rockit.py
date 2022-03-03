@@ -29,7 +29,7 @@ class task_context:
     The class stores all expressions and constraints relevant to an OCP
     """
 
-    def __init__(self, time=None, horizon_steps=10, name="tc"):
+    def __init__(self, time=None, horizon_steps=10, name="tc", time_init_guess = 5):
         """Class constructor - initializes and sets the field variables of the class
 
         :param time: The prediction horizon of the OCP.
@@ -62,7 +62,7 @@ class task_context:
         self.robots = {}
         self.OCPvars = None
 
-        stage = self.create_stage(time, horizon_steps)
+        stage = self.create_stage(time, horizon_steps, time_init_guess = time_init_guess)
 
         self.tc_dict = {
             "states": {},
@@ -88,7 +88,7 @@ class task_context:
         self.mpc_options = def_dict["sqp_ip_mumps"]["options"]
 
 
-    def create_stage(self, time = None, horizon_steps = 10):
+    def create_stage(self, time = None, horizon_steps = 10, time_init_guess = 5):
 
         """
         Creates an OCP stage
@@ -99,7 +99,7 @@ class task_context:
         :type horizon_steps: int
         """
         if time == None:
-            stage = self.ocp.stage(T = FreeTime(5))
+            stage = self.ocp.stage(T = FreeTime(time_init_guess))
             self.ocp_rate = None
         else:
             stage = self.ocp.stage(T = time)
@@ -387,10 +387,21 @@ class task_context:
 
         if "initial_constraints" in task_spec:
             for init_con in task_spec["initial_constraints"]:
-                # Made an assumption that the initial constraint is always hard
-                ocp.subject_to(
-                    ocp.at_t0(init_con["expression"]) == init_con["reference"],
-                )
+                if 'hard' in init_con and not init_con['hard']:
+                    raise Exception("not implemented yet")
+
+                else:
+                    # hard initial constraints
+                    if 'lub' in init_con:
+                        ocp.subject_to(init_con['lower_limits'] <= (
+                            ocp.at_t0(init_con["expression"]) <= init_con["upper_limits"])
+                        )
+                    else:
+                        # assumed to be equality if not specified
+                        ocp.subject_to(
+                            ocp.at_t0(init_con["expression"]) == init_con["reference"],
+                        )
+                    
 
         if "final_constraints" in task_spec:
             for final_con in task_spec["final_constraints"]:
