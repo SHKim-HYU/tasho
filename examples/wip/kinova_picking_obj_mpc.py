@@ -5,7 +5,7 @@ from tasho import robot as rob
 from tasho import environment as env
 import casadi as cs
 from casadi import pi, cos, sin
-from rockit import MultipleShooting, Ocp
+import tasho.utils.geometry as geometry
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -51,17 +51,11 @@ T_goal = cs.vertcat(
 # Define constraints at the end of the horizon (final ee position and final joint velocity)
 T_ee = robot.fk(q)[7]
 
-final_pos = {
-    "hard": False,
-    "type": "Frame",
-    "expression": T_ee,
-    "reference": T_goal,
-    "rot_gain": 10,
-    "trans_gain": 10,
-    "norm": "L1",
-}
-final_vel = {"hard": True, "expression": q_dot, "reference": 0}
-final_constraints = {"final_constraints": [final_pos, final_vel]}
+position_con = {"hard": False, "expression": T_ee[0:3,3], "reference": T_goal[0:3,3], "norm": "L1"}
+rot_err, _ = geometry.rotmat_to_axisangle(T_ee[0:3, 0:3]@T_goal[0:3, 0:3])
+rotation_con = {"hard":False, "expression":rot_err, "reference":0, "norm":"L1"} 
+zero_vel = {"hard": True, "expression": q_dot, "reference": 0}
+final_constraints = {"final_constraints": [position_con, rotation_con, zero_vel]}
 tc.add_task_constraint(final_constraints)
 
 # Add penality terms on joint velocity and acceleration for regulatization
@@ -91,15 +85,8 @@ tc.add_regularization(
 ################################################
 # Set solver and discretization options
 ################################################
-tc.set_ocp_solver(
-    "ipopt",
-    {
-        "ipopt": {
-            "print_level": 0,
-            "tol": 1e-3,
-        }
-    },
-)
+# tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3}})
+tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3, "linear_solver":"ma27"}}) #use this if you have hsl
 
 disc_settings = {
     "discretization method": "multiple shooting",

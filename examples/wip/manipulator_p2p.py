@@ -21,8 +21,7 @@ if __name__ == '__main__':
 
 	#Different OCP options
 	time_optimal = False
-	coll_avoid = False
-	frame_constraint = True
+	coll_avoid = True
 	robot_choice = 'iiwa7' #
 	ocp_control =  'acceleration_resolved' #'torque_resolved' #
 	L1_pathcost = False #Heuristically time optimal solution
@@ -77,14 +76,9 @@ if __name__ == '__main__':
 	# q_init_random = [-1.2925769493873958, 1.6948105720448297, -1.8663904352037908, 0.6752120689663585, -0.169008150759685, 0.1202290569932778, 2.147437378108014]
 	# tc.set_initial(q, q_init_random)
 	final_vel = {'hard':True, 'expression':q_dot, 'reference':0}
-	if frame_constraint:
-		final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
-		# final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':10, 'trans_gain':10, 'norm':'L1'}
-		final_constraints = {'final_constraints':[final_pos, final_vel]}
-	else:
-		final_position = {'hard':False, 'expression':fk_vals[0:3,3], 'reference':T_goal[0:3,3], 'gain':10, 'norm':'L1'}
-		final_orientation = {'hard':False, 'expression':fk_vals[0:3,2].T@T_goal[0:3,2], 'reference':1, 'gain':10, 'norm':'L1'}
-		final_constraints = {'final_constraints':[final_position, final_orientation, final_vel]}
+	final_position = {'hard':False, 'expression':fk_vals[0:3,3], 'reference':T_goal[0:3,3], 'gain':10, 'norm':'L1'}
+	final_orientation = {'hard':False, 'expression':fk_vals[0:3,2].T@T_goal[0:3,2], 'reference':1, 'gain':10, 'norm':'L1'}
+	final_constraints = {'final_constraints':[final_position, final_orientation, final_vel]}
 
 	tc.add_task_constraint(final_constraints)
 
@@ -139,10 +133,7 @@ if __name__ == '__main__':
 	print(q0_val)
 	rot_err = robot.fk(q_sol[-1,:])[6][0:3,0:3].T@T_goal[0:3,0:3]
 	assert(cs.norm_1( robot.fk(q_sol[-1,:])[6][0:3,3] - T_goal[0:3,3]) <= 1e-5)
-	if frame_constraint:
-		assert(cs.fabs(rot_err[0,0] - 1) + cs.fabs(rot_err[1,1] - 1) + cs.fabs(rot_err[2,2] - 1) <= 1e-4)
-	else:
-		assert(cs.fabs(rot_err[2,2] - 1) <= 1e-4)
+	assert(cs.fabs(rot_err[2,2] - 1) <= 1e-4)
 	if coll_avoid:
 		_, dist1_sol = tc.sol_sample(distance, grid="control")
 		assert((dist1_sol  >= 0.01).all())

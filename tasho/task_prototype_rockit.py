@@ -396,158 +396,22 @@ class task_context:
             for final_con in task_spec["final_constraints"]:
 
                 if final_con["hard"]:
-                    if "type" in final_con:
-                        # When the expression is SE(3) expressed as a 4X4 homogeneous transformation matrix
-                        if "Frame" in final_con["type"]:
-                            expression = final_con["expression"]
-                            reference = final_con["reference"]
-                            # hard constraint on the translational componenet
-                            ocp.subject_to(
-                                ocp.at_tf(expression[0:3, 3]) == reference[0:3, 3]
+
+                    if "inequality" not in final_con and "lub" not in final_con:
+                        ocp.subject_to(
+                            ocp.at_tf(final_con["expression"]) == final_con["reference"]
                             )
-                            # hard constraint on the rotational component
-                            rot_error = cs.mtimes(
-                                expression[0:3, 0:3].T, reference[0:3, 0:3]
+                    elif "inequality" in final_con:
+                        ocp.subject_to(
+                            ocp.at_tf(final_con["expression"]) <= final_con["upper_limits"]
                             )
-
-                            # better suited for L-BFGS ipopt, numerically better compared to full hessian during LCQ issue
-                            # ocp.subject_to(
-                            #     ocp.at_tf(
-                            #         cs.vertcat(
-                            #             rot_error[0, 0],
-                            #             rot_error[1, 1],
-                            #             rot_error[2, 2],
-                            #         )
-                            #     )
-                            #     == 1
-                            # )
-
-                            # Better suited for full Hessian ipopt because no LICQ issue
-                            # s = ocp.variable()
-                            # ocp.subject_to(ocp.at_tf(rot_error[0, 0]) - 1 >= s)
-                            # ocp.subject_to(ocp.at_tf(rot_error[1, 1]) - 1 >= s)
-                            # ocp.subject_to(ocp.at_tf(rot_error[2, 2]) - 1 >= s)
-                            # ocp.subject_to(s == 0)
-
-                            # Use the axis-angle to constrain the error
-                            theta_err, axis = geometry.rotmat_to_axisangle(rot_error)
-                            # ocp.subject_to(ocp.at_tf(cs.sqrt(theta_err**2 + 1e-4) - 1e-2 == 0))
-                            ocp.subject_to(ocp.at_tf(theta_err**2)== 0)
-                            # s = ocp.variable()
-                            # ocp.subject_to(-s <= (ocp.at_tf(theta_err) <= s))
-                            # ocp.subject_to(s == 0)
-
                     else:
-
-                        if "inequality" not in final_con and "lub" not in final_con:
-                            ocp.subject_to(
-                                ocp.at_tf(final_con["expression"]) == final_con["reference"]
-                                )
-                        elif "inequality" in final_con:
-                            ocp.subject_to(
-                                ocp.at_tf(final_con["expression"]) <= final_con["upper_limits"]
-                                )
-                        else:
-                            ocp.subject_to(
-                                final_con["lower_limits"] <= (ocp.at_tf(final_con["expression"]) <= final_con["upper_limits"])
-                                )
+                        ocp.subject_to(
+                            final_con["lower_limits"] <= (ocp.at_tf(final_con["expression"]) <= final_con["upper_limits"])
+                            )
 
                 else:
-                    if "type" in final_con:
-                        if "Frame" in final_con["type"]:
-                            expression = final_con["expression"]
-                            reference = final_con["reference"]
-                            # hard constraint on the translational componenet
-                            trans_error = expression[0:3, 3] - reference[0:3, 3]
-                            rot_error = cs.mtimes(
-                                expression[0:3, 0:3].T, reference[0:3, 0:3]
-                            )
-                            if "norm" not in final_con or final_con["norm"] == "L2":
-                                obj_trans = (
-                                    ocp.at_tf(cs.sumsqr(trans_error))
-                                    * final_con["trans_gain"]
-                                )
-                                # obj_rot = (
-                                #     ocp.at_tf(
-                                #         (
-                                #             (
-                                #                 rot_error[0, 0]
-                                #                 + rot_error[1, 1]
-                                #                 + rot_error[2, 2]
-                                #                 - 1
-                                #             )
-                                #             / 2
-                                #             - 1
-                                #         )
-                                #         ** 2
-                                #     )
-                                #     * 3
-                                #     * final_con["rot_gain"]
-                                # )
-                                theta_err, axis = geometry.rotmat_to_axisangle(
-                                    rot_error
-                                )
-                                obj_rot = (
-                                    ocp.at_tf(theta_err ** 2)
-                                    * final_con["rot_gain"]
-                                    * 3
-                                )
-                                ocp.add_objective(obj_trans)
-                                ocp.add_objective(obj_rot)
-                                if "name" in final_con:
-                                    self.constraints[final_con["name"]] = {
-                                        "obj": obj_trans + obj_rot
-                                    }
-                            elif final_con["norm"] == "L1":
-
-                                # cos_theta_error = (
-                                #     rot_error[0, 0]
-                                #     + rot_error[1, 1]
-                                #     + rot_error[2, 2]
-                                #     - 2
-                                # ) * 0.5
-
-                                theta_err, axis = geometry.rotmat_to_axisangle(
-                                    rot_error
-                                )
-
-                                slack_variable = self.create_expression(
-                                    "slack_final_frame", "variable", (2, 1)
-                                )
-                                ocp.subject_to(
-                                    -slack_variable[0]
-                                    <= (trans_error<= slack_variable[0])
-                                )
-                                ocp.subject_to(
-                                    -slack_variable[1]
-                                    <= (ocp.at_tf(theta_err) <= slack_variable[1])
-                                )
-                                obj_trans = (
-                                    slack_variable[0]
-                                ) * final_con["trans_gain"]
-                                obj_rot = slack_variable[1] * final_con["rot_gain"] * 3
-                                ocp.add_objective(obj_trans)
-                                ocp.add_objective(obj_rot)
-                                if "name" in final_con:
-                                    self.constraints[final_con["name"]] = {
-                                        "obj": obj_trans + obj_rot
-                                    }
-                                    self.constraints[final_con["name"]][
-                                        "theta_error"
-                                    ] = slack_variable[1]
-                                    self.constraints[final_con["name"]][
-                                        "trans_error"
-                                    ] = slack_variable[0]
-
-                            else:
-                                raise Exception("Error")
-                        else:
-                            raise Exception(
-                                "Unknown type "
-                                + final_con["type"]
-                                + " selected for a constraint"
-                            )
-                    elif "norm" not in final_con or final_con["norm"] == "L2":
+                    if "norm" not in final_con or final_con["norm"] == "L2":
                         obj_con = (
                             ocp.at_tf(
                                 cs.sumsqr(
@@ -584,88 +448,8 @@ class task_context:
 
                 if not "inequality" in path_con and not "lub" in path_con:
                     if not path_con["hard"]:
-                        if "type" in path_con:
-                            if "Frame" in path_con["type"]:
-                                expression = path_con["expression"]
-                                reference = path_con["reference"]
-                                # hard constraint on the translational componenet
-                                trans_error = expression[0:3, 3] - reference[0:3, 3]
-                                rot_error = cs.mtimes(
-                                    expression[0:3, 0:3].T, reference[0:3, 0:3]
-                                )
-                                if "norm" not in path_con or path_con["norm"] == "L2":
-                                    # obj_rot = (
-                                    #     ocp.integral(
-                                    #         (
-                                    #             (
-                                    #                 rot_error[0, 0]
-                                    #                 + rot_error[1, 1]
-                                    #                 + rot_error[2, 2]
-                                    #                 - 1
-                                    #             )
-                                    #             / 2
-                                    #             - 1
-                                    #         )
-                                    #         ** 2,
-                                    #         grid="control",
-                                    #     )
-                                    #     * 3
-                                    #     * path_con["rot_gain"]
-                                    # )
-                                    theta_err, axis = geometry.rotmat_to_axisangle(
-                                        rot_error
-                                    )
-                                    obj_rot = (
-                                        ocp.integral(theta_err ** 2, grid="control")
-                                        * path_con["rot_gain"]
-                                    )
-                                    obj_trans = (
-                                        ocp.integral(
-                                            cs.sumsqr(trans_error), grid="control"
-                                        )
-                                        * path_con["trans_gain"]
-                                    )
-                                    ocp.add_objective(obj_trans + obj_rot)
-                                    if "name" in path_con:
-                                        self.constraints[path_con["name"]] = {
-                                            "obj": obj_rot + obj_trans
-                                        }
-                                elif path_con["norm"] == "L1":
-                                    theta_err, axis = geometry.rotmat_to_axisangle(
-                                        rot_error
-                                    )
-                                    slack_variable = self.create_expression(
-                                        "slack_final_frame", "control", (2, 1)
-                                    )
-                                    ocp.subject_to(
-                                        -slack_variable[0]
-                                        <= (trans_error <= slack_variable[0])
-                                    )
-                                    ocp.subject_to(
-                                        theta_err <= slack_variable[1]
-                                    )
-                                    # ocp.subject_to(
-                                    #     0 <= slack_variable[1]
-                                    # )
-                                    ocp.add_objective(ocp.integral(slack_variable[0]* path_con["trans_gain"], grid = 'control') )
-                                    ocp.add_objective(ocp.integral(slack_variable[1]* path_con["rot_gain"], grid = 'control'))
-                                    obj_con = (
-                                        slack_variable[0]
-                                        + slack_variable[1]
-                                    )
-                                    if "name" in path_con:
-                                        self.constraints[path_con["name"]] = {
-                                            "obj": obj_con
-                                        }
-                                        self.constraints[path_con["name"]][
-                                            "rot_error"
-                                        ] = slack_variable[1]
-                                        self.constraints[path_con["name"]][
-                                            "trans_error"
-                                        ] = slack_variable[0]
-                                else:
-                                    raise Exception("Error")
-                        elif "norm" not in path_con or path_con["norm"] == "L2":
+
+                        if "norm" not in path_con or path_con["norm"] == "L2":
                             # print('L2 norm added')
                             obj_con = (
                                 ocp.integral(
