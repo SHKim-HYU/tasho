@@ -2,7 +2,6 @@ import unittest
 # from tasho import robot as rb
 from robotsmeco import Robot as rb
 from tasho import task_prototype_rockit as tp
-from tasho import problem_template as pt
 import numpy as np
 from math import inf
 
@@ -135,38 +134,6 @@ class TestRobot(unittest.TestCase):
         )
 
         # print(list(rob_yumi.parameters)[0])
-
-    def test_problemtemplate(self):
-        horizon_size = 10
-        t_mpc = 0.5
-        max_joint_acc = 30 * 3.14159 / 180
-
-        q0_val = [0, -0.523598, 0, 2.51799, 0, -0.523598, -1.5708]
-        q_dot0_val = [0] * 7
-
-        # Set robot
-        robot = rb.Robot("kinova")
-        robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
-        robot.set_state(q0_val + q_dot0_val)
-
-        T_goal = np.array(
-            [[0, 1, 0, 0.5], [1, 0, 0, 0], [0, 0, -1, 0.25], [0, 0, 0, 1]]
-        )
-        tc = pt.Point2Point(
-            horizon_size * t_mpc, horizon_steps=horizon_size, goal=T_goal
-        )
-        tc.add_robot(robot)
-
-        self.assertEqual(int(len(tc.states)), 2, "Size of system states is not correct")
-        self.assertEqual(
-            int(len(tc.parameters)), 2, "Size of system parameters is not correct"
-        )
-        self.assertEqual(
-            int(len(tc.controls)), 1, "Size of system inputs is not correct"
-        )
-        self.assertEqual(
-            list(tc.parameters)[0], "q00", "Name of first parameter is not correct"
-        )
 
 
 if __name__ == "__main__":
