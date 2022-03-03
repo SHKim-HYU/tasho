@@ -1,6 +1,8 @@
-from ast import Expr
-from tasho import task_prototype_rockit as tp
+# from ast import Expr
+# from asyncio import current_task
+from tasho import TaskModel, task_prototype_rockit as tp
 import copy
+import logging
 
 from tasho.Expression import Expression
 from tasho.Variable import Variable
@@ -24,7 +26,7 @@ class OCPGenerator:
 
 
 
-    def append_task(self, task, FreeTime, discretization_settings):
+    def append_task(self, task : TaskModel.Task, FreeTime, discretization_settings, exclude_continuity = None, include_continuity = None, generic_inter_stage_constraints = None):
 
         if FreeTime:
             stage = self.tc.create_stage(horizon_steps=discretization_settings["horizon_steps"])
@@ -32,17 +34,62 @@ class OCPGenerator:
             stage = self.tc.create_stage(time = discretization_settings["time_period"], horizon_steps=discretization_settings["horizon_steps"])
         self.stages.append(stage)
         self.stage_tasks.append(copy.deepcopy(task))
+        self._generate_task_ocp(len(self.stages) - 1)
+
+        # adding continuity and inter-stage constraints
+        prev_stage = self.stages[-2]
+        prev_stage_task = self.stage_tasks[-2]
+        curr_stage_task = self.stage_tasks[-1]
+
+        
+        for var in task.variables:
+            # Add continuity constraint to all states with same uid across consecutive tasks
+            if task.variables[var].type == 'state' and task.variables[var] not in exclude_continuity and prev_stage_task:
+                self.tc.ocp.subject_to(prev_stage.at_tf(prev_stage_task.variables[var].x) == stage.at_t0(curr_stage_task.variables[var].x))
+
+        # Add continuity constraints on variable pairs in include continuity, but they must have different uids
+        for var_pair in include_continuity:
+            if task.variables[var_pair[1].uid] == prev_stage_task.variables[var_pair[0].uid]:
+                logging.warning(f"Continuity constraint added by default for {var_pair[1].uid} and {var_pair[0].uid}, so not adding again")
+            else:
+                # adding the continuity constraint on the new variables
+                self.tc.ocp.subject_to(prev_stage.at_tf(prev_stage_task.variables[var_pair[0]].x) == stage.at_t0(curr_stage_task[var_pair[1]].x))
+
+        # Add generic inter-stage constraint
+        # TODO: missing support for inter-stage constraint on expressions also, but do not see a big need.
+        for con in generic_inter_stage_constraints:
+            lambda_args = []
+            for s in con[1]:
+                lambda_args.append(prev_stage.at_tf(prev_stage_task.variables[s.uid]))
+            for s in con[2]:
+                lambda_args.append(curr_stage_task.at_t0(curr_stage_task.variables[s.uid]))
+
+            expr = con[0](*lambda_args)
+            if con[3] is not None:
+                self.tc.ocp.subject_to(expr == con[3])
+            elif con[4] is not None and con[5] is None:
+                self.tc.ocp.subject_to(expr >= con[4])
+            elif con[4] is None and con[5] is not None:
+                self.tc.ocp.subject_to(expr <= con[5])
+            elif con[4] is not None and con[5] is not None:
+                self.tc.ocp.subject_to(con[4] <= (expr <= con[5]))
+            
         return stage
 
     def _generate_task_ocp(self, stage_number):
 
         # Replacing task placeholder states with rockit placeholder states
 
+        if stage_number > 0:
+            stage_str = "_stage"+str(stage_number)
+        else:
+            stage_str = ""
+
         evaluated_expressions = set() #keep track of all expressions evaluated
         task = self.stage_tasks[stage_number]
         for var in task.variables.values():
             if var.type is not "magic_number":
-                var._x = self.tc.create_expression(var.uid, var.type, var.shape, stage_number)
+                var._x = self.tc.create_expression(var.uid + stage_str, var.type, var.shape, stage_number)
             evaluated_expressions |= set([var.uid])
         
         # Evaluating all expressions in a topological order via DFS
@@ -100,8 +147,3 @@ class OCPGenerator:
                 self._evaluate_expressions(task._expressions[parent], task, exprs_evaluated)
         
         expr.evaluate_expression(task)
-        
-
-
-    
-
