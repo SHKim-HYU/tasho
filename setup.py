@@ -28,8 +28,10 @@ setuptools.setup(
         'numpy',
         'matplotlib',
         'scipy',
+        'networkx',
+        'pydot',
+        'robotsmeco @ git+https://gitlab.kuleuven.be/meco-software/robot-models-meco.git@main',
         'pybullet',
-        'robotsmeco @ git+https://gitlab.kuleuven.be/meco-software/robot-models-meco.git@main'
     ],
     classifiers=[
         "Development Status :: 1 - Planning",
