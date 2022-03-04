@@ -51,3 +51,22 @@ class Expression(Variable):
         
         return self._x
 
+    @property
+    def mid(self):
+        return self._mid
+
+    @property
+    def name(self):
+        return self._name
+
+    @property 
+    def uid(self):
+        return self._uid
+
+    @property
+    def parents(self):
+        return self._parents
+
+    @property 
+    def parent_uid(self):
+        return self._parent_uid

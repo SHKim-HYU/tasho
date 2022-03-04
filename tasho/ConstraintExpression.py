@@ -81,6 +81,7 @@ class ConstraintExpression:
             if 'penalty' not in kwargs:
                 con_dict['penalty'] = 'quad'
             else:
+                con_dict['penalty'] = kwargs['penalty']
                 penalty = con_dict['penalty']
                 assert penalty == 'quad' or penalty == 'L1' or penalty == 'L2', "Penalty must be 'quad', 'L1' or 'L2'"
                 con_dict['norm'] = con_dict['penalty']
