@@ -55,15 +55,15 @@ class TestTask(unittest.TestCase):
         self.assertTrue(hello_task.constraints[('path', 'equality_con_reg')] == ('path', 'equality_con_reg'))
 
 
-        OCP_gen = OCPGenerator(hello_task, False, {"time_period": 1, "horizon_steps":10})
-        self.assertTrue(OCP_gen.tc.horizon[0] == 10)
-        self.assertTrue(OCP_gen.tc.ocp_rate == 1/OCP_gen.tc.horizon[0])
-        OCP_gen.tc.solve_ocp()
+        # OCP_gen = OCPGenerator(hello_task, False, {"time_period": 1, "horizon_steps":10})
+        # self.assertTrue(OCP_gen.tc.horizon[0] == 10)
+        # self.assertTrue(OCP_gen.tc.ocp_rate == 1/OCP_gen.tc.horizon[0])
+        # OCP_gen.tc.solve_ocp()
 
-        self.assertTrue(OCP_gen.tc.monitors_configured)
+        # self.assertTrue(OCP_gen.tc.monitors_configured)
 
-        _, y_sol = OCP_gen.tc.sol_sample(OCP_gen.stage_tasks[0].variables[y.uid].x)
-        self.assertTrue((y_sol[-1] == [1, 1]).all())
+        # _, y_sol = OCP_gen.tc.sol_sample(OCP_gen.stage_tasks[0].variables[y.uid].x)
+        # self.assertTrue((y_sol[-1] == [1, 1]).all())
 
 
     def test_task_hw(self):
