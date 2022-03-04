@@ -21,7 +21,7 @@ class TestTopt(unittest.TestCase):
             T_inv = geometry.inv_T_matrix(T)
             # Simply checking the formula
             T_inv_formula = cs.horzcat(R.T, -R.T@t)
-            self.assertEqual(cs.mmax(cs.fabs(T_inv[0:3,:] - T_inv_formula)), 0)
+            self.assertAlmostEqual(cs.mmax(cs.fabs(T_inv[0:3,:] - T_inv_formula)), 0, 14)
 
     def test_cross_vec2mat(self):
 
