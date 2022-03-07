@@ -55,7 +55,7 @@ class TestTask(unittest.TestCase):
         self.assertTrue(hello_task.constraints[('path', 'equality_con_reg')] == ('path', 'equality_con_reg'))
 
 
-        # OCP_gen = OCPGenerator(hello_task, False, {"time_period": 1, "horizon_steps":10})
+        OCP_gen = OCPGenerator(hello_task, False, {"time_period": 1, "horizon_steps":10})
         # self.assertTrue(OCP_gen.tc.horizon[0] == 10)
         # self.assertTrue(OCP_gen.tc.ocp_rate == 1/OCP_gen.tc.horizon[0])
         # OCP_gen.tc.solve_ocp()
