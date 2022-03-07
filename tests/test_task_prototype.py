@@ -719,10 +719,120 @@ class TestTask(unittest.TestCase):
 
 
     def test_path_constraints(self):
-        # Testing the addition of path constraints. compare it with opti that uses multiple-shooting
-        print("Not implemented")
+        tc = tp.task_context(5, horizon_steps=5)
 
-    
+        x, x0 = tc.create_state("x", init_parameter=True)
+        u = tc.create_control("u")
+        p = tc.create_parameter("p")
+
+        tc.set_dynamics(x, u)
+
+        task_spec = {}
+        task_spec["initial_constraints"] = [
+            {"expression": u, "lub": True, "hard": True, 'lower_limits':-1, 'upper_limits': 1, "gain": 1},
+            {"expression": x, "reference": 0, "hard": True, "gain": 1}
+        ]
+        task_spec["path_constraints"] = [
+            {"expression": u, "reference": 0, "hard": False, "gain": 1, "name": "u_0"},
+            {"expression": x, "reference": 0, "hard": False, "gain": 1e-3, "norm" : "L1", "name": "x_0"},
+            {"expression": p, "reference": 0, "hard": False, "gain": 1e-5, "norm" : "L2_nonsquared", "name": "p_0"},
+            {"expression": x + p, "reference": 0, "hard": True},
+            {"expression": u, "inequality": True, "hard": True, "upper_limits":1, "lower_limits":-1},
+            {"expression": u + p, "inequality": True, "hard": False, "norm" : "L2", "upper_limits":5, "name": "u_p_5", 'gain': 3},
+            {"expression": u + p, "inequality": True, "hard": False, "norm" : "L1", "upper_limits":5, "name": "u_p_5_L1", 'gain': 3},
+            {"expression": u + p, "inequality": True, "hard": False, "norm" : "squaredL2", "upper_limits":5, "name": "u_p_5_sqL2", 'gain': 3, 'slack_name': 's_0'},
+            {"expression": u, "lub": True, "hard": False, "norm" : "L2", "upper_limits":1, "lower_limits":-1, "name": "u_lub", 'gain': 3},
+            {"expression": u, "lub": True, "hard": False, "norm" : "L1", "upper_limits":1, "lower_limits":-1, "name": "u_lub_L1", 'gain': 3},
+        ]
+        task_spec["final_constraints"] = [
+            {"expression": x ** 2, "reference": p, "hard": True},
+            {"expression": x - p, "reference": 1, "hard": False, "norm": "L2", "name":'L2_x', "gain": 1},
+            {"expression": p - u, "reference": 1, "hard": False, "norm": "L1", "name":'L1_x', "gain": 1}
+        ]
+
+        tc.add_task_constraint(task_spec)
+        
+
+        self.assertTrue(tc.constraints['L2_x'] is not None)
+        self.assertTrue(tc.constraints['L1_x'] is not None)
+        self.assertTrue(tc.constraints['x_0'] is not None)
+        self.assertTrue(tc.constraints['p_0'] is not None)
+        self.assertTrue(tc.constraints['u_p_5'] is not None)
+        self.assertTrue(tc.constraints['u_p_5_L1'] is not None)
+        self.assertTrue(tc.constraints['u_lub_L1'] is not None)
+
+
+        solver_options = {
+            "ipopt": {"print_level": 0},
+            "print_time": False,
+            "expand": True,
+        }
+
+        tc.set_ocp_solver("ipopt", solver_options)
+        disc_settings = {
+            "discretization method": "multiple shooting",
+            "order": 2,
+            "integration": "rk",
+        }
+        tc.set_discretization_settings(disc_settings)
+
+        disc_settings = {
+            "discretization method": "single shooting",
+            "order": 2,
+            "integration": "rk",
+        }
+        tc.set_discretization_settings(disc_settings)
+
+        disc_settings = {
+            "discretization method": "direct collocation",
+            "order": 2,
+            "integration": "rk",
+        }
+        tc.set_discretization_settings(disc_settings)
+        
+
+        # Testing the addition of path constraints. compare it with opti that uses multiple-shooting
+        # print("Not implemented")
+
+    def test_util_functions(self):
+        tc = tp.task_context(5, horizon_steps=5)
+
+        x, x0 = tc.create_state("x", init_parameter=True)
+        u = tc.create_control("u")
+        p = tc.create_parameter("p")
+
+        tc.set_dynamics(x, u)
+
+        task_spec = {}
+        task_spec["path_constraints"] = [
+            {"expression": u, "reference": 0, "hard": False, "gain": 1}
+        ]
+        task_spec["final_constraints"] = [
+            {"expression": x ** 2, "reference": p, "hard": True}
+        ]
+
+        tc.add_task_constraint(task_spec)
+
+        solver_options = {
+            "ipopt": {"print_level": 0},
+            "print_time": False,
+            "expand": True,
+        }
+
+        tc.set_ocp_solver("ipopt", solver_options)
+        disc_settings = {
+            "discretization method": "multiple shooting",
+            "order": 2,
+            "integration": "rk",
+        }
+        tc.set_discretization_settings(disc_settings)
+
+        tc.set_value(p, 5)
+        tc.set_value(x0, 0.05)
+        sol = tc.solve_ocp()
+
+        primal_residual = tc.function_primal_residual()
+        self.assertEqual(primal_residual.name(), 'fun_pr')
 
 if __name__ == "__main__":
     unittest.main()
