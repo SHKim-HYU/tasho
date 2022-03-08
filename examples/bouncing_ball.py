@@ -4,7 +4,7 @@ from tasho import TaskModel
 from tasho.ConstraintExpression import ConstraintExpression
 from examples.templates.Regularization import Regularization
 from tasho.OCPGenerator import OCPGenerator
-import matplotlib.pyplot as plt
+
 
 # Defining a toy task, for a ball that is falling freely in space
 def ball_task(name):
@@ -65,13 +65,16 @@ for i in range(1, number_bounces):
 tc = OCP_gen.tc
 OCP_gen.tc.solve_ocp()
 
-plt.figure()
-for i in range(number_bounces):
+SIMULATION = False
+if SIMULATION:
+    import matplotlib.pyplot as plt
+    plt.figure()
+    for i in range(number_bounces):
 
 
-    _, x_traj = tc.sol_sample(OCP_gen.stage_tasks[i].variables['pos_x'].x, stage = i)
-    _, y_traj = tc.sol_sample(OCP_gen.stage_tasks[i].variables['pos_y'].x, stage = i)
+        _, x_traj = tc.sol_sample(OCP_gen.stage_tasks[i].variables['pos_x'].x, stage = i)
+        _, y_traj = tc.sol_sample(OCP_gen.stage_tasks[i].variables['pos_y'].x, stage = i)
 
-    plt.plot(x_traj, y_traj)
+        plt.plot(x_traj, y_traj)
 
-plt.show()
+    plt.show()

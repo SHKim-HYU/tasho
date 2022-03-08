@@ -1,3 +1,7 @@
+"""
+A simple point-to-point motion task
+"""
+
 from time import sleep
 from tasho.templates.P2P import P2P
 from tasho.templates.Regularization import Regularization
@@ -65,7 +69,6 @@ OCP_gen.tc.set_ocp_solver(
 OCP_gen.tc.solve_ocp()
 
 t_grid, qsol = OCP_gen.tc.sol_sample(q_ocp)
-print(qsol)
 t_grid, q_dot_sol = OCP_gen.tc.sol_sample(OCP_gen.stage_tasks[0].variables['qd_'+robot.name].x)
 
 if SIMULATE:

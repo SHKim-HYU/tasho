@@ -21,14 +21,34 @@ Task Prototype
 ..	automodule:: tasho.input_resolution
 	:members:
 
-Discrete Plan
-=============
-
-.. automodule:: tasho.discrete_plan
-    :members:
-
 Time Optimal
 ============
 
-.. automodule:: tasho.time_optimal
+.. automodule:: tasho.TimeOptimal
     :members:
+
+Task Model
+============
+
+.. automodule:: tasho.TaskModel
+    :members:
+
+Variable
+============
+
+.. automodule:: tasho.Variable
+    :members:
+
+Expression
+============
+
+.. automodule:: tasho.Expression
+    :members:
+
+Constraint Expression
+============
+
+.. automodule:: tasho.ConstraintExpression
+    :members:
+
+

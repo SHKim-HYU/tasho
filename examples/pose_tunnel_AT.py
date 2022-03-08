@@ -73,7 +73,7 @@ OCP_gen.tc.set_ocp_solver(
 OCP_gen.tc.solve_ocp()
 
 st = OCP_gen.stage_tasks[0]
-print(OCP_gen.tc.sol_sample(st.expressions['SE3_path_contouring'].x))
+# print(OCP_gen.tc.sol_sample(st.expressions['SE3_path_contouring'].x))
 t_grid, qsol = OCP_gen.tc.sol_sample(q_ocp)
 # print(qsol)
 t_grid, q_dot_sol = OCP_gen.tc.sol_sample(OCP_gen.stage_tasks[0].variables['qd_'+robot.name].x)

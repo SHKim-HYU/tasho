@@ -1,5 +1,5 @@
 """
-New hello world examples that use the Abstract tasks.
+New hello world examples that uses TaskModel.
 """
 
 import casadi as cs
@@ -46,4 +46,4 @@ OCP_gen = OCPGenerator(hello_task, False, {"time_period": 1, "horizon_steps":10}
 OCP_gen.tc.solve_ocp()
 
 _, y_sol = OCP_gen.tc.sol_sample(OCP_gen.stage_tasks[0].variables[y.uid].x)
-print(y_sol)
+# print(y_sol)
