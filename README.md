@@ -48,6 +48,12 @@ Several examples are provided with Tasho. The following examples list is arrange
 - Tunnel-following optimal control: [examples/pose_tunnel_AT.py](examples/pose_tunnel_AT.py)
 - Bouncing ball: [examples/bouncing_ball.py](examples/bouncing_ball.py)
 
+## Videos (click on the images below)
+
+### Time optimal motion planning with obstacle avoidance and approach motion
+
+[![[Watch the video]](docs/aux/img/fm_demo.png)](https://youtu.be/yhRMBapcHPA)
+
 ## Submitting an issue
 
 Please submit an issue if you want to report a bug or propose new features.
