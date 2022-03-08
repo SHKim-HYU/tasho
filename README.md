@@ -46,6 +46,7 @@ Several examples are provided with Tasho. The following examples list is arrange
 - Hello world: [examples/hello_world_AT.py](examples/hello_world_AT.py)
 - Point-to-point motion: [examples/P2P_AT.py](examples/P2P_AT.py)
 - Tunnel-following optimal control: [examples/pose_tunnel_AT.py](examples/pose_tunnel_AT.py)
+- Bouncing ball: [examples/bouncing_ball.py](examples/bouncing_ball.py)
 
 ## Submitting an issue
 
