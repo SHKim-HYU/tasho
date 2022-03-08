@@ -5,13 +5,14 @@
 import casadi as cs
 import numpy as np
 from tasho import task_prototype_rockit as tp
-from rockit import MultipleShooting, FreeGrid, DirectCollocation, SingleShooting
+from rockit import MultipleShooting, FreeGrid
 
-class Time_optimal:
+class TimeOptimal:
 
     """
-    Class for creating an object that computes time-optimal trajectories for
-    a given set of way-points in the joint space
+    Returns TashoRockit object for the frequently appearing problem of computing time-optimal trajectories for
+    a given set of way-points in the joint space. Meant to be used to compute fast trajectories for joint paths computed using 
+    by software outside Tasho.
     """
 
     def __init__(self, robot, no_waypoints, bounded, control_rate_con = None):

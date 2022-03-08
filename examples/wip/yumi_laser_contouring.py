@@ -175,9 +175,9 @@ if __name__ == '__main__':
 
 	if visualizationBullet:
 
-		from tasho import world_simulator
+		from tasho import WorldSimulator
 
-		obj = world_simulator.world_simulator()
+		obj = WorldSimulator.WorldSimulator()
 
 		position = [0.0, 0.0, 0.0]
 		orientation = [0.0, 0.0, 0.0, 1.0]
@@ -193,7 +193,7 @@ if __name__ == '__main__':
 		joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 		#begin the visualization of applying OCP solution in open loop
-		ts, q_dot_sol = sol.sample(q_dot, grid="control")
+		ts, q_dot_sol = tc.sol_sample(q_dot, grid="control")
 		obj.resetJointState(yumiID, joint_indices, q0_contour)
 		obj.setController(yumiID, "velocity", joint_indices, targetVelocities = q_dot_sol[0])
 		obj.run_simulation(480)
@@ -210,10 +210,10 @@ if __name__ == '__main__':
 
 	elif bullet_mpc_nr:
 
-		from tasho import world_simulator
+		from tasho import WorldSimulator
 		from tasho import MPC
 
-		bullet_world = world_simulator.world_simulator()
+		bullet_world = WorldSimulator.WorldSimulator()
 
 		position = [0., 0., 0.]
 		orientation = [0., 0., 0., 1.]

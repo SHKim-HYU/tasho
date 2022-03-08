@@ -1,1 +1,0 @@
-{"20,6": {"status": "MPC_SUCCEEDED", "torque_effort": [3850.2694545340137], "avg_solver_time": 0.07759973582099466, "total_trajectory_time": 2.5500000000000003}}

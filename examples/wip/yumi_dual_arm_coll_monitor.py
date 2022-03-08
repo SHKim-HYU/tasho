@@ -29,7 +29,7 @@ tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'
 tc.add_monitor({"name":"workspace_left_free", "expression":fk_left_ee[1,3], "reference":0.10, "greater":True, "initial":True}) #check if KE is lower than 0.1 at the first step of OCP
 tc.add_monitor({"name":"workspace_right_free", "expression":fk_right_ee[1,3], "reference":-0.10, "lower":True, "initial":True}) #check if KE is lower than 0.1 at the first step of OCP
 
-tc.ocp.set_value(q, 0)
+tc.set_initial(q, 0)
 sol = tc.solve_ocp() #to configure the monitors
 
 # opti = tc.ocp._method.opti

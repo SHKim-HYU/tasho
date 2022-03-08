@@ -17,17 +17,21 @@ setuptools.setup(
     description=DESCRIPTION,
     keywords=KEYWORDS,
     license=LICENSE,
-    long_description=open('README.md').read(),
-    long_description_content_type="text/markdown",
+    # long_description=open('README.md').read(),
+    # long_description_content_type="text/markdown",
     url=URL,
     packages=setuptools.find_packages(),
+    include_package_data=True,
     install_requires=[
         'rockit-meco>=0.1.28',
         'casadi>=3.4,<4.0',
         'numpy',
         'matplotlib',
         'scipy',
-        'pybullet'
+        'networkx',
+        'pydot',
+        'robotsmeco @ git+https://gitlab.kuleuven.be/meco-software/robot-models-meco.git@main',
+        'pybullet',
     ],
     classifiers=[
         "Development Status :: 1 - Planning",
@@ -36,5 +40,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering"
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.7',
 )

@@ -7,8 +7,9 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 import time
+import robotsmeco
 
-class world_simulator:
+class WorldSimulator:
     def __init__(self, plane_spawn=True, bullet_gui=True, physics_ts=1.0 / 240):
 
         self.verbose = True
@@ -22,7 +23,6 @@ class world_simulator:
             physicsClient = p.connect(p.DIRECT)
         p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())  # optionally
-        p.setTimeStep(physics_ts)
         p.setTimeStep(physics_ts)
         p.setGravity(0, 0, -9.81)
         if plane_spawn:
@@ -87,7 +87,7 @@ class world_simulator:
     def add_robot(
         self, position, orientation, robot_name=None, robot_urdf=None, fixedBase=True
     ):
-
+        package_path = robotsmeco.__path__[0]
         if robot_name != None:
             if robot_name == "yumi":
                 robotID = p.loadURDF(
@@ -97,8 +97,8 @@ class world_simulator:
                     useFixedBase=fixedBase,
                 )
             elif robot_name == "kinova":
-                robotID = p.loadURDF(
-                    "/models/robots/Kinova/Gen3/kortex_description/urdf/JACO3_URDF_V11.urdf",
+                robotID = p.loadURDF(package_path + 
+                    "/robots/Kinova/Gen3/kortex_description/urdf/JACO3_URDF_V11.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
@@ -122,6 +122,13 @@ class world_simulator:
             elif robot_name == "atlas":
                 robotID = p.loadURDF(
                     "/models/robots/Atlas/Atlas_description/urdf/atlas.urdf",
+                    position,
+                    orientation,
+                    useFixedBase=fixedBase,
+                )
+            elif robot_name == "franka_panda":
+                robotID = p.loadURDF(package_path + 
+                    "/robots/Franka/Panda/franka_description/franka.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
@@ -177,6 +184,15 @@ class world_simulator:
         jointStates = p.getJointStates(robotID, joint_indices)
 
         return jointStates
+
+    def readJointPositions(self, robotID, joint_indices):
+
+        joint_pos = []
+        joint_states = p.getJointStates(robotID, joint_indices)
+        for j in joint_indices:
+            joint_pos.append(joint_states[j][0])
+
+        return joint_pos
 
     def enableJointForceSensor(self, robotID, joint_indices):
 
@@ -235,7 +251,8 @@ class world_simulator:
                 joint_indices,
                 p.POSITION_CONTROL,
                 targetPositions=targetPositions,
-                targetVelocities=targetVelocities,
+                # targetVelocities=targetVelocities,
+                forces = [200]*len(targetVelocities)
             )
         elif controller_type == "torque":
             if not self.torque_control_mode:
@@ -302,8 +319,7 @@ class world_simulator:
 
 
 if __name__ == "__main__":
-    obj = world_simulator()
-
+    obj = WorldSimulator()
     position = [0.5, 0.0, 0.25]
     orientation = [0.0, 0.0, 0.0, 1.0]
     pose = {"position": position, "orientation": orientation}
@@ -312,11 +328,11 @@ if __name__ == "__main__":
     radius = 0.2
     weight = 100
 
-    obj.add_cylinder(radius, height, weight, pose)
+    # obj.add_cylinder(radius, height, weight, pose)
 
     # adding yumi robot to the bullet environment
     position = [-0.5, 0.0, 0.25]
-    yumiID = obj.add_robot(position, orientation, "yumi")
+    yumiID = obj.add_robot(position, orientation, "franka_panda")
 
     jointInfo = obj.getJointInfoArray(yumiID)
     print(jointInfo)

@@ -1,5 +1,5 @@
 from tasho import task_prototype_rockit as tp
-from tasho import input_resolution, world_simulator
+from tasho import input_resolution, WorldSimulator
 from tasho import robot as rob
 from tasho import MPC
 from tasho.utils import geometry
@@ -131,9 +131,9 @@ def rot_err(q, s):
     path_rot_a = rot_path[:, 2]
 
     return 0.5 * (
-        geometry.cross_vec2vec(ee_rot_n, path_rot_n)
-        + geometry.cross_vec2vec(ee_rot_s, path_rot_s)
-        + geometry.cross_vec2vec(ee_rot_a, path_rot_a)
+        geometry.cross_prod(ee_rot_n, path_rot_n)
+        + geometry.cross_prod(ee_rot_s, path_rot_s)
+        + geometry.cross_prod(ee_rot_a, path_rot_a)
     )
 
 
@@ -145,6 +145,7 @@ pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
     "upper_limits": 0.01 ** 2,
     "gain": 100,
     "norm": "squaredL2",
+    "slack_name": "trans_tunnel_slack"
 }
 rot_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
     "hard": False,
@@ -153,6 +154,7 @@ rot_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
     "upper_limits": 0.05 ** 2,
     "gain": 100,
     "norm": "squaredL2",
+    "slack_name": "rot_tunnel_slack"
 }
 tunnel_constraints = {"path_constraints": [pos_tunnel_con]}
 tc.add_task_constraint(tunnel_constraints)
@@ -218,10 +220,10 @@ tc.set_discretization_settings(disc_settings)
 ################################################
 # Set parameter values
 ################################################
-tc.ocp.set_value(q0, q_init)
-tc.ocp.set_value(q_dot0, [0] * 7)
-tc.ocp.set_value(s0, 0)
-tc.ocp.set_value(s_dot0, 0)
+tc.set_value(q0, q_init)
+tc.set_value(q_dot0, [0] * 7)
+tc.set_value(s0, 0)
+tc.set_value(s_dot0, 0)
 
 ################################################
 # Solve the OCP that describes the task
@@ -236,10 +238,10 @@ use_MPC_class = True
 if use_MPC_class:
 
     # Create world simulator based on pybullet
-    from tasho import world_simulator
+    from tasho import WorldSimulator
     import pybullet as p
 
-    obj = world_simulator.world_simulator(bullet_gui=True)
+    obj = WorldSimulator.WorldSimulator(bullet_gui=True)
 
     # Add robot to the world environment
     position = [0.0, 0.0, 0.0]

@@ -71,3 +71,9 @@ def rotmat_to_axisangle(R, reg = 1e-6):
     axis = unnormalized_axis / cs.sqrt(cs.sumsqr(unnormalized_axis) + reg*1e-16)
 
     return theta, axis
+
+def rotmat_to_axisangle2(R, reg = 1e-6):
+
+    theta, axis = rotmat_to_axisangle(R, reg)
+
+    return cs.vertcat(theta, axis)

@@ -8,8 +8,10 @@ stages:
   image: alejandroastudillo/tasho-base
   before_script:
     - source activate tasho-base
+    - yum install -y git
     - rm -rf .pip
-    - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose pybullet==2.7.2
+    - pip --no-cache-dir install casadi rockit-meco sphinx-gallery sphinx_rtd_theme coverage nose networkx pydot pybullet==2.7.2
+    - pip install git+https://gitlab.kuleuven.be/meco-software/robot-models-meco.git@main
     - python setup.py install
     - rm -rfv /tmp/*
   cache:
@@ -29,7 +31,7 @@ testing:examples:
   stage: testing
   <<: *template
   script:
-    - find examples -name "*.py" -not -path "*/wip/*" | xargs -n 1 python
+    - find examples -name "*.py" -not -path "*/wip/*" -not -path "*/templates/*" | xargs -n 1 python
 
 docs:sphinx:
   stage: docs

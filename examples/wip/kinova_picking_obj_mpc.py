@@ -5,7 +5,7 @@ from tasho import robot as rob
 from tasho import environment as env
 import casadi as cs
 from casadi import pi, cos, sin
-from rockit import MultipleShooting, Ocp
+import tasho.utils.geometry as geometry
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -18,7 +18,7 @@ print("Moving-object picking with Kinova Gen3")
 robot = rob.Robot("kinova", analytical_derivatives=False)
 
 # Update robot's parameters if needed
-max_joint_acc = 60 * 3.14159 / 180
+max_joint_acc = 90 * 3.14159 / 180
 robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
 
 # Define initial conditions of the robot
@@ -30,7 +30,7 @@ q_dot_init = [0] * robot.ndof
 ################################################
 
 # Select prediction horizon and sample time for the MPC execution
-horizon_size = 20
+horizon_size = 10
 t_mpc = 0.1
 
 # Initialize the task context object
@@ -51,17 +51,11 @@ T_goal = cs.vertcat(
 # Define constraints at the end of the horizon (final ee position and final joint velocity)
 T_ee = robot.fk(q)[7]
 
-final_pos = {
-    "hard": False,
-    "type": "Frame",
-    "expression": T_ee,
-    "reference": T_goal,
-    "rot_gain": 10,
-    "trans_gain": 10,
-    "norm": "L1",
-}
-final_vel = {"hard": True, "expression": q_dot, "reference": 0}
-final_constraints = {"final_constraints": [final_pos, final_vel]}
+position_con = {"hard": False, "expression": T_ee[0:3,3], "reference": T_goal[0:3,3], "norm": "L1"}
+rot_err, _ = geometry.rotmat_to_axisangle(T_ee[0:3, 0:3]@T_goal[0:3, 0:3])
+rotation_con = {"hard":False, "expression":rot_err, "reference":0, "norm":"L1"} 
+zero_vel = {"hard": True, "expression": q_dot, "reference": 0}
+final_constraints = {"final_constraints": [position_con, rotation_con, zero_vel]}
 tc.add_task_constraint(final_constraints)
 
 # Add penality terms on joint velocity and acceleration for regulatization
@@ -91,15 +85,8 @@ tc.add_regularization(
 ################################################
 # Set solver and discretization options
 ################################################
-tc.set_ocp_solver(
-    "ipopt",
-    {
-        "ipopt": {
-            "print_level": 0,
-            "tol": 1e-3,
-        }
-    },
-)
+# tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3}})
+tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3, "linear_solver":"ma27"}}) #use this if you have hsl
 
 disc_settings = {
     "discretization method": "multiple shooting",
@@ -112,9 +99,9 @@ tc.set_discretization_settings(disc_settings)
 ################################################
 # Set parameter values
 ################################################
-tc.ocp.set_value(cube_pos, [0.5, 0, 0.25])
-tc.ocp.set_value(q0, q_init)
-tc.ocp.set_value(q_dot0, q_dot_init)
+tc.set_value(cube_pos, [0.5, 0, 0.25])
+tc.set_value(q0, q_init)
+tc.set_value(q_dot0, q_dot_init)
 
 ################################################
 # Solve the OCP that describes the task
@@ -129,10 +116,10 @@ visualizationBullet = True
 if visualizationBullet:
 
     # Create world simulator based on pybullet
-    from tasho import world_simulator
+    from tasho import WorldSimulator
     import pybullet as p
 
-    obj = world_simulator.world_simulator()
+    obj = WorldSimulator.WorldSimulator()
 
     # Add robot to the world environment
     position = [0.0, 0.0, 0.0]
@@ -163,8 +150,8 @@ if visualizationBullet:
     joint_indices = [0, 1, 2, 3, 4, 5, 6]
 
     # Begin the visualization by applying the initial control signal
-    ts, q_sol = sol.sample(q, grid="control")
-    ts, q_dot_sol = sol.sample(q_dot, grid="control")
+    ts, q_sol = tc.sol_sample(q, grid="control")
+    ts, q_dot_sol = tc.sol_sample(q_dot, grid="control")
     obj.resetJointState(kinovaID, joint_indices, q_init)
     obj.setController(
         kinovaID, "velocity", joint_indices, targetVelocities=q_dot_sol[0]
@@ -189,19 +176,21 @@ if visualizationBullet:
         print("Predicted position of cube", predicted_pos)
 
         # Set parameter values
-        tc.ocp.set_value(q0, q_sol[1])
-        tc.ocp.set_value(q_dot0, q_dot_sol[1])
-        tc.ocp.set_value(cube_pos, predicted_pos)
+        tc.set_value(q0, q_sol[1])
+        tc.set_value(q_dot0, q_dot_sol[1])
+        tc.set_value(cube_pos, predicted_pos)
 
         # Solve the ocp
         sol = tc.solve_ocp()
 
         # Sample the solution for the next MPC execution
-        ts, q_sol = sol.sample(q, grid="control")
-        ts, q_dot_sol = sol.sample(q_dot, grid="control")
+        ts, q_sol = tc.sol_sample(q, grid="control")
+        _, q_dot_sol = tc.sol_sample(q_dot, grid="control")
+        _, q_ddot_sol = tc.sol_sample(q_ddot)
 
-        tc.ocp.set_initial(q, q_sol.T)
-        tc.ocp.set_initial(q_dot, q_dot_sol.T)
+        tc.set_initial(q, q_sol.T)
+        tc.set_initial(q_dot, q_dot_sol.T)
+        tc.set_initial(q_ddot, q_ddot_sol.T)
 
         # Set control signal to the simulated robot
         obj.setController(

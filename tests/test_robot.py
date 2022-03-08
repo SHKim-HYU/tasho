@@ -1,9 +1,10 @@
 import unittest
 from tasho import robot as rb
+# from robotsmeco import Robot as rb
 from tasho import task_prototype_rockit as tp
-from tasho import problem_template as pt
 import numpy as np
 from math import inf
+import casadi as cs
 
 
 class TestRobot(unittest.TestCase):
@@ -95,6 +96,13 @@ class TestRobot(unittest.TestCase):
             "Kinova Gen3 - initial conditions / set state assert failed",
         )
 
+        rob_kinova.set_name('kinovaGen3')
+        self.assertEqual(
+            rob_kinova.name,
+            'kinovaGen3',
+            "Kinova Gen3 - set name assert failed",
+        )
+
     def test_robotinputresolution(self):
         # ABB Yumi
         rob_yumi = rb.Robot(name="yumi")
@@ -135,37 +143,92 @@ class TestRobot(unittest.TestCase):
 
         # print(list(rob_yumi.parameters)[0])
 
-    def test_problemtemplate(self):
-        horizon_size = 10
-        t_mpc = 0.5
-        max_joint_acc = 30 * 3.14159 / 180
+    def test_analytical_derivatives(self):
+        # Kinova Gen3
+        rob_kinova = rb.Robot(name="kinova", analytical_derivatives=True,)
 
-        q0_val = [0, -0.523598, 0, 2.51799, 0, -0.523598, -1.5708]
-        q_dot0_val = [0] * 7
+        fwd_dyn = rob_kinova.fd
+        J_fwd_dyn = rob_kinova.J_fd.expand()
+        inv_dyn = rob_kinova.id
+        J_inv_dyn = rob_kinova.J_id
 
-        # Set robot
-        robot = rb.Robot("kinova")
-        robot.set_joint_acceleration_limits(lb=-max_joint_acc, ub=max_joint_acc)
-        robot.set_state(q0_val + q_dot0_val)
+        q_random = rob_kinova.generate_random_configuration()
+        dq_random = rob_kinova.generate_random_configuration()
+        tau_random = rob_kinova.generate_random_configuration()
 
-        T_goal = np.array(
-            [[0, 1, 0, 0.5], [1, 0, 0, 0], [0, 0, -1, 0.25], [0, 0, 0, 1]]
-        )
-        tc = pt.Point2Point(
-            horizon_size * t_mpc, horizon_steps=horizon_size, goal=T_goal
-        )
-        tc.add_robot(robot)
+        in_fd = fwd_dyn.sx_in()
+        q = fwd_dyn.sx_in(0)
+        dq = fwd_dyn.sx_in(1)
+        tau = fwd_dyn.sx_in(2)
+        out_fd = [cs.jacobian(fwd_dyn(q, dq, tau),cs.vertcat(q,dq,tau))]
+        fd_jacobian = cs.Function('fd_Jacobian', in_fd, out_fd).expand()
 
-        self.assertEqual(int(len(tc.states)), 2, "Size of system states is not correct")
+        in_id = inv_dyn.sx_in()
+        q = inv_dyn.sx_in(0)
+        dq = inv_dyn.sx_in(1)
+        ddq = inv_dyn.sx_in(2)
+        out_id = [cs.jacobian(inv_dyn(q, dq, ddq),cs.vertcat(q,dq,ddq))]
+        id_jacobian = cs.Function('id_Jacobian', in_id, out_id).expand()
+
         self.assertEqual(
-            int(len(tc.parameters)), 2, "Size of system parameters is not correct"
+            np.testing.assert_almost_equal(
+                fd_jacobian(q_random, dq_random, tau_random).full(),
+                J_fwd_dyn(q_random, dq_random, tau_random).full(),
+                decimal = 10
+            ), None
         )
+
         self.assertEqual(
-            int(len(tc.controls)), 1, "Size of system inputs is not correct"
+            np.testing.assert_almost_equal(
+                id_jacobian(q_random, dq_random, tau_random).full(),
+                J_inv_dyn(q_random, dq_random, tau_random).full(),
+                decimal = 10
+            ), None
         )
-        self.assertEqual(
-            list(tc.parameters)[0], "q00", "Name of first parameter is not correct"
-        )
+
+    def test_scqp(self):
+        # Kinova Gen3
+        rob_kinova = rb.Robot(name="kinova", analytical_derivatives=True, scqp=True)
+
+        # fwd_dyn = rob_kinova.fd
+        # J_fwd_dyn = rob_kinova.J_fd.expand()
+        # inv_dyn = rob_kinova.id
+        # J_inv_dyn = rob_kinova.J_id
+
+        # q_random = rob_kinova.generate_random_configuration()
+        # dq_random = rob_kinova.generate_random_configuration()
+        # tau_random = rob_kinova.generate_random_configuration()
+
+        # in_fd = fwd_dyn.sx_in()
+        # q = fwd_dyn.sx_in(0)
+        # dq = fwd_dyn.sx_in(1)
+        # tau = fwd_dyn.sx_in(2)
+        # out_fd = [cs.jacobian(fwd_dyn(q, dq, tau),cs.vertcat(q,dq,tau))]
+        # fd_jacobian = cs.Function('fd_Jacobian', in_fd, out_fd).expand()
+
+        # in_id = inv_dyn.sx_in()
+        # q = inv_dyn.sx_in(0)
+        # dq = inv_dyn.sx_in(1)
+        # ddq = inv_dyn.sx_in(2)
+        # out_id = [cs.jacobian(inv_dyn(q, dq, ddq),cs.vertcat(q,dq,ddq))]
+        # id_jacobian = cs.Function('id_Jacobian', in_id, out_id).expand()
+
+        # self.assertEqual(
+        #     np.testing.assert_almost_equal(
+        #         fd_jacobian(q_random, dq_random, tau_random).full(),
+        #         J_fwd_dyn(q_random, dq_random, tau_random).full(),
+        #         decimal = 10
+        #     ), None
+        # )
+
+        # self.assertEqual(
+        #     np.testing.assert_almost_equal(
+        #         id_jacobian(q_random, dq_random, tau_random).full(),
+        #         J_inv_dyn(q_random, dq_random, tau_random).full(),
+        #         decimal = 10
+        #     ), None
+        # )
+
 
 
 if __name__ == "__main__":

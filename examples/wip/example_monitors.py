@@ -21,8 +21,8 @@ tc.set_dynamics(x_dot, -1*x_dot - 1*x) #mass, viscous co-efficient and the sprin
 x_initcon = {'expression':x, 'reference':x0}
 x_dot_initcon = {'expression':x_dot, 'reference':xdot_0}
 tc.add_task_constraint({'initial_constraints':[x_initcon, x_dot_initcon]})
-tc.ocp.set_value(x0, 1)
-tc.ocp.set_value(xdot_0, 1)
+tc.set_value(x0, 1)
+tc.set_value(xdot_0, 1)
 disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
 tc.set_discretization_settings(disc_settings)
 tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3, "print_level":0}, "print_time":False})
@@ -45,11 +45,11 @@ for i in range(30):
 
 	print("Iteration number:" + str(i+1))
 	#sample all the opti variables
-	_, optix = sol.sample(opti.x, grid = 'control')
+	_, optix = tc.sol_sample(opti.x, grid = 'control')
 	optix = optix[0]
-	_, optip = sol.sample(opti.p, grid = 'control')
+	_, optip = tc.sol_sample(opti.p, grid = 'control')
 	optip = optip[0]
-	_, optilam_g = sol.sample(opti.lam_g, grid = 'control')
+	_, optilam_g = tc.sol_sample(opti.lam_g, grid = 'control')
 	optilam_g = optilam_g[0]
 
 	#compute the truth value of the monitors and print
@@ -58,12 +58,12 @@ for i in range(30):
 	print(tc.monitors["once"]["monitor_fun"]([optix, optip, optilam_g]))
 	print(tc.monitors["always"]["monitor_fun"]([optix, optip, optilam_g]))
 
-	_, x_sol = sol.sample(x, grid= "control")
-	_, xdot_sol = sol.sample(x_dot, grid= "control")
+	_, x_sol = tc.sol_sample(x, grid= "control")
+	_, xdot_sol = tc.sol_sample(x_dot, grid= "control")
 
 	print("position = " + str(x_sol[0]) + " and velocity = " + str(xdot_sol[0]))
 
-	tc.ocp.set_value(x0, x_sol[1])
-	tc.ocp.set_value(xdot_0, xdot_sol[1])
+	tc.set_value(x0, x_sol[1])
+	tc.set_value(xdot_0, xdot_sol[1])
 
 	sol = tc.solve_ocp()

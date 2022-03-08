@@ -68,7 +68,7 @@ class Robot:
         """
         self.name = name
 
-    def set_kinematic_jacobian(self, name, q):
+    def set_kinematic_jacobian(self, q, name = 'rob_jac'):
         """Creates a function that computes the kinematic jacobian of the robot
 
         :param name: Name to be set for the returned function
@@ -103,7 +103,7 @@ class Robot:
                 flag = True
 
         # constructing and returning the function
-        jac_fun = cs.Function(name, [q_sym], [jac, jac_rot_vec])
+        jac_fun = cs.Function(name, [q_sym], [cs.vertcat(jac_rot_vec, jac)])
         self.trans_jacobian = jac_fun
         return jac_fun
 
@@ -402,12 +402,14 @@ class Robot:
             
             # Overwrite functions applying symlin to the output
             in_fd = [q_mx, dq_mx, tau_mx]
-            out_fd = [symlin(self.fd(*in_fd))]
+            # out_fd = [symlin(self.fd(*in_fd))]
+            out_fd = [(self.fd(*in_fd))]
             self.fd = Function(self.fd.name(), in_fd, out_fd, self.fd.name_in(), self.fd.name_out())
 
             # Overwrite functions applying symlin to the output
             in_id = [q_mx, dq_mx, ddq_mx]
-            out_id = [symlin(self.id(*in_id))]
+            # out_id = [symlin(self.id(*in_id))]
+            out_id = [(self.id(*in_id))]
             self.id = Function(self.id.name(), in_id, out_id, self.id.name_in(), self.id.name_out())
             
         # TODO: Add URDF path to json
@@ -435,7 +437,11 @@ class Robot:
         n = self.ndof
         joint_ub = np.array(self.joint_ub).T
         joint_lb = np.array(self.joint_lb).T
-        rand_joint_val = np.random.rand(n) * (joint_ub - joint_lb) + joint_lb
+
+        joint_ub[np.isinf(joint_ub)] = np.pi
+        joint_lb[np.isneginf(joint_lb)] = -np.pi
+
+        rand_joint_val = np.random.rand(n, 1) * (joint_ub - joint_lb) + joint_lb
 
         return list(rand_joint_val[0])
 
