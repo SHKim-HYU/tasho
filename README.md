@@ -13,6 +13,8 @@
 
 **Tasho** stands for "TAsk Specification with receding HOrizon control". It is a user-friendly Python toolbox that provides a unified workflow that streamlines and automates many steps from specification to experimental deployment to enable rapid prototyping of OCP/MPC based motion skills in robotics.
 
+(Note: Documentation and examples directory is under heavy development until March 10th, 2022. )
+
 **Authors:** [Ajay Sathya](https://scholar.google.com/citations?hl=es&user=A00LDswAAAAJ) and [Alejandro Astudillo](https://scholar.google.com/citations?user=9ONkJZAAAAAJ).  
 **With support from [Joris Gillis](https://scholar.google.com/citations?hl=es&user=sQtYwmgAAAAJ), [Wilm Decré](https://scholar.google.com/citations?hl=es&user=ZgAnArUAAAAJ), [Goele Pipeleers](https://scholar.google.com/citations?hl=es&user=TKWS1vEAAAAJ) and [Jan Swevers](https://scholar.google.com/citations?hl=es&user=X_fnO1YAAAAJ) from the [MECO Research Team](https://www.mech.kuleuven.be/en/pma/research/meco/) at KU Leuven, Belgium.**
 
@@ -40,7 +42,7 @@ This has the advantage of just installing a link to the site-packages folder ins
 
 ## Examples
 
-Several examples are provided with Tasho. The following examples list is arranged in ascending order of complexity.
+Several examples are provided with Tasho. The following examples list is arranged in ascending order of complexity. (Uncomment the GUI option for visualization.)
 - Hello world: [examples/hello_world_AT.py](examples/hello_world_AT.py)
 - Point-to-point motion: [examples/P2P_AT.py](examples/P2P_AT.py)
 - Tunnel-following optimal control: [examples/pose_tunnel_AT.py](examples/pose_tunnel_AT.py)
