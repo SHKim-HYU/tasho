@@ -54,6 +54,12 @@ Several examples are provided with Tasho. The following examples list is arrange
 
 [![[Watch the video]](docs/aux/img/fm_demo.png)](https://youtu.be/yhRMBapcHPA)
 
+### Dual arm laser contouring
+
+The dual arm robot follows a trajectory such that the laser pointer held by one hand follows a desired path on the workpiece held by an other. We use MPC for executing this motion, which is a systematic approach for satisfying constraints on angle-of-incidence, distance between the laser and workpiece, laser contouring rate, etc.
+
+[![[Watch the video]](docs/aux/img/dual_arm_laser2.png)](https://youtu.be/Zj3GigCeXWY)
+
 ## Submitting an issue
 
 Please submit an issue if you want to report a bug or propose new features.
