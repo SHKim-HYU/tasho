@@ -18,7 +18,6 @@ Table of contents
   :maxdepth: 2
 
   intro/install
-  intro/examples
   intro/license
   intro/contact
 

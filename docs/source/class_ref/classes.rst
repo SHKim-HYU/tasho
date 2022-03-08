@@ -6,14 +6,6 @@ Tasho API
 
    Add documentation for other classes of Tasho
 
-*********
-Tasho API
-*********
-
-.. todo::
-
-   Add documentation for other classes of Tasho
-
 Robot
 =====
 
