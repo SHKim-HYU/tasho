@@ -9,6 +9,7 @@ import json
 import casadi as cs
 import numpy as np
 from tasho.utils import geometry
+from tasho.utils.symlin import symlin
 
 # TODO: If input resolution has already been set for a previous task, you don't need to set it again
 
@@ -27,7 +28,7 @@ class Robot:
     Here is a link to :py:meth:`__init__`.
     """
 
-    def __init__(self, name="kinova", analytical_derivatives=False):
+    def __init__(self, name="kinova", analytical_derivatives=False, scqp=False):
         """Start the Robot.
 
         :param name: Robots name to load functions.
@@ -48,6 +49,8 @@ class Robot:
         self.torque_lb = None
         self.gravity = vertcat(0, 0, -9.81)
 
+        self.scqp = scqp
+
         self.load_from_json(analytical_derivatives)
 
         self.states = []
@@ -65,7 +68,7 @@ class Robot:
         """
         self.name = name
 
-    def set_kinematic_jacobian(self, name, q):
+    def set_kinematic_jacobian(self, q, name = 'rob_jac'):
         """Creates a function that computes the kinematic jacobian of the robot
 
         :param name: Name to be set for the returned function
@@ -100,7 +103,7 @@ class Robot:
                 flag = True
 
         # constructing and returning the function
-        jac_fun = cs.Function(name, [q_sym], [jac, jac_rot_vec])
+        jac_fun = cs.Function(name, [q_sym], [cs.vertcat(jac_rot_vec, jac)])
         self.trans_jacobian = jac_fun
         return jac_fun
 
@@ -184,6 +187,8 @@ class Robot:
                 _ub = vertcat(_ub, inf)
         elif isinstance(ub, Real):
             _ub = ub
+        elif isinstance(ub, cs.MX):
+            _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
@@ -197,6 +202,8 @@ class Robot:
             for i in range(1, ndof):
                 _lb = vertcat(_lb, -inf)
         elif isinstance(lb, Real):
+            _lb = lb
+        elif isinstance(lb, cs.MX):
             _lb = lb
         else:
             if len(lb) != ndof:
@@ -219,6 +226,8 @@ class Robot:
                 _ub = vertcat(_ub, inf)
         elif isinstance(ub, Real):
             _ub = ub
+        elif isinstance(ub, cs.MX):
+            _ub = ub
         else:
             if len(ub) != ndof:
                 _ub = inf
@@ -233,6 +242,8 @@ class Robot:
                 _lb = vertcat(_lb, -inf)
         elif isinstance(lb, Real):
             _lb = lb
+        elif isinstance(lb, cs.MX):
+            _lb = lb
         else:
             if len(lb) != ndof:
                 _lb = -inf
@@ -245,7 +256,8 @@ class Robot:
         self.joint_acc_lb = _lb
 
     def load_from_json(self, analytical_derivatives):
-        print("Loading robot params from json")
+        print("Loading robot params from json ...")
+        # with open("./models/robots/" + self.name + ".json", "r") as f:
         with open("./models/robots/" + self.name + ".json", "r") as f:
             json_dict = json.load(f)
 
@@ -349,13 +361,13 @@ class Robot:
         out_J_fd = [
             self.J_fd(self.J_fd.sx_in(0), self.J_fd.sx_in(1), self.J_fd.sx_in(2))
         ]
-        self.J_fd = Function("jac_fd", in_J_fd, out_J_fd)
+        self.J_fd = Function("jac_fd", in_J_fd, out_J_fd, ["q", "q_dot", "tau"], ["jac_fd"])
 
         in_J_id = self.J_id.sx_in()
         out_J_id = [
             self.J_id(self.J_id.sx_in(0), self.J_id.sx_in(1), self.J_id.sx_in(2))
         ]
-        self.J_id = Function("jac_id", in_J_id, out_J_id)
+        self.J_id = Function("jac_id", in_J_id, out_J_id, ["q", "q_dot", "q_ddot"], ["jac_id"])
         ####################################################################################
 
         if analytical_derivatives:
@@ -378,12 +390,28 @@ class Robot:
 
             in_fd = self.fd.sx_in()
             out_fd = [self.fd(self.fd.sx_in(0), self.fd.sx_in(1), self.fd.sx_in(2))]
-            self.fd = Function("fd", in_fd, out_fd, fd_opts)
+            self.fd = Function("fd", in_fd, out_fd, ["q", "q_dot", "tau"], ["q_ddot"], fd_opts)
 
             in_id = self.id.sx_in()
             out_id = [self.id(self.id.sx_in(0), self.id.sx_in(1), self.id.sx_in(2))]
-            self.id = Function("id", in_id, out_id, id_opts)
+            self.id = Function("id", in_id, out_id, ["q", "q_dot", "q_ddot"], ["tau"], id_opts)
 
+        if self.scqp:
+
+            q_mx, dq_mx, ddq_mx, tau_mx = cs.MX.sym('q',self.ndof), cs.MX.sym('dq',self.ndof), cs.MX.sym('ddq',self.ndof), cs.MX.sym('tau',self.ndof)
+            
+            # Overwrite functions applying symlin to the output
+            in_fd = [q_mx, dq_mx, tau_mx]
+            # out_fd = [symlin(self.fd(*in_fd))]
+            out_fd = [(self.fd(*in_fd))]
+            self.fd = Function(self.fd.name(), in_fd, out_fd, self.fd.name_in(), self.fd.name_out())
+
+            # Overwrite functions applying symlin to the output
+            in_id = [q_mx, dq_mx, ddq_mx]
+            # out_id = [symlin(self.id(*in_id))]
+            out_id = [(self.id(*in_id))]
+            self.id = Function(self.id.name(), in_id, out_id, self.id.name_in(), self.id.name_out())
+            
         # TODO: Add URDF path to json
         # self.urdf = Function.load(str(json_dict['urdf_path']))
 
@@ -392,6 +420,7 @@ class Robot:
         # for x in json_dict:
         #     # print("%s: %s" % (x, json_dict[x]))
         #     print("%s: %s" % (x, json_dict[x]))
+        print("Loaded " + str(self.ndof) + "-DoF robot: " + self.name)
 
     def sim_system_dyn(self, ocp):
         # Get discretised dynamics as CasADi function to simulate the system
@@ -401,9 +430,6 @@ class Robot:
     def set_state(self, current_x):
         self.current_state = current_x
 
-    def set_robot_input_resolution(self, input_resolution="acceleration"):
-        self.input_resolution = input_resolution
-
     def generate_random_configuration(self):
         """Returns a random configuration of the robot that respects the joint
         limits."""
@@ -411,185 +437,14 @@ class Robot:
         n = self.ndof
         joint_ub = np.array(self.joint_ub).T
         joint_lb = np.array(self.joint_lb).T
-        rand_joint_val = np.random.rand(n) * (joint_ub - joint_lb) + joint_lb
+
+        joint_ub[np.isinf(joint_ub)] = np.pi
+        joint_lb[np.isneginf(joint_lb)] = -np.pi
+
+        rand_joint_val = np.random.rand(n, 1) * (joint_ub - joint_lb) + joint_lb
 
         return list(rand_joint_val[0])
-
-    # def transcribe(self, task_context):
-    #
-    #     # Set robot's input resolution for task
-    #     task_context.set_input_resolution(self)
-
-    # def set_input_resolution(self, task_context, input_resolution = "acceleration", options=None):
-    #
-    #     """ Function returns the expressions for acceleration-, velocity-, or position-resolved control
-    # 	with appropriate position, velocity and acceleration constraints added to the task context.
-    #
-    # 	:param tc: The task context
-    # 	:param input_resolution: robot The object of the robot in question
-    #     :param options: Dictionary to pass further miscellaneous options
-    #
-    #     :type tc: task
-    #     :type input_resolution: string
-    #     :type options: dictionary
-    #
-    # 	"""
-    #
-    #     self.input_resolution = input_resolution
-    #
-    #     if input_resolution == "velocity":
-    #
-    #         print("ERROR: Not implemented and probably not recommended")
-    #
-    #     elif input_resolution == "acceleration":
-    #
-    #         q = task_context.create_expression('q', 'state', (self.ndof, 1)) #joint positions over the trajectory
-    #         q_dot = task_context.create_expression('q_dot', 'state', (self.ndof, 1)) #joint velocities
-    #         q_ddot = task_context.create_expression('q_ddot', 'control', (self.ndof, 1))
-    #
-    #         #expressions for initial joint position and joint velocity
-    #         q0 = task_context.create_expression('q0', 'parameter', (self.ndof, 1))
-    #         q_dot0 = task_context.create_expression('q_dot0', 'parameter', (self.ndof, 1))
-    #
-    #         task_context.set_dynamics(q, q_dot)
-    #         task_context.set_dynamics(q_dot, q_ddot)
-    #
-    #         #add joint position, velocity and acceleration limits
-    #         pos_limits = {'lub':True, 'hard': True, 'expression':q, 'upper_limits':self.joint_ub, 'lower_limits':self.joint_lb}
-    #         vel_limits = {'lub':True, 'hard': True, 'expression':q_dot, 'upper_limits':self.joint_vel_ub, 'lower_limits':self.joint_vel_lb}
-    #         acc_limits = {'lub':True, 'hard': True, 'expression':q_ddot, 'upper_limits':self.joint_acc_ub, 'lower_limits':self.joint_acc_lb}
-    #         joint_constraints = {'path_constraints':[pos_limits, vel_limits, acc_limits]}
-    #         task_context.add_task_constraint(joint_constraints)
-    #
-    #         #adding the initial constraints on joint position and velocity
-    #         joint_init_con = {'expression':q, 'reference':q0}
-    #         joint_vel_init_con = {'expression':q_dot, 'reference':q_dot0}
-    #         init_constraints = {'initial_constraints':[joint_init_con, joint_vel_init_con]}
-    #         task_context.add_task_constraint(init_constraints)
-    #
-    #         self.states = task_context.states
-    #         self.parameters = task_context.parameters
-    #         self.inputs = task_context.controls
-    #
-    #         return q, q_dot, q_ddot, q0, q_dot0
-    #
-    #     elif input_resolution == "torque":
-    #
-    #         print("ERROR: Not implemented")
-    #
-    #     else:
-    #
-    #         print("ERROR: Only available options for input_resolution are: \"velocity\", \"acceleration\" or \"torque\".")
-    #
 
     @property
     def get_initial_conditions(self):
         return self.current_state
-
-    # def sim_system_dyn(self, ocp):
-    #     # Get discretised dynamics as CasADi function to simulate the system
-    #     sim_system_dyn = ocp._method.discrete_system(ocp)
-    #     return sim_system_dyn
-
-
-# class TwoLinkPlanar(Robot):
-#     def __init__(self, r_veh=1., bounds={}, safety_dist=0., look_ahead_distance=5.):
-#         self.r_veh = r_veh
-#         self.bounds = bounds
-#         self.safety_dist = safety_dist
-#         self.look_ahead_distance = look_ahead_distance
-#         self.current_X = vertcat(0, 0, 0)
-#         self.n_states = 4
-#         self.n_controls = 2
-#
-#     def transcribe(self, ocp):
-#         bounds = self.bounds
-#
-#         # Define states
-#         q1          = ocp.state()
-#         q2          = ocp.state()
-#         dq1         = ocp.state()
-#         dq2         = ocp.state()
-#         self.q1     = q1
-#         self.q2     = q2
-#         self.dq2    = dq2
-#         self.dq2    = dq2
-#
-#         # Define controls
-#         tau1        = ocp.control()
-#         tau2        = ocp.control()
-#         self.tau1   = tau1
-#         self.tau2   = tau2
-#
-#         print('The two-link planar robot model defines four states (q1, q2, dq1, dq2) and two control inputs (tau1 and tau2)')
-#
-#         # Specify vehicle model
-#         ocp.set_der(x,     V*cos(theta))
-#         ocp.set_der(y,     V*sin(theta))
-#         ocp.set_der(theta, dtheta)
-#
-#         # Path constraints
-#         ocp.subject_to(bounds["dthetamin"] <= (dtheta <= bounds["dthetamax"]))
-#         ocp.subject_to(bounds["vmin"] <= (V <= bounds["vmax"]))
-#
-#         # Initial guess
-#         ocp.set_initial(dtheta, 0)
-#         ocp.set_initial(V,      bounds["vmax"])
-#
-#         # Define parameter for initial state
-#         X0 = ocp.parameter(3)
-#         self.X0 = X0
-#
-#         # Initial constraints
-#         X = vertcat(x, y, theta)
-#         ocp.subject_to(ocp.at_t0(X) == X0)
-#
-#         # Add penalty on turning
-#         ocp.add_objective(1*ocp.sum(sumsqr(dtheta), grid='control'))
-#
-#     def set_start_pose(self, ocp, states):
-#         self.current_X = vertcat(states)
-#         ocp.set_value(self.X0, self.current_X)
-#
-#     def set_initial_guess(self, ocp, states):
-#         ocp.set_initial(self.x,     states[0])
-#         ocp.set_initial(self.y,     states[1])
-#         ocp.set_initial(self.theta, states[2])
-#
-#     @property
-#     def get_states(self):
-#         return vertcat(self.x, self.y, self.theta)
-#
-#     @property
-#     def get_controls(self):
-#         return vertcat(self.dtheta, self.V)
-#
-#     def get_output_states(self, ocp):
-#         return vertcat(ocp.sample(self.x)[1], ocp.sample(self.y)[1], ocp.sample(self.theta)[1])
-#
-#     def get_output_controls(self, ocp):
-#         return vertcat(ocp.sample(self.dtheta)[1], ocp.sample(self.V)[1])
-# Function to load casadi robot models
-
-# import casadi as cs
-#
-# def load_fk(robot_name):
-#
-# 	file = '/robots/' + robot_name + '/' + robot_name + '_fk.casadi'
-# 	robot_fk = cs.Function.load(file)
-#
-# 	return load_fk
-#
-# def load_inverse_dynamics(robot_name):
-#
-# 	file = '/robots/' + robot_name + '/' + robot_name + '_id.casadi'
-# 	robot_id = cs.Function.load(file)
-#
-# 	return robot_id
-#
-# def load_forward_dynamics(robot_name):
-#
-# 	file = '/robots/' + robot_name + '/' + robot_name + '_fd.casadi'
-# 	robot_fd = cs.Function.load(file)
-#
-# 	return robot_fd

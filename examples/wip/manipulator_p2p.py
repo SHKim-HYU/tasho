@@ -1,7 +1,7 @@
 ## OCP for point-to-point motion and visualization of a KUKA robot arm
 
 from tasho import task_prototype_rockit as tp
-from tasho import input_resolution, world_simulator
+from tasho import input_resolution, WorldSimulator
 from tasho import robot as rob
 import casadi as cs
 import numpy as np
@@ -21,10 +21,9 @@ if __name__ == '__main__':
 
 	#Different OCP options
 	time_optimal = False
-	coll_avoid = False
-	frame_constraint = False
-	robot_choice = 'kinova'#'iiwa7' #
-	ocp_control =  'torque_resolved' #'acceleration_resolved' #
+	coll_avoid = True
+	robot_choice = 'iiwa7' #
+	ocp_control =  'acceleration_resolved' #'torque_resolved' #
 	L1_pathcost = False #Heuristically time optimal solution
 
 	robot = rob.Robot(robot_choice)
@@ -36,7 +35,7 @@ if __name__ == '__main__':
 		tc = tp.task_context()
 		tc.minimize_time(100)
 	else:
-		tc = tp.task_context(t_ocp*horizon_size)
+		tc = tp.task_context(time = t_ocp*horizon_size, horizon_steps=horizon_size)
 
 	if ocp_control == 'acceleration_resolved':
 		q, q_dot, q_ddot, q0, q_dot0 = input_resolution.acceleration_resolved(tc, robot, {})
@@ -70,21 +69,16 @@ if __name__ == '__main__':
 	# q0_val = [1.4280132556823228, 1.4328754849546814, -0.8174926922820074, 1.6300424942291611, 1.5253416457541626, 0.40308575415053083, -0.7050632112780262]
 	# q0_val = [2.4884284478753274, 1.8410163304680323, -2.4614376640225717, -1.8163528893845817, 2.67404192365677, -1.2615242048333508, -0.6404874946679473]
 
-	tc.ocp.set_value(q0, q0_val)
-	tc.ocp.set_value(q_dot0, [0]*7)
-	tc.ocp.set_initial(q, q0_val)
-	# q_init_random = robot.generate_random_configuration()
+	tc.set_value(q0, q0_val)
+	tc.set_value(q_dot0, [0]*7)
+	tc.set_initial(q, q0_val)
+	q_init_random = robot.generate_random_configuration()
 	# q_init_random = [-1.2925769493873958, 1.6948105720448297, -1.8663904352037908, 0.6752120689663585, -0.169008150759685, 0.1202290569932778, 2.147437378108014]
-	# tc.ocp.set_initial(q, q_init_random)
+	# tc.set_initial(q, q_init_random)
 	final_vel = {'hard':True, 'expression':q_dot, 'reference':0}
-	if frame_constraint:
-		# final_pos = {'hard':True, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal}
-		final_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':10, 'trans_gain':10, 'norm':'L1'}
-		final_constraints = {'final_constraints':[final_pos, final_vel]}
-	else:
-		final_position = {'hard':False, 'expression':fk_vals[0:3,3], 'reference':T_goal[0:3,3], 'gain':10, 'norm':'L1'}
-		final_orientation = {'hard':False, 'expression':fk_vals[0:3,2].T@T_goal[0:3,2], 'reference':1, 'gain':10, 'norm':'L1'}
-		final_constraints = {'final_constraints':[final_position, final_orientation, final_vel]}
+	final_position = {'hard':False, 'expression':fk_vals[0:3,3], 'reference':T_goal[0:3,3], 'gain':10, 'norm':'L1'}
+	final_orientation = {'hard':False, 'expression':fk_vals[0:3,2].T@T_goal[0:3,2], 'reference':1, 'gain':10, 'norm':'L1'}
+	final_constraints = {'final_constraints':[final_position, final_orientation, final_vel]}
 
 	tc.add_task_constraint(final_constraints)
 
@@ -94,12 +88,14 @@ if __name__ == '__main__':
 		control_regularization = {'hard': False, 'expression':q_ddot, 'reference':0, 'gain':1e-3}
 	elif ocp_control == 'torque_resolved':
 		control_regularization = {'hard': False, 'expression':tau, 'reference':0, 'gain':1e-6}
-	if L1_pathcost:
-		path_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':0.5, 'trans_gain':0.5, 'norm':'L1'}
-		task_objective = {'path_constraints':[vel_regularization, control_regularization, path_pos]}
-	else:
-		task_objective = {'path_constraints':[vel_regularization, control_regularization]}
-	tc.add_task_constraint(task_objective)
+    
+    ## TODO:ajay Fix the issue with the constraint below
+	# if L1_pathcost:
+	# 	path_pos = {'hard':False, 'type':'Frame', 'expression':fk_vals, 'reference':T_goal, 'rot_gain':10.0, 'trans_gain':5.04, 'norm':'L1'}
+	# 	task_objective = {'path_constraints':[vel_regularization, control_regularization, path_pos]}
+	# else:
+	# 	task_objective = {'path_constraints':[vel_regularization, control_regularization]}
+	# tc.add_task_constraint(task_objective)
 
 
 	#Add collision avoidance constraints, if activated
@@ -129,27 +125,24 @@ if __name__ == '__main__':
 	tc.set_discretization_settings(disc_settings)
 	sol = tc.solve_ocp()
 
-	ts, q_sol = sol.sample(q, grid="control")
-	ts, q_dot_sol = sol.sample(q_dot, grid="control")
+	ts, q_sol = tc.sol_sample(q, grid="control")
+	ts, q_dot_sol = tc.sol_sample(q_dot, grid="control")
 
 	#check feasibility if soft constraints were used
 	print("Initial joint position")
 	print(q0_val)
 	rot_err = robot.fk(q_sol[-1,:])[6][0:3,0:3].T@T_goal[0:3,0:3]
 	assert(cs.norm_1( robot.fk(q_sol[-1,:])[6][0:3,3] - T_goal[0:3,3]) <= 1e-5)
-	if frame_constraint:
-		assert(cs.fabs(rot_err[0,0] - 1) + cs.fabs(rot_err[1,1] - 1) + cs.fabs(rot_err[2,2] - 1) <= 1e-4)
-	else:
-		assert(cs.fabs(rot_err[2,2] - 1) <= 1e-4)
+	assert(cs.fabs(rot_err[2,2] - 1) <= 1e-4)
 	if coll_avoid:
-		_, dist1_sol = sol.sample(distance, grid="control")
+		_, dist1_sol = tc.sol_sample(distance, grid="control")
 		assert((dist1_sol  >= 0.01).all())
-		_, dist2_sol = sol.sample(distance2, grid="control")
+		_, dist2_sol = tc.sol_sample(distance2, grid="control")
 		assert((dist2_sol  >= 0.01).all())
 	print(robot.fk(q_sol[-1,:])[6][0:3,0:3]@T_goal[0:3,0:3])
 
 	#visualizing the results
-	obj = world_simulator.world_simulator(plane_spawn = True, bullet_gui = True)
+	obj = WorldSimulator.WorldSimulator(plane_spawn = True, bullet_gui = True)
 	obj.visualization_realtime = True
 	position = [0.0, 0.0, 0.0]
 	orientation = [0.0, 0.0, 0.0, 1.0]
@@ -164,19 +157,19 @@ if __name__ == '__main__':
 		obj.add_cube({'position':ball_obs['center'], 'orientation':[0,0,0,1.0]}, scale = ball_obs['radius']*1.8, fixedBase = True)
 
 	if time_optimal:
-		t_ocp = sol.value(tc.ocp.T)/horizon_size
+		t_ocp = tc.sol_value(tc.stages[0].T)/horizon_size
 
 	joint_indices = [0, 1, 2, 3, 4, 5, 6]
 	obj.resetJointState(kukaID, joint_indices, q0_val)
 
-	s_qsol = sol.sampler(q_dot)
-	t_sol = np.arange(0, sol.value(tc.ocp.T), obj.physics_ts)
-	q_dot_sol = s_qsol(t_sol)
+	# s_qsol = sol.sampler(q_dot)
+	# t_sol = np.arange(0, sol.value(tc.ocp.T), obj.physics_ts)
+	# q_dot_sol = s_qsol(t_sol)
 
-	for i in range(len(t_sol) - 1):
+	for i in range(horizon_size):
 		q_vel_current = 0.5*(q_dot_sol[i] + q_dot_sol[i+1])
 		obj.setController(kukaID, "velocity", joint_indices, targetVelocities = q_vel_current)
-		obj.run_simulation(1)
+		obj.run_simulation(int(t_ocp/obj.physics_ts))
 
 	time.sleep(1)
 	obj.end_simulation()

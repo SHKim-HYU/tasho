@@ -153,10 +153,10 @@ if __name__ == '__main__':
 
 	# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'hessian_approximation':'limited-memory', 'limited_memory_max_history' : 5, 'tol':1e-3}})
 	# tc.set_ocp_solver('ipopt', {'ipopt':{"max_iter": 1000, 'tol':1e-3}})
-	tc.ocp.set_value(q0, q0_contour)
-	tc.ocp.set_value(q_dot0, [0]*18)
-	tc.ocp.set_value(s0, 0)
-	tc.ocp.set_value(s_dot0, 0)
+	tc.set_value(q0, q0_contour)
+	tc.set_value(q_dot0, [0]*18)
+	tc.set_value(s0, 0)
+	tc.set_value(s_dot0, 0)
 	disc_settings = {'discretization method': 'multiple shooting', 'horizon size': horizon_size, 'order':1, 'integration':'rk'}
 	tc.set_discretization_settings(disc_settings)
 	#sol = tc.solve_ocp()
@@ -175,9 +175,9 @@ if __name__ == '__main__':
 
 	if visualizationBullet:
 
-		from tasho import world_simulator
+		from tasho import WorldSimulator
 
-		obj = world_simulator.world_simulator()
+		obj = WorldSimulator.WorldSimulator()
 
 		position = [0.0, 0.0, 0.0]
 		orientation = [0.0, 0.0, 0.0, 1.0]
@@ -193,7 +193,7 @@ if __name__ == '__main__':
 		joint_indices = [11, 12, 13, 14, 15, 16, 17, 18, 19, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 		#begin the visualization of applying OCP solution in open loop
-		ts, q_dot_sol = sol.sample(q_dot, grid="control")
+		ts, q_dot_sol = tc.sol_sample(q_dot, grid="control")
 		obj.resetJointState(yumiID, joint_indices, q0_contour)
 		obj.setController(yumiID, "velocity", joint_indices, targetVelocities = q_dot_sol[0])
 		obj.run_simulation(480)
@@ -210,10 +210,10 @@ if __name__ == '__main__':
 
 	elif bullet_mpc_nr:
 
-		from tasho import world_simulator
+		from tasho import WorldSimulator
 		from tasho import MPC
 
-		bullet_world = world_simulator.world_simulator()
+		bullet_world = WorldSimulator.WorldSimulator()
 
 		position = [0., 0., 0.]
 		orientation = [0., 0., 0., 1.]

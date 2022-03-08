@@ -9,10 +9,14 @@ from rockit import (
     FreeTime,
     SingleShooting,
     DirectCollocation,
+    UniformGrid,
+    
 )
 import numpy as np
 import casadi as cs
 from tasho import input_resolution
+from tasho import default_mpc_options
+from tasho.utils import geometry
 
 # This may be replaced by some method get_ocp_variables, which calls self.states, self.controls, ...
 from collections import namedtuple
@@ -25,35 +29,91 @@ class task_context:
     The class stores all expressions and constraints relevant to an OCP
     """
 
-    def __init__(self, time=None, horizon=10):
+    def __init__(self, time=None, horizon_steps=10, name="tc", time_init_guess = 5):
         """Class constructor - initializes and sets the field variables of the class
 
-        :param time: The length of the time horizon of the OCP.
+        :param time: The prediction horizon of the OCP.
+        :type time: float
+
+        :param horizon_steps: Number of steps in the ocp horizon.
+        :type horizon_steps: int
+
+        :param name: Name of the task context
+        :type name: string
 
         """
 
-        if time is None:
-            ocp = Ocp(T=FreeTime(10))
-        else:
-            ocp = Ocp(T=time)
-
-        # ocp = Ocp(T = time)
+        ocp = Ocp()
         self.ocp = ocp
+        self.horizon = []
+        self.stages = []
+        self.tc_name = name
         self.states = {}
         self.controls = {}
         self.variables = {}
         self.parameters = {}
         self.constraints = {}
         self.monitors = {}
+        self.disc_settings = {}
         self.monitors_configured = False
         # self.opti = ocp.opti # Removed from Rockit
         self.t_ocp = None
 
         self.robots = {}
         self.OCPvars = None
-        self.horizon = horizon
 
-    def create_expression(self, name, type, shape):
+        stage = self.create_stage(time, horizon_steps, time_init_guess = time_init_guess)
+
+        self.tc_dict = {
+            "states": {},
+            "controls": {},
+            "parameters": {},
+            "variables": {},
+            "inp_ports": [],
+            "out_ports": [],
+            "props": [],
+        }
+
+        # Setting Ipopt as the default ocp solver
+        self.ocp_solver = "ipopt"
+        self.ocp_options = {
+            "ipopt": {"linear_solver": "mumps"},
+            "error_on_fail": True,
+        }
+        self.set_ocp_solver(self.ocp_solver, self.ocp_options)
+
+        # Setting sqpmethod as the default mpc solver
+        def_dict = default_mpc_options.get_default_mpc_options()
+        self.mpc_solver = "sqpmethod"
+        self.mpc_options = def_dict["sqp_ip_mumps"]["options"]
+
+
+    def create_stage(self, time = None, horizon_steps = 10, time_init_guess = 5):
+
+        """
+        Creates an OCP stage
+        :param time: The duration of the prediction horizon. Free-time problem if no argument is provided.
+        :type time: float
+
+        :param horizon_steps: Number of steps in the prediction horizon.
+        :type horizon_steps: int
+        """
+        if time == None:
+            stage = self.ocp.stage(T = FreeTime(time_init_guess))
+            self.ocp_rate = None
+        else:
+            stage = self.ocp.stage(T = time)
+            self.ocp_rate = time / horizon_steps
+
+        self.horizon.append(horizon_steps)
+        self.stages.append(stage)
+
+        # setting default discretization settings
+        self.set_discretization_settings(self.disc_settings, stage = len(self.horizon) - 1)
+
+        return stage
+
+    def create_expression(self, name, type, shape, stage=0):
 
         """Creates a symbolic expression for variables in OCP.
 
@@ -72,29 +132,29 @@ class task_context:
 
         """
 
-        ocp = self.ocp
+        ocp = self.stages[stage]
 
         if type == "state":
             state = ocp.state(shape[0], shape[1])
-            self.states[name] = state
+            self.states[name] = [state, stage]
 
             return state
 
         elif type == "control":
             control = ocp.control(shape[0], shape[1])
-            self.controls[name] = control
+            self.controls[name] = [control, stage]
 
             return control
 
         elif type == "parameter":
             parameter = ocp.parameter(shape[0], shape[1])
-            self.parameters[name] = parameter
+            self.parameters[name] = [parameter, stage]
 
             return parameter
 
         elif type == "variable":
             variable = ocp.variable(shape[0], shape[1])
-            self.variables[name] = variable
+            self.variables[name] = [variable, stage]
 
             return variable
 
@@ -102,7 +162,140 @@ class task_context:
 
             print("ERROR: expression type undefined")
 
-    def set_dynamics(self, state, state_der):
+    def create_state(
+        self, name, shape=(1, 1), init_parameter=False, warm_start=1, stage=0
+    ):
+        """
+        Creates a symbolic expression for state. If init_parameter is true, also
+        creates a parameter corresponding to the initial condition of the state.
+        Depending on init_parameter, returns state or state and parameter.
+
+        :param name: name of the symbolic variable
+        :type name: string
+
+        :param shape: 2-dimensional tuple that denotes the dimensions of the expression.
+        :type shape: tuple of int.
+
+        :param init_parameter: Indicates whether an initial condition parameter should be created simultaneously.
+        :type init_parameter: boolean
+
+        :param warm_start: Indicates if and how the states should be warmstarted. 0 - no warm start. 1 - warm start with the initial value.
+        :type warm_start: Int
+        """
+        ocp = self.stages[stage]
+        if name in self.states:
+            raise Exception("The state of the name " + name + " is already declared.")
+        state = ocp.state(shape[0], shape[1])  # creating state
+        self.states[name] = [state, stage]  # adding the symbolic variable to list of states
+        self.tc_dict["states"][name] = {}  # recording state in the task context dict
+
+        if init_parameter:
+            parameter = self.create_parameter(name + "0", shape, stage = stage)
+            ocp.subject_to(ocp.at_t0(state) == parameter)  # adding init eq constraint
+            self.tc_dict["states"][name]["assoc_param"] = name + "0"  # associated param
+            self.tc_dict["parameters"][name + "0"]["assoc_state"] = name
+            self.tc_dict["inp_ports"][-1]["warm_start"] = warm_start
+            self.tc_dict["inp_ports"][-1]["wvar"] = name
+            return state, parameter
+
+        return state
+
+    def create_parameter(self, name, shape=(1, 1), port_or_property=1, stage=0, grid = None):
+        """
+        Creates a symbolic expression for a parameter. By default, also assigns a
+        port which is relevant while deploying the controller on a robot.
+
+        :param name: name of the symbolic variable
+        :type name: string
+
+        :param shape: 2-dimensional tuple that denotes the dimensions of the expression.
+        :type shape: tuple of int.
+
+        :param port_or_property: 1 - port is created. 2 - property is created. any other value - neither port nor property created
+        :type port_or_property: int
+
+        """
+        ocp = self.stages[stage]
+        if name in self.parameters:
+            raise Exception(
+                "The parameter of the name " + name + " is already declared."
+            )
+
+        if grid == None:
+            parameter = ocp.parameter(shape[0], shape[1])
+        else:
+            parameter = ocp.parameter(shape[0], shape[1], grid = grid)
+        self.parameters[name] = [parameter, stage]
+        self.tc_dict["parameters"][name] = {}  # declaring param in the tc dict
+
+        if port_or_property == 1:
+            # declaring a port and making connections with the associated parameter
+            self.tc_dict["inp_ports"].append(
+                {
+                    "name": "port_inp_" + name,
+                    "var": name,
+                    "desc": "[default] Read values for parameter " + name,
+                }
+            )
+            self.tc_dict["parameters"][name]["assoc_port"] = (
+                len(self.tc_dict["inp_ports"]) - 1
+            )
+
+        elif port_or_property == 2:
+            # declaring a property
+            self.tc_dict["props"].append(
+                {
+                    "name": "prop_inp_" + name,
+                    "var": name,
+                    "desc": "[default] Read values for parameter " + name,
+                }
+            )
+            self.tc_dict["parameters"][name]["assoc_prop"] = (
+                len(self.tc_dict["props"]) - 1
+            )
+
+        return parameter
+
+    def create_control(self, name, shape=(1, 1), outport=True, stage=0):
+        """
+        Creates a symbolic expression for a control variable. By default, also
+        assigns an output port which is relevant while deploying the controller
+        on a robot.
+
+        :param name: name of the symbolic variable
+        :type name: string
+
+        :param shape: 2-dimensional tuple that denotes the dimensions of the expression.
+        :type shape: tuple of int.
+
+        :param outport: Set to True if an output port needs to be created, False otherwise.
+
+        """
+        ocp = self.stages[stage]
+        if name in self.controls:
+            raise Exception(
+                "The parameter of the name " + name + " is already declared."
+            )
+        control = ocp.control(shape[0], shape[1])
+        self.controls[name] = [control, stage]
+        self.tc_dict["controls"][name] = {}
+
+        if outport == True:
+            # declaring an port and making connections with the associated control
+            self.tc_dict["out_ports"].append(
+                {
+                    "name": "port_out_" + name,
+                    "var": name,
+                    "desc": "[default] write values for control " + name,
+                }
+            )
+            self.tc_dict["controls"][name]["assoc_port"] = (
+                len(self.tc_dict["out_ports"]) - 1
+            )
+
+        return control
+
+    def set_dynamics(self, state, state_der, stage=0):
 
         """Set dynamics of state variables of the OCP.
 
@@ -114,11 +307,11 @@ class task_context:
 
         """
 
-        ocp = self.ocp
+        ocp = self.stages[stage]
         ocp.set_der(state, state_der)
 
     def add_regularization(
-        self, expression, weight, norm="L2", variable_type="state", reference=0
+        self, expression, weight, norm="L2", variable_type="state", reference=0, stage=0
     ):
 
         """Add regularization to states or controls or variables. L1 regularization creates slack variables to avoid the non-smoothness in the optimization problem.
@@ -139,7 +332,7 @@ class task_context:
         :type reference: float or parameter
         """
 
-        ocp = self.ocp
+        ocp = self.stages[stage]
         if norm == "L2":
 
             if variable_type == "state" or variable_type == "control":
@@ -163,7 +356,7 @@ class task_context:
                 ocp.subject_to(
                     -slack_variable <= (expression - reference <= slack_variable)
                 )
-                ocp.add_objective(ocp.integral(slack_variable, grid="control") * weight)
+                ocp.add_objective(ocp.integral(cs.DM.ones(1, expression.shape[0])@slack_variable, grid="control") * weight)
             elif variable_type == "variable":
                 slack_variable = self.create_expression(
                     "slack", "variable", expression.shape
@@ -177,14 +370,7 @@ class task_context:
                     "invalid variable type. Must be 'state', 'control' or 'variable"
                 )
 
-    ## Turn on collision avoidance for robot links
-    def collision_avoidance_hyperplanes(self, toggle):
-        # USE def eval_at_control(self, stage, expr, k): where k is the step of multiple shooting
-        # can access using ocp._method.eval...
-        # then add this as constraint to opti
-        print("Not implemented")
-
-    def add_objective(self, obj):
+    def add_objective(self, obj, stage=0):
 
         """Add an objective function to the OCP
 
@@ -193,140 +379,50 @@ class task_context:
 
         """
 
-        self.ocp.add_objective(obj)
+        self.stages[stage].add_objective(obj)
 
-    def add_task_constraint(self, task_spec):
+    def add_task_constraint(self, task_spec, stage=0):
 
-        ocp = self.ocp
+        ocp = self.stages[stage]
 
         if "initial_constraints" in task_spec:
             for init_con in task_spec["initial_constraints"]:
-                # Made an assumption that the initial constraint is always hard
-                ocp.subject_to(
-                    ocp.at_t0(init_con["expression"]) == init_con["reference"],
-                )
+                if 'hard' in init_con and not init_con['hard']:
+                    raise Exception("not implemented yet")
+
+                else:
+                    # hard initial constraints
+                    if 'lub' in init_con:
+                        ocp.subject_to(init_con['lower_limits'] <= (
+                            ocp.at_t0(init_con["expression"]) <= init_con["upper_limits"])
+                        )
+                    else:
+                        # assumed to be equality if not specified
+                        ocp.subject_to(
+                            ocp.at_t0(init_con["expression"]) == init_con["reference"],
+                        )
+                    
 
         if "final_constraints" in task_spec:
             for final_con in task_spec["final_constraints"]:
 
                 if final_con["hard"]:
-                    if "type" in final_con:
-                        # When the expression is SE(3) expressed as a 4X4 homogeneous transformation matrix
-                        if "Frame" in final_con["type"]:
-                            expression = final_con["expression"]
-                            reference = final_con["reference"]
-                            # hard constraint on the translational componenet
-                            ocp.subject_to(
-                                ocp.at_tf(expression[0:3, 3]) == reference[0:3, 3]
-                            )
-                            # hard constraint on the rotational component
-                            rot_error = cs.mtimes(
-                                expression[0:3, 0:3].T, reference[0:3, 0:3]
-                            )
 
-                            # better suited for L-BFGS ipopt, numerically better compared to full hessian during LCQ issue
-                            # ocp.subject_to(ocp.at_tf(cs.vertcat(rot_error[0,0], rot_error[1,1], rot_error[2,2])) == 1)
-
-                            # Better suited for full Hessian ipopt because no LICQ issue
-                            s = ocp.variable()
-                            ocp.subject_to(ocp.at_tf(rot_error[0, 0]) - 1 >= s)
-                            ocp.subject_to(ocp.at_tf(rot_error[1, 1]) - 1 >= s)
-                            ocp.subject_to(ocp.at_tf(rot_error[2, 2]) - 1 >= s)
-                            ocp.subject_to(s == 0)
-                    else:
+                    if "inequality" not in final_con and "lub" not in final_con:
                         ocp.subject_to(
                             ocp.at_tf(final_con["expression"]) == final_con["reference"]
-                        )
+                            )
+                    elif "inequality" in final_con:
+                        ocp.subject_to(
+                            ocp.at_tf(final_con["expression"]) <= final_con["upper_limits"]
+                            )
+                    else:
+                        ocp.subject_to(
+                            final_con["lower_limits"] <= (ocp.at_tf(final_con["expression"]) <= final_con["upper_limits"])
+                            )
 
                 else:
-                    if "type" in final_con:
-                        if "Frame" in final_con["type"]:
-                            expression = final_con["expression"]
-                            reference = final_con["reference"]
-                            # hard constraint on the translational componenet
-                            trans_error = expression[0:3, 3] - reference[0:3, 3]
-                            rot_error = cs.mtimes(
-                                expression[0:3, 0:3].T, reference[0:3, 0:3]
-                            )
-                            if "norm" not in final_con or final_con["norm"] == "L2":
-                                obj_trans = (
-                                    ocp.at_tf(cs.sumsqr(trans_error))
-                                    * final_con["trans_gain"]
-                                )
-                                obj_rot = (
-                                    ocp.at_tf(
-                                        (
-                                            (
-                                                rot_error[0, 0]
-                                                + rot_error[1, 1]
-                                                + rot_error[2, 2]
-                                                - 1
-                                            )
-                                            / 2
-                                            - 1
-                                        )
-                                        ** 2
-                                    )
-                                    * 3
-                                    * final_con["rot_gain"]
-                                )
-                                ocp.add_objective(obj_trans)
-                                ocp.add_objective(obj_rot)
-                                if "name" in final_con:
-                                    self.constraints[final_con["name"]] = {
-                                        "obj": obj_trans + obj_rot
-                                    }
-                            elif final_con["norm"] == "L1":
-
-                                cos_theta_error = (
-                                    rot_error[0, 0]
-                                    + rot_error[1, 1]
-                                    + rot_error[2, 2]
-                                    - 2
-                                ) * 0.5
-
-                                slack_variable = self.create_expression(
-                                    "slack_final_frame", "variable", (4, 1)
-                                )
-                                ocp.subject_to(
-                                    -slack_variable[0:3]
-                                    <= (ocp.at_tf(trans_error) <= slack_variable[0:3])
-                                )
-                                ocp.subject_to(
-                                    -slack_variable[3]
-                                    <= (
-                                        ocp.at_tf(cos_theta_error) - 1
-                                        <= slack_variable[3]
-                                    )
-                                )
-                                obj_trans = (
-                                    slack_variable[0]
-                                    + slack_variable[1]
-                                    + slack_variable[2]
-                                ) * final_con["trans_gain"]
-                                obj_rot = slack_variable[3] * final_con["rot_gain"] * 3
-                                ocp.add_objective(obj_trans)
-                                ocp.add_objective(obj_rot)
-                                if "name" in final_con:
-                                    self.constraints[final_con["name"]] = {
-                                        "obj": obj_trans + obj_rot
-                                    }
-                                    self.constraints[final_con["name"]][
-                                        "rot_error_cos"
-                                    ] = slack_variable[3]
-                                    self.constraints[final_con["name"]][
-                                        "trans_error"
-                                    ] = slack_variable[0:3]
-
-                            else:
-                                raise Exception("Error")
-                        else:
-                            raise Exception(
-                                "Unknown type "
-                                + final_con["type"]
-                                + " selected for a constraint"
-                            )
-                    elif "norm" not in final_con or final_con["norm"] == "L2":
+                    if "norm" not in final_con or final_con["norm"] == "L2":
                         obj_con = (
                             ocp.at_tf(
                                 cs.sumsqr(
@@ -363,97 +459,8 @@ class task_context:
 
                 if not "inequality" in path_con and not "lub" in path_con:
                     if not path_con["hard"]:
-                        if "type" in path_con:
-                            if "Frame" in path_con["type"]:
-                                expression = path_con["expression"]
-                                reference = path_con["reference"]
-                                # hard constraint on the translational componenet
-                                trans_error = expression[0:3, 3] - reference[0:3, 3]
-                                rot_error = cs.mtimes(
-                                    expression[0:3, 0:3].T, reference[0:3, 0:3]
-                                )
-                                if "norm" not in path_con or path_con["norm"] == "L2":
-                                    obj_rot = (
-                                        ocp.integral(
-                                            (
-                                                (
-                                                    rot_error[0, 0]
-                                                    + rot_error[1, 1]
-                                                    + rot_error[2, 2]
-                                                    - 1
-                                                )
-                                                / 2
-                                                - 1
-                                            )
-                                            ** 2,
-                                            grid="control",
-                                        )
-                                        * 3
-                                        * path_con["rot_gain"]
-                                    )
-                                    obj_trans = (
-                                        ocp.integral(
-                                            cs.sumsqr(trans_error), grid="control"
-                                        )
-                                        * path_con["trans_gain"]
-                                    )
-                                    ocp.add_objective(obj_trans + obj_rot)
-                                    if "name" in path_con:
-                                        self.constraints[path_con["name"]] = {
-                                            "obj": obj_rot + obj_trans
-                                        }
-                                elif path_con["norm"] == "L1":
-                                    cos_theta_error = (
-                                        rot_error[0, 0]
-                                        + rot_error[1, 1]
-                                        + rot_error[2, 2]
-                                        - 1
-                                    ) * 0.5
-                                    slack_variable = self.create_expression(
-                                        "slack_final_frame", "control", (4, 1)
-                                    )
-                                    ocp.subject_to(
-                                        -slack_variable[0:3]
-                                        <= (trans_error <= slack_variable[0:3])
-                                    )
-                                    ocp.subject_to(
-                                        -slack_variable[3]
-                                        <= (cos_theta_error - 1 <= slack_variable[3])
-                                    )
-                                    ocp.add_objective(
-                                        ocp.sum(
-                                            (
-                                                slack_variable[0]
-                                                + slack_variable[1]
-                                                + slack_variable[2]
-                                            )
-                                        )
-                                        * path_con["trans_gain"]
-                                    )
-                                    ocp.add_objective(
-                                        ocp.sum(slack_variable[3])
-                                        * 3
-                                        * path_con["rot_gain"]
-                                    )
-                                    obj_con = (
-                                        slack_variable[0]
-                                        + slack_variable[1]
-                                        + slack_variable[2]
-                                        + slack_variable[3]
-                                    )
-                                    if "name" in path_con:
-                                        self.constraints[path_con["name"]] = {
-                                            "obj": obj_con
-                                        }
-                                        self.constraints[path_con["name"]][
-                                            "rot_error_cos"
-                                        ] = cos_theta_error
-                                        self.constraints[path_con["name"]][
-                                            "trans_error"
-                                        ] = slack_variable[0:3]
-                                else:
-                                    raise Exception("Error")
-                        elif "norm" not in path_con or path_con["norm"] == "L2":
+
+                        if "norm" not in path_con or path_con["norm"] == "L2":
                             # print('L2 norm added')
                             obj_con = (
                                 ocp.integral(
@@ -531,10 +538,16 @@ class task_context:
                                 path_con["expression"] <= path_con["upper_limits"]
                             )
                         else:
-                            ocp.subject_to(
-                                path_con["expression"] <= path_con["upper_limits"],
-                                include_first=False,
-                            )
+                            if "upper_limits" in path_con:
+                                ocp.subject_to(
+                                    path_con["expression"] <= path_con["upper_limits"],
+                                    include_first=False,
+                                )
+                            elif "lower_limits" in path_con:
+                                ocp.subject_to(
+                                    path_con["expression"] >= path_con["lower_limits"],
+                                    include_first=False,
+                                )
                     else:
                         con_violation = cs.fmax(
                             path_con["expression"] - path_con["upper_limits"], 0
@@ -567,7 +580,7 @@ class task_context:
                                 self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "squaredL2":
                             slack_variable = self.create_expression(
-                                "slack_path_con", "control", (1, 1)
+                                path_con["slack_name"], "control", (1, 1)
                             )
                             ocp.subject_to(
                                 cs.sumsqr(path_con["expression"])
@@ -637,7 +650,7 @@ class task_context:
                 "Unknown type of constraint added. Not 'path_constraints', 'final_constraints' or 'initial_constraints'"
             )
 
-    def minimize_time(self, weight):
+    def minimize_time(self, weight, stage=0):
 
         """Add a cost on minimizing the time of the OCP to provide time-optimal
         solutions.
@@ -645,7 +658,7 @@ class task_context:
         :param weight: A weight factor on cost penalizing the total time of the ocp horizon.
         :type weight: float
         """
-        self.ocp.add_objective(weight * self.ocp.T)
+        self.stages[stage].add_objective(weight * self.stages[stage].T)
 
     def set_ocp_solver(self, solver, options={}):
 
@@ -664,12 +677,11 @@ class task_context:
             options["expand"] = True
         ocp.solver(solver, options)
 
-    def set_discretization_settings(self, settings):
+    def set_discretization_settings(self, settings, stage=0):
 
         """Set the discretization method of the OCP
 
         :param settings: A dictionary for setting the discretization method of the OCP with the fields and options given below. \n
-                'horizon_size' - (int)The number of samples in the OCP. \n
                 'discretization method'(string)- 'multiple_shooting' or 'single_shooting'. \n
                 'order' (integer)- The order of integration. Minumum one. \n
                 'integration' (string)- The numerical integration algorithm. 'rk' - Runge-Kutta4 method.
@@ -677,9 +689,16 @@ class task_context:
 
         """
 
-        ocp = self.ocp
-        disc_method = settings["discretization method"]
-        N = settings["horizon size"]
+        ocp = self.stages[stage]
+        if "discretization method" not in settings:
+            disc_method = "multiple shooting"
+        else:
+            disc_method = settings["discretization method"]
+
+        if "integration" not in settings:
+            integrator = "rk"
+        else:
+            integrator = settings["integration"]
 
         if "order" not in settings:
             M = 1
@@ -687,15 +706,15 @@ class task_context:
             M = settings["order"]
 
         if disc_method == "multiple shooting":
-            ocp.method(MultipleShooting(N=N, M=M, intg=settings["integration"]))
+            ocp.method(MultipleShooting(N=self.horizon[stage], M=M, intg=integrator))
         elif disc_method == "single shooting":
-            ocp.method(SingleShooting(N=N, M=M, intg=settings["integration"]))
+            ocp.method(SingleShooting(N=self.horizon[stage], M=M, intg=integrator))
         elif disc_method == "direct collocation":
-            ocp.method(DirectCollocation(N=N, M=M))
+            ocp.method(DirectCollocation(N=self.horizon[stage], M=M))
         else:
-            print(
+            raise Exception(
                 "ERROR: discretization with "
-                + settings["discretization_method"]
+                + settings["discretization method"]
                 + " is not defined"
             )
 
@@ -706,7 +725,24 @@ class task_context:
         ocp = self.ocp
         sol = ocp.solve()
         self.configure_monitors()  # The first solve of the ocp configures the monitors
+        self.sol = sol
         return sol
+
+    def set_value(self, expr, value, stage=0):
+
+        ocp = self.stages[stage]
+        ocp.set_value(expr, value)
+
+    def sol_sample(self, expr, grid="control", stage=0,**kwargs):
+        t, x_sol = self.sol(self.stages[stage]).sample(expr, grid=grid,**kwargs)
+        return t, x_sol
+
+    def sol_value(self, expr, stage=0):
+        x_val = self.sol(self.stages[stage]).value(expr)
+        return x_val
+
+    def set_initial(self, expr, value, stage=0):
+        self.stages[stage].set_initial(expr, value)
 
     # Add monitors to the task context
     def add_monitor(self, task_monitor):
@@ -744,12 +780,13 @@ class task_context:
         return fun_pr
 
     # Internal function to configure each monitor
-    def _configure_each_monitor(self, monitor):
+    def _configure_each_monitor(self, monitor, stage=0):
 
         opti = self.ocp._method.opti
+        ocp = self.stages[stage]
         expr = monitor["expression"]
         # define the casadi function to compute the monitor value
-        _, expr_sampled = self.ocp.sample(
+        _, expr_sampled = ocp.sample(
             expr, grid="control"
         )  # the monitored expression over the ocp control grid
         # print(expr_sampled[0].shape)
@@ -883,6 +920,244 @@ class task_context:
         # Assign the monitor function to the dictionary element of the the task context that defines the monitor
         monitor["monitor_fun"] = monitor_fun
 
+    def generate_MPC_component(self, location, cg_opts):
+
+        """
+        Generates the OCP (and MPC) codes and the json file with all the information
+        about the ocp and stores it in the desired location.
+
+        :param location: The location where the generated components should be saved.
+        :type location: string
+
+        :param cg_opts: The code-generation options for the solvers.
+        :type cg_opts: Python dictionary
+        """
+
+        # Generate the OCP component
+        ocp_fun, vars_db = self.generate_controller(
+            "_ocp", location, self.ocp_solver, self.ocp_options, cg_opts["ocp_cg_opts"]
+        )
+        self.ocp_fun = ocp_fun
+
+        # generate the MPC component if required
+        if "mpc" in cg_opts and cg_opts["mpc"]:
+            mpc_fun, _ = self.generate_controller(
+                "_mpc",
+                location,
+                self.mpc_solver,
+                self.mpc_options,
+                cg_opts["mpc_cg_opts"],
+            )
+            self.mpc_fun = mpc_fun
+            # TODO: add monitor value in OCP and MPC xplm
+            vars_db["mpc_fun_name"] = self.tc_name + "_mpc"
+            vars_db["mpc_file"] = location + self.tc_name + "_mpc.casadi"
+            # TODO: also add the case where .c files are generated
+
+        # Updating the json file and dumping it
+        vars_db["num_inp_ports"] = len(self.tc_dict["inp_ports"])
+        vars_db["num_out_ports"] = len(self.tc_dict["out_ports"])
+        vars_db["num_props"] = len(self.tc_dict["props"])
+        vars_db["num_states"] = len(self.states)
+        vars_db["num_controls"] = len(self.controls)
+        vars_db["num_parameters"] = len(self.parameters)
+        vars_db["states"] = list(self.states.keys())
+        vars_db["controls"] = list(self.controls.keys())
+        vars_db["inp_ports"] = self.tc_dict["inp_ports"]
+        vars_db["out_ports"] = self.tc_dict["out_ports"]
+        vars_db["props"] = self.tc_dict["props"]
+        vars_db["horizon"] = self.horizon[0] #TODO: what to do here really?
+        vars_db["mpc_ts"] = self.ocp_rate
+        vars_db["ocp_fun_name"] = self.tc_name + "_ocp"
+        vars_db["ocp_file"] = location + self.tc_name + "_ocp.casadi"
+
+        return vars_db
+
+    def generate_controller(self, name, location, solver, sol_opts, cg_opts):
+
+        """
+        Generates code/.casadi files for the OCP.
+
+        :param name: Name of the code-generated function.
+        :type name: String
+
+        :param location: The directory where the generated controller files should be saved.
+        :type location: String.
+
+        :param solver: Name of the solver
+        :type solver: String.
+
+        :param sol_opts: Options for the solver.
+        :type sol_opts: Python dictionary
+
+        :param cg_opts: Code-generation options
+        :type opts: Python dictionary
+        """
+
+        # generate the ocp function
+        # set the ocp solver
+        self.set_ocp_solver(solver, sol_opts)
+        self.ocp.solver(solver, sol_opts)
+        # set the discretization settings and transcribe
+        # self.set_discretization_settings(self.disc_settings)
+        # self.stages[0]._method.main_transcribe(self.stages[0])
+        ocp_xplm, vars_db, ocp_xplm_out = self._unroll_controller_vars()
+        if not cg_opts["jit"]:
+            ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm_out)
+        else:
+            jit_opts = {
+                "jit": True,
+                "compiler": "shell",
+                "jit_options": {
+                    "verbose": True,
+                    "compiler": "ccache gcc",
+                    "compiler_flags": self.parameters["codegen"]["flags"],
+                },
+                "verbose": False,
+                "jit_serialize": "embed",
+            }
+            ocp_fun = self.ocp.to_function(
+                self.tc_name + name, ocp_xplm, ocp_xplm_out, jit_opts
+            )
+
+        if cg_opts["save"]:
+            ocp_fun.save(location + self.tc_name + name + ".casadi")
+
+        if cg_opts["codegen"]:
+            ocp_fun.generate(
+                location + self.tc_name + name + ".c", {"with_header": True}
+            )
+
+        return ocp_fun, vars_db
+
+    def _unroll_controller_vars(self):
+        # unrolls all the variables in the task context into a single large vector
+        # and also stores the meta data concerning the variables in a dictionary
+
+        op_xplm = []  # declaring the vector roll
+        vars_db = {}
+        counter = 0
+
+        for state in self.states.keys():
+            stage = self.states[state][1]
+            ocp = self.stages[stage]
+            _, temp = ocp.sample(self.states[state][0], grid="control")
+            temp2 = []
+            for i in range(self.horizon[stage] + 1):
+                temp2.append(temp[:, i])
+            vars_db[state] = {"start": counter, "size": temp.shape[0]}
+            op_xplm.append(cs.vcat(temp2))
+            counter += temp.shape[0] * temp.shape[1]
+            vars_db[state]["end"] = counter
+
+        # obtain the opti variables related to control
+        for control in self.controls.keys():
+            stage = self.controls[control][1]
+            ocp = self.stages[self.controls[control][1]]
+            _, temp = ocp.sample(self.controls[control][0], grid="control")
+            temp2 = []
+            for i in range(self.horizon[stage]):
+                temp2.append(
+                    ocp._method.eval_at_control(ocp, self.controls[control][0], i)
+                )
+            vars_db[control] = {
+                "start": counter,
+                "size": temp.shape[0],
+                "jump": temp.shape[0],
+            }
+            counter += temp.shape[0] * (temp.shape[1] - 1)
+            vars_db[control]["end"] = counter
+            op_xplm.append(cs.vcat(temp2))
+
+        # obtain the opti variables related for variables
+        for variable in self.variables.keys():
+            stage = self.variables[variable][1]
+            ocp = self.stages[stage]
+            temp = ocp._method.eval_at_control(ocp, self.variables[variable][0], 0)
+            op_xplm.append(temp)
+            vars_db[variable] = {
+                "start": counter,
+                "size": temp.shape[0],
+                "jump": temp.shape[0],
+            }
+            counter += temp.shape[0]
+            vars_db[variable]["end"] = counter
+
+        for parameter in self.parameters.keys():
+            stage = self.parameters[parameter][1]
+            ocp = self.stages[stage]
+            temp = ocp._method.eval_at_control(ocp, self.parameters[parameter][0], 0)
+            op_xplm.append(temp)
+            vars_db[parameter] = {
+                "start": counter,
+                "size": temp.shape[0],
+                "jump": temp.shape[0],
+            }
+            counter += temp.shape[0]
+            vars_db[parameter]["end"] = counter
+
+        ocp = self.stages[0]
+        op_xplm.append(self.ocp._method.opti.lam_g)
+        vars_db["lam_g"] = {
+            "start": counter,
+            "size": self.ocp._method.opti.lam_g.shape[0],
+        }
+        counter += self.ocp._method.opti.lam_g.shape[0]
+        vars_db["lam_g"]["end"] = counter
+
+
+        import copy
+
+        op_xplm_out = copy.deepcopy(op_xplm)
+
+        #Appending the time_grid to the output
+        for st in range(len(self.stages)):
+            stage_now = self.stages[st]
+            _, t_grid = stage_now.sample(stage_now.t, grid = "control")
+            op_xplm_out.append(t_grid.T)
+            vars_db['time_grid_stage_'+str(st)] = {}
+            vars_db['time_grid_stage_'+str(st)]['start'] = counter
+            counter += t_grid.shape[1]
+            vars_db['time_grid_stage_'+str(st)]['end'] = counter
+            vars_db['time_grid_stage_'+str(st)]['size'] = t_grid.shape[1]
+
+        # Add the monitor function to op_xplm
+        monitors = self.monitors
+        monitors_dict = {}
+        for m_name in monitors.keys():
+
+            # Compute the value of the monitor function at the desired location
+            _, expr_mon_grid = ocp.sample(
+                monitors[m_name]["expression"], grid="control"
+            )
+            if "initial" in monitors[m_name]:
+                expr_m = expr_mon_grid[0]
+                print(expr_m)
+            elif "final" in monitors[m_name]:
+                expr_m = expr_mon_grid[-1]
+            elif "always" in monitors[m_name]:
+                expr_m = cs.mmax(expr_mon_grid)
+            elif "any" in monitors[m_name]:
+                expr_m = cs.mmin(expr_mon_grid)
+            else:
+                raise Exception("Monitor not set at initial, final, always or any")
+
+            # Add the monitor function to op_xplm and store the name and location
+            op_xplm_out.append(expr_m)
+            monitors_dict[m_name] = counter
+            counter += 1
+
+        # Add an array of the monitor names and the dictionary associated with the locations
+        # to vars_db
+        monitor_names = list(monitors_dict.keys())
+        vars_db["monitor_names"] = monitor_names
+        vars_db["monitor_locations"] = monitors_dict
+
+        if "termination_criteria" not in monitor_names:
+            raise Warning("No termination criteria set as a monitor!")
+
+        return [cs.vcat(op_xplm)], vars_db, [cs.vcat(op_xplm_out)]
+
     def set_input_resolution(self, robot):
 
         if robot.input_resolution == "velocity":
@@ -897,9 +1172,14 @@ class task_context:
 
             self.OCPvars = _OCPvars(q, q_dot, q_ddot, q0, q_dot0)
 
-        elif input_resolution == "torque":
+        elif robot.input_resolution == "torque":
 
             raise Exception("ERROR: Not implemented")
+            # q, q_dot, q_ddot, tau, q0, q_dot0 = input_resolution.torque_resolved(
+            #     self, robot, {"forward_dynamics_constraints": False}
+            # )
+
+            # self.OCPvars = _OCPvars(q, q_dot, tau, q0, q_dot0)
 
         else:
 
@@ -913,39 +1193,6 @@ class task_context:
         self.set_input_resolution(robot)
 
         # self.sim_system_dyn = robot.sim_system_dyn(self.task_context)
-
-    def generate_function(self, name="opti", save=True, codegen=True):
-        # TODO
-        # [stage.value(a) for a in args]
-        # print(self.get_states)
-        # print(self.get_controls)
-        # print(self.get_parameters)
-
-        # CHECK IF THERE'S A BETTER WAY TO CALL primal sol and dual sol than the one below
-        opti = self.ocp._method.opti
-
-        primal_sol = opti.x
-        dual_sol = opti.lam_g
-        opti_params = opti.p
-        opti_cost = opti.f
-
-        input = [opti_params, primal_sol, dual_sol]
-        output = [primal_sol, dual_sol, opti_cost]
-        # output = [self.get_output_states()]
-        # input = [tc.get_parameters + primal_sol + dual_sol + ]
-        # output = [self.ocp.sample(vehicle.x, grid='integrator', refine=self.refine)[0]] + [vehicle.get_output_states(self.ocp, self.refine)] + \
-        #     [vehicle.get_output_controls(self.ocp, self.refine)] + [T, states, controls, V_states]
-        #
-        #
-        # func = self.ocp._method.opti.to_function(name, [opti_params, primal_sol, dual_sol], [primal_sol, dual_sol, opti_cost]);
-        func = self.ocp.to_function(name, input, output)
-        #
-        if save == True:
-            func.save(name + ".casadi")
-        if codegen == True:
-            func.generate(name + ".c", {"with_header": True})
-        # self.ocp_fun = self.ocp.to_function('ocp_fun', \
-        #         [param_X0, param_obst, param_v_safe, param_xy_last, param_xy, param_theta, T, states, controls, V_states], output)
 
     @property
     def get_states(self):
@@ -977,9 +1224,3 @@ class task_context:
     def get_output_controls(self):
         controls = self.get_controls
         return self.ocp.sample(controls, grid="control")[1]
-
-
-# if __name__ == '__main__':
-# 	ocp = Ocp(T = 5)
-# 	param = ocp.parameter(5, 5)
-# 	print(param.size())

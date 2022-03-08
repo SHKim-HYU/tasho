@@ -10,7 +10,7 @@ from casadi import pi, cos, sin
 import numpy as np
 
 
-def acceleration_resolved(tc, robot, options={}):
+def acceleration_resolved(tc, robot, options={}, stage = 0):
 
     """Function returns the expressions for acceleration-resolved control
     with appropriate position, velocity and acceleration constraints added
@@ -23,18 +23,26 @@ def acceleration_resolved(tc, robot, options={}):
     :param options: Dictionary to pass further miscellaneous options
     """
 
-    q = tc.create_expression(
-        "q", "state", (robot.nq, 1)
-    )  # joint positions over the trajectory
-    q_dot = tc.create_expression("q_dot", "state", (robot.ndof, 1))  # joint velocities
-    q_ddot = tc.create_expression("q_ddot", "control", (robot.ndof, 1))
+    if 'init_parameter' not in options:
+        init_parameter = True
+    else:
+        init_parameter = options['init_parameter']
 
-    # expressions for initial joint position and joint velocity
-    q0 = tc.create_expression("q0", "parameter", (robot.ndof, 1))
-    q_dot0 = tc.create_expression("q_dot0", "parameter", (robot.ndof, 1))
+    if init_parameter:
+        q, q0 = tc.create_state(
+            "q" + str(stage), (robot.nq, 1), init_parameter = True, stage = stage
+        )  # joint positions over the trajectory
+        q_dot, q_dot0 = tc.create_state("q_dot"+ str(stage), (robot.ndof, 1), init_parameter = True, stage = stage)  # joint velocities
+    else:
+        q = tc.create_state(
+            "q" + str(stage), (robot.nq, 1), init_parameter = False, stage = stage
+        )  # joint positions over the trajectory
+        q_dot = tc.create_state("q_dot"+ str(stage), (robot.ndof, 1), init_parameter = False, stage = stage)  # joint velocities
 
-    tc.set_dynamics(q, q_dot)
-    tc.set_dynamics(q_dot, q_ddot)
+    q_ddot = tc.create_control("q_ddot"+ str(stage), (robot.ndof, 1), stage = stage)
+
+    tc.set_dynamics(q, q_dot, stage = stage)
+    tc.set_dynamics(q_dot, q_ddot, stage = stage)
 
     # add joint position, velocity and acceleration limits
     pos_limits = {
@@ -59,15 +67,19 @@ def acceleration_resolved(tc, robot, options={}):
         "lower_limits": robot.joint_acc_lb,
     }
     joint_constraints = {"path_constraints": [pos_limits, vel_limits, acc_limits]}
-    tc.add_task_constraint(joint_constraints)
+    tc.add_task_constraint(joint_constraints, stage = stage)
 
-    # adding the initial constraints on joint position and velocity
-    joint_init_con = {"expression": q, "reference": q0}
-    joint_vel_init_con = {"expression": q_dot, "reference": q_dot0}
-    init_constraints = {"initial_constraints": [joint_init_con, joint_vel_init_con]}
-    tc.add_task_constraint(init_constraints)
+    if init_parameter:
+        # adding the initial constraints on joint position and velocity
+        joint_init_con = {"expression": q, "reference": q0}
+        joint_vel_init_con = {"expression": q_dot, "reference": q_dot0}
+        init_constraints = {"initial_constraints": [joint_init_con, joint_vel_init_con]}
+        tc.add_task_constraint(init_constraints, stage = stage)
 
-    return q, q_dot, q_ddot, q0, q_dot0
+    if init_parameter:
+        return q, q_dot, q_ddot, q0, q_dot0
+    else:
+        return q, q_dot, q_ddot
 
 
 def velocity_resolved(tc, robot, options):
@@ -75,7 +87,7 @@ def velocity_resolved(tc, robot, options):
     print("ERROR: Not implemented and probably not recommended")
 
 
-def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
+def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}, vb_ab = False):
 
     """Function returns the expressions for torque-resolved control
     with appropriate position, velocity and torque constraints added
@@ -102,7 +114,10 @@ def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
         q_ddot = robot.fd(q, q_dot, tau)
     else:
         q_ddot = tc.create_expression("q_ddot", "control", (robot.ndof, 1))
-        tau = robot.id(q, q_dot, q_ddot)
+        if vb_ab:
+            tau, vb, ab = robot.id(q, q_dot, q_ddot)
+        else:
+            tau = robot.id(q, q_dot, q_ddot)
 
     # expressions for initial joint position and joint velocity
     q0 = tc.create_expression("q0", "parameter", (robot.ndof, 1))
@@ -133,9 +148,10 @@ def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
         "expression": tau,
         "upper_limits": robot.joint_torque_ub,
         "lower_limits": robot.joint_torque_lb,
+        "include_first":True
     }
     joint_constraints = {"path_constraints": [pos_limits, vel_limits, torque_limits]}
-    tc.add_task_constraint(joint_constraints)
+    # tc.add_task_constraint(joint_constraints)
 
     # adding the initial constraints on joint position and velocity
     joint_init_con = {"expression": q, "reference": q0}
@@ -143,4 +159,7 @@ def torque_resolved(tc, robot, options={"forward_dynamics_constraints": False}):
     init_constraints = {"initial_constraints": [joint_init_con, joint_vel_init_con]}
     tc.add_task_constraint(init_constraints)
 
-    return q, q_dot, q_ddot, tau, q0, q_dot0
+    if vb_ab:
+        return q, q_dot, q_ddot, tau, q0, q_dot0, vb, ab
+    else:
+        return q, q_dot, q_ddot, tau, q0, q_dot0

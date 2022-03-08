@@ -6,7 +6,7 @@
 import casadi as cs
 import numpy as np
 from time import time
-from multiprocessing import Pool
+import json
 
 
 class MPC:
@@ -30,6 +30,10 @@ class MPC:
         self.variables_optiform_details = {}
 
         self.params_history = []
+
+        self.states_log = []
+        self.controls_log = []
+        self.variables_log = []
 
         # casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
         self.mpc_debug = False
@@ -74,7 +78,7 @@ class MPC:
         # set the parameter values
         for params_name in self.params_names:
 
-            tc.ocp.set_value(tc.parameters[params_name], params_val[params_name])
+            tc.set_value(tc.parameters[params_name], params_val[params_name])
 
         # set the initial guesses
 
@@ -137,15 +141,15 @@ class MPC:
                         "ipopt": {
                             "max_iter": 100,
                             "tol": 1e-3,
-                            "mu_init": 1e-3,
-                            "linear_solver": "ma97",
+                            "mu_init": 1e-2,
+                            "linear_solver": "ma27",
                             "fixed_variable_treatment": "make_parameter",
-                            "hessian_constant": "yes",
+                            # "hessian_constant": "yes",
                             # "jac_c_constant": "yes",
                             # "jac_d_constant": "yes",
-                            "accept_every_trial_step": "yes",
-                            "print_level": 0,
-                            "mu_strategy": "monotone",
+                            # "accept_every_trial_step": "yes",
+                            "print_level": 5,
+                            # "mu_strategy": "monotone",
                             "nlp_scaling_method": "none",
                             "check_derivatives_for_naninf": "no",
                             "ma97_scaling": "none",
@@ -156,13 +160,14 @@ class MPC:
                             "fast_step_computation": "yes",
                             "mu_allow_fast_monotone_decrease": "yes",
                             "ma27_skip_inertia_check": "yes",
-                            "error_on_fail": True,
+
                             # "ma27_ignore_singularity": "yes",
-                        }
+                        },
+                        "error_on_fail": True,
                     },
                 )
             tc.set_discretization_settings(self.parameters["disc_settings"])
-            tc.ocp._method.main_transcribe(tc.ocp)
+            # tc.ocp._method.main_transcribe(tc.ocp)
             self._warm_start(self.sol_ocp)
             sol = tc.solve_ocp()
             if self.mpc_debug is not True:
@@ -174,7 +179,7 @@ class MPC:
                 kkt_tol_pr = 1e-3
                 kkt_tol_du = 1e-1
                 min_step_size = 1e-6
-                max_iter = 5
+                max_iter = 10
                 max_iter_ls = 3
                 qpsol_options = {
                     "constr_viol_tol": kkt_tol_pr,
@@ -342,6 +347,58 @@ class MPC:
             print("Solving with the SQP method")
             sol = tc.solve_ocp()
 
+            if self.mpc_debug is not True:
+                if ("codegen" in self.parameters) and self.parameters["codegen"]:
+                    self.code_type = 2
+
+                    if self.parameters["codegen"]["filename"]:
+                        filename = self.parameters["codegen"]["filename"]
+                    else:
+                        filename = "mpc_fun"
+
+                    self._create_mpc_fun_casadi(
+                        codeGen=self.parameters["codegen"]["codegen"],
+                        f_name=filename,
+                    )
+
+                    if self.parameters["codegen"]["compilation"]:
+                        import os
+
+                        if self.parameters["codegen"]["compiler"]:
+                            compiler = self.parameters["codegen"]["compiler"]
+                        else:
+                            compiler = "gcc"
+
+                        print("Compiling MPC function ...")
+                        os.system(
+                            compiler
+                            + " "
+                            + self.parameters["codegen"]["flags"]
+                            + " "
+                            + filename
+                            + ".c -shared -fPIC -lm -o "
+                            + filename
+                            + ".so"
+                        )
+                        print("... Finished compilation of MPC function")
+
+                    if self.parameters["codegen"]["use_external"]:
+
+                        import os
+
+                        if os.path.isfile(filename+'.so'):
+                            print("Loading the compiled function back ...")
+
+                            self._mpc_fun = cs.external(
+                                filename, "./" + filename + ".so"
+                            )
+
+                            print("... Loaded")
+                        else:
+                            print("[ERROR] The file "+filename+".so doesn't exist. Try compiling the function first")
+                            exit()
+
+
         else:
             # Set ipopt as default solver
             print("Using IPOPT with LBFGS as the default solver")
@@ -357,13 +414,16 @@ class MPC:
                 },
             )
 
-        if self.mpc_debug is not True:
-            self._create_mpc_fun_casadi(codeGen=self.codeGen)
-        self.system_dynamics = self.tc.ocp._method.discrete_system(self.tc.ocp)
+            if self.mpc_debug is not True:
+                self._create_mpc_fun_casadi(codeGen=self.codeGen)
+
+        self.system_dynamics = self.tc.stages[0]._method.discrete_system(self.tc.stages[0])
         # print(sol_controls['s_ddot'])
 
     # internal function to create the MPC function using casadi's opti.to_function capability
-    def _create_mpc_fun_casadi(self, codeGen=False, f_name="mpc_fun"):
+    def _create_mpc_fun_casadi(
+        self, codeGen=False, f_name="mpc_fun", codeGen_dest="./"
+    ):
 
         tc = self.tc
         # create a list of ocp decision variables in the following order
@@ -374,7 +434,7 @@ class MPC:
         counter = 0
         print(counter)
         for state in self.states_names:
-            _, temp = tc.ocp.sample(tc.states[state], grid="control")
+            _, temp = tc.stages[0].sample(tc.states[state], grid="control")
             temp2 = []
             for i in range(tc.horizon + 1):
                 temp2.append(temp[:, i])
@@ -386,11 +446,11 @@ class MPC:
 
         # obtain the opti variables related to control
         for control in self.controls_names:
-            _, temp = tc.ocp.sample(tc.controls[control], grid="control")
+            _, temp = tc.stages[0].sample(tc.controls[control], grid="control")
             temp2 = []
             for i in range(tc.horizon):
                 temp2.append(
-                    tc.ocp._method.eval_at_control(tc.ocp, tc.controls[control], i)
+                    tc.stages[0]._method.eval_at_control(tc.stages[0], tc.controls[control], i)
                 )
             vars_db[control] = {"start": counter, "size": temp.shape[0]}
             counter += temp.shape[0] * (temp.shape[1] - 1)
@@ -400,7 +460,7 @@ class MPC:
 
         # obtain the opti variables related for variables
         for variable in self.variables_names:
-            temp = tc.ocp._method.eval_at_control(tc.ocp, tc.variables[variable], 0)
+            temp = tc.stages[0]._method.eval_at_control(tc.stages[0], tc.variables[variable], 0)
             # print(temp)
             opti_xplam.append(temp)
             opti_xplam_cg.append(temp)
@@ -409,8 +469,8 @@ class MPC:
             vars_db[variable]["end"] = counter
 
         for parameter in self.params_names:
-            temp = tc.ocp._method.eval_at_control(
-                tc.ocp, tc.parameters[parameter], 0
+            temp = tc.stages[0]._method.eval_at_control(
+                tc.stages[0], tc.parameters[parameter], 0
             )  # tc.ocp.sample(tc.parameters[parameter])
             # print(temp)
             opti_xplam.append(temp)
@@ -432,17 +492,27 @@ class MPC:
         }
         counter += tc.ocp._method.opti.lam_g.shape[0]
         vars_db["lam_g"]["end"] = counter
-        print(vars_db)
+        vars_db["horizon"] = tc.horizon
+        vars_db["ocp_rate"] = tc.ocp_rate
         # setting the MPC function!
         # opti = tc.ocp.opti
         opti = tc.ocp._method.opti
         # self._mpc_fun = opti.to_function(
         #     "mpc_fun", [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]
         # )
-        self._mpc_fun = tc.ocp._method.opti.to_function(f_name, opti_xplam, opti_xplam)
-        self._mpc_fun_cg = tc.ocp._method.opti.to_function(
-            f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)]
-        )
+        if self.parameters["codegen"]["jit"]:
+            print("Using just-in-time compilation ...")
+            cg_opts = {"jit":True, "compiler": "shell", "jit_options": {"verbose":True, "compiler": "ccache gcc" , "compiler_flags": self.parameters["codegen"]["flags"]}, "verbose":False, "jit_serialize": "embed"}
+
+            self._mpc_fun = tc.ocp.to_function(f_name, opti_xplam, opti_xplam, cg_opts)
+            self._mpc_fun_cg = tc.ocp.to_function(
+                f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)], cg_opts
+            )
+        else:
+            self._mpc_fun = tc.ocp.to_function(f_name, opti_xplam, opti_xplam)
+            self._mpc_fun_cg = tc.ocp.to_function(
+                f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)]
+            )
         self._opti_xplam = opti_xplam
 
         self._opti_xplam_to_optiform = cs.Function(
@@ -456,7 +526,24 @@ class MPC:
                 C = cs.Importer(f_name + ".c", "clang")
                 self._mpc_fun = cs.external("mpc_", C)
             elif self.code_type == 1:
+                vars_db["casadi_fun"] = codeGen_dest + f_name + ".casadi"
+                vars_db["fun_name"] = f_name
+                print(vars_db)
+                with open(codeGen_dest + f_name + "_property.json", "w") as fp:
+                    json.dump(vars_db, fp)
                 self._mpc_fun_cg.save(f_name + ".casadi")
+            elif self.code_type == 2:
+                self._mpc_fun_cg.generate(
+                    f_name + ".c", {"with_header": True, "main": True}
+                )
+                vars_db["casadi_fun"] = codeGen_dest + f_name + ".casadi"
+                vars_db["fun_name"] = f_name
+                print(vars_db)
+                with open(codeGen_dest + f_name + "_property.json", "w") as fp:
+                #     json.dump(vars_db, fp)
+                    json.dump(vars_db, fp, indent=2)
+                self._mpc_fun_cg.save(codeGen_dest + f_name + ".casadi")
+                # self._mpc_fun_cg.save(f_name + ".casadi")
             # self._mpc_fun = cs.external('f', './mpc_fun.so')
 
     ## obtain the solution of the ocp
@@ -469,15 +556,15 @@ class MPC:
 
         if self._mpc_fun == None:
             for state in tc.states:
-                _, sol_state = sol.sample(tc.states[state], grid="control")
+                _, sol_state = sol(tc.stages[0]).sample(tc.states[state], grid="control")
                 sol_states[state] = sol_state
 
             for control in tc.controls:
-                _, sol_control = sol.sample(tc.controls[control], grid="control")
+                _, sol_control = sol(tc.stages[0]).sample(tc.controls[control], grid="control")
                 sol_controls[control] = sol_control[0:-1]
 
             for variable in tc.variables:
-                _, sol_variable = sol.sample(tc.variables[variable], grid="control")
+                _, sol_variable = sol(tc.stages[0]).sample(tc.variables[variable], grid="control")
                 sol_variable = sol_variable[0]
                 sol_variables[variable] = sol_variable
 
@@ -509,15 +596,15 @@ class MPC:
 
             sol_states = sol_ocp[0]
             for state in tc.states:
-                tc.ocp.set_initial(tc.states[state], sol_states[state].T)
+                tc.set_initial(tc.states[state], sol_states[state].T)
 
             sol_controls = sol_ocp[1]
             for control in tc.controls:
-                tc.ocp.set_initial(tc.controls[control], sol_controls[control].T)
+                tc.set_initial(tc.controls[control], sol_controls[control].T)
 
             sol_variables = sol_ocp[2]
             for variable in tc.variables:
-                tc.ocp.set_initial(tc.variables[variable], sol_variables[variable])
+                tc.set_initial(tc.variables[variable], sol_variables[variable])
 
         # warm starting by shiting the solution by 1 step
         elif options == "shift":
@@ -527,7 +614,7 @@ class MPC:
                 # print(state)
                 # print(sol_states[state][1:].shape)
                 # print(sol_states[state][-1:].shape)
-                tc.ocp.set_initial(
+                tc.set_initial(
                     tc.states[state],
                     cs.vertcat(sol_states[state][1:], sol_states[state][-1:]).T,
                 )
@@ -540,14 +627,14 @@ class MPC:
                 # print(sol_controls[control][1:-1].shape)
                 zeros_np = np.zeros(sol_controls[control][-1:].shape)
                 # print(zeros_np.shape)
-                tc.ocp.set_initial(
+                tc.set_initial(
                     tc.controls[control],
                     cs.vertcat(sol_controls[control][1:-1], zeros_np, zeros_np).T,
                 )
 
             sol_variables = sol_ocp[2]
             for variable in tc.variables:
-                tc.ocp.set_initial(tc.variables[variable], sol_variables[variable])
+                tc.set_initial(tc.variables[variable], sol_variables[variable])
 
         else:
 
@@ -617,6 +704,8 @@ class MPC:
             U.append(sol_controls[control][0])
         X = cs.vcat(X)
         U = cs.vcat(U)
+        print("Ushape")
+        print(U.shape)
 
         # simulate the system dynamics to obtain the future state
         next_X = self.system_dynamics(x0=X, u=U, T=self.parameters["t_mpc"])["xf"]
@@ -664,6 +753,7 @@ class MPC:
             + len(self.controls_names)
             + len(self.variables_names)
         )
+
         # TODO: change by adding termination criteria
         for mpc_iter in range(self.max_mpc_iter):
 
@@ -740,6 +830,7 @@ class MPC:
                     sol = list(self._mpc_fun(*sol))
                     toc = time() - tic
                     self._solver_time.append(toc)
+
                     # Monitors
                     opti_form = self._opti_xplam_to_optiform(*sol)
                     # computing the primal feasibility of the solution
@@ -772,6 +863,12 @@ class MPC:
                         return "MPC_SUCCEEDED"
 
                 sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
+
+                # Log solution
+                if ("log_solution" in self.parameters) and self.parameters["log_solution"]:
+                    self.states_log.append(sol_states)
+                    self.controls_log.append(sol_controls)
+                    self.variables_log.append(sol_variables)
 
                 self.mpc_ran = True
 

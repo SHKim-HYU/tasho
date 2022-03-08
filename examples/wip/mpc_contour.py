@@ -1,7 +1,5 @@
-### OCP for point-to-point motion and visualization of a KUKA robot arm
-
 from tasho import task_prototype_rockit as tp
-from tasho import input_resolution, world_simulator
+from tasho import input_resolution, WorldSimulator
 from tasho import robot as rob
 from tasho import MPC
 from tasho.utils import geometry
@@ -17,9 +15,9 @@ print("Task specification and visualization of contour-following example with MP
 ##########################################
 # Import the robot object from the robot's repository (includes functions for FD, ID, FK, joint limits, etc)
 robot_choice = "kinova"
-ocp_control = "torque_resolved"  #'acceleration_resolved' #'torque_resolved'
+ocp_control = "acceleration_resolved"  #'acceleration_resolved' #'torque_resolved'
 
-robot = rob.Robot(robot_choice)
+robot = rob.Robot(robot_choice, analytical_derivatives=True)
 
 # Update robot's parameters if needed
 if ocp_control == "acceleration_resolved":
@@ -38,7 +36,7 @@ def contour_path(s):
     ee_pos_init = ee_fk_init[:3, 3]
     ee_rot_init = ee_fk_init[:3, :3]
 
-    sdotref = 0.2
+    sdotref = 0.025
     sdot_path = sdotref * (
         5.777783e-13 * s ** 5
         - 34.6153846154 * s ** 4
@@ -133,9 +131,9 @@ def rot_err(q, s):
     path_rot_a = rot_path[:, 2]
 
     return 0.5 * (
-        geometry.cross_vec2vec(ee_rot_n, path_rot_n)
-        + geometry.cross_vec2vec(ee_rot_s, path_rot_s)
-        + geometry.cross_vec2vec(ee_rot_a, path_rot_a)
+        geometry.cross_prod(ee_rot_n, path_rot_n)
+        + geometry.cross_prod(ee_rot_s, path_rot_s)
+        + geometry.cross_prod(ee_rot_a, path_rot_a)
     )
 
 
@@ -147,6 +145,16 @@ pos_tunnel_con = {  # pos_tunnel_con = cs.sumsqr(pos_err(q, s)) - rho^2 <= slack
     "upper_limits": 0.01 ** 2,
     "gain": 100,
     "norm": "squaredL2",
+    "slack_name": "trans_tunnel_slack"
+}
+rot_tunnel_con = {  # rot_tunnel_con = cs.sumsqr(rot_err(q, s)) - rho^2 <= slack
+    "hard": False,
+    "inequality": True,
+    "expression": rot_err(q, s),
+    "upper_limits": 0.05 ** 2,
+    "gain": 100,
+    "norm": "squaredL2",
+    "slack_name": "rot_tunnel_slack"
 }
 tunnel_constraints = {"path_constraints": [pos_tunnel_con]}
 tc.add_task_constraint(tunnel_constraints)
@@ -179,7 +187,11 @@ if ocp_control == "torque_resolved":
     )
 if ocp_control == "acceleration_resolved":
     tc.add_regularization(
-        expression=q_ddot, weight=1e-3, norm="L2", variable_type="control", reference=0,
+        expression=q_ddot,
+        weight=1e-3,
+        norm="L2",
+        variable_type="control",
+        reference=0,
     )
 tc.add_regularization(
     expression=s_ddot, weight=4e-5, norm="L2", variable_type="control", reference=0
@@ -208,10 +220,10 @@ tc.set_discretization_settings(disc_settings)
 ################################################
 # Set parameter values
 ################################################
-tc.ocp.set_value(q0, q_init)
-tc.ocp.set_value(q_dot0, [0] * 7)
-tc.ocp.set_value(s0, 0)
-tc.ocp.set_value(s_dot0, 0)
+tc.set_value(q0, q_init)
+tc.set_value(q_dot0, [0] * 7)
+tc.set_value(s0, 0)
+tc.set_value(s_dot0, 0)
 
 ################################################
 # Solve the OCP that describes the task
@@ -226,10 +238,10 @@ use_MPC_class = True
 if use_MPC_class:
 
     # Create world simulator based on pybullet
-    from tasho import world_simulator
+    from tasho import WorldSimulator
     import pybullet as p
 
-    obj = world_simulator.world_simulator(bullet_gui=True)
+    obj = WorldSimulator.WorldSimulator(bullet_gui=True)
 
     # Add robot to the world environment
     position = [0.0, 0.0, 0.0]
@@ -283,6 +295,17 @@ if use_MPC_class:
         "no_samples": no_samples,
     }
 
+    mpc_params["codegen"] = {
+        "codegen": False,
+        "filename": "mpc_c",
+        "compilation": False,
+        "compiler": "gcc",
+        "flags": "-O3 -ffast-math -flto -funroll-loops -march=native -mfpmath=both -mvzeroupper",
+        "use_external": False,
+        "jit": False,
+    }
+    mpc_params["log_solution"] = False
+
     # Create monitor to check some termination criteria
     tc.add_monitor(
         {
@@ -298,7 +321,7 @@ if use_MPC_class:
     sim_type = "bullet_notrealtime"
 
     mpc_obj = MPC.MPC(tc, sim_type, mpc_params)
-    mpc_obj.max_mpc_iter = 400
+    mpc_obj.max_mpc_iter = 4000
 
     # Run the ocp with IPOPT once to get a good initial guess for the MPC
     mpc_obj.configMPC_fromcurrent()
