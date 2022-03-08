@@ -52,13 +52,13 @@ Several examples are provided with Tasho. The following examples list is arrange
 
 ### Time optimal motion planning with obstacle avoidance and approach motion
 
-[![[Watch the video]](docs/aux/img/fm_demo.png)](https://youtu.be/yhRMBapcHPA)
+[![[Watch the video]](docs/aux/img/fm_demo.png)](https://kuleuven-my.sharepoint.com/:v:/g/personal/ajay_sathya_kuleuven_be/Ee1KskHm0nVCpex_Hk2j7R8B7uqICr_T4ksVZl4ZySJWkQ?e=BQx97g)
 
 ### Dual arm laser contouring
 
 The dual arm robot follows a trajectory such that the laser pointer held by one hand follows a desired path on the workpiece held by an other. We use MPC for executing this motion, which is a systematic approach for satisfying constraints on angle-of-incidence, distance between the laser and workpiece, laser contouring rate, etc.
 
-[![[Watch the video]](docs/aux/img/dual_arm_laser2.png)](https://youtu.be/Zj3GigCeXWY)
+[![[Watch the video]](docs/aux/img/dual_arm_laser2.png)](https://kuleuven-my.sharepoint.com/:v:/g/personal/ajay_sathya_kuleuven_be/ESiS-UUF2TZMmoxMzgloBq4BUD__OqNtwGi2enZ4Ar3bzQ?e=xE3nDi)
 
 ## Submitting an issue
 
