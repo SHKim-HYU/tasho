@@ -28,6 +28,7 @@ class MPC:
         # Readint the json file
         with open('json_file') as F:
             json_dict = json.load(F)
+        self.json_dict = json_dict
 
         # initializing common properties
         self.horizon = json_dict["horizon"]
@@ -71,6 +72,9 @@ class MPC:
         self.pred_fun = self.load_casadi_fun(self.pred_file, json_dict['pred_fun_name'])
         self.variables_optiform_details = {}
 
+        # creating the vector that will be the input to the CasADi functions
+        self.x_vals = cs.DM.zeros(self.ocp_fun.nnz_in)
+
         self.states_log = []
         self.controls_log = []
         self.variables_log = []
@@ -112,9 +116,14 @@ class MPC:
 
 
     ## Configures the MPC from the current positions
-    def configMPC(self, init_guess=None):
+    def configMPC(self):
 
-        # SOLVE the OCP in order to warm start the MPC
+        """
+        Configures the MPC solver, solves the OCP and warmstarts the MPC. The properties and ports of the
+        MPC object must be connected and initialized connected before calling configMPC().
+        """
+
+
 
         tc = self.tc
         self.mpc_ran = False
@@ -323,6 +332,7 @@ class MPC:
             # self._mpc_fun = cs.external('f', './mpc_fun.so')
 
     ## obtain the solution of the ocp
+
     def _read_solveroutput(self, sol):
 
         sol_states = {}
@@ -540,22 +550,7 @@ class MPC:
                 if mpc_iter == 20 and self.perturb:
                     q_perturbed = params_val["q0"]
                     q_perturbed[5] += 0.2
-                    joint_indices = [
-                        11,
-                        12,
-                        13,
-                        14,
-                        15,
-                        16,
-                        17,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5,
-                        6,
-                        7,
-                    ]
+                    joint_indices = [11, 12, 13, 14, 15, 16, 17, 1, 2, 3, 4, 5, 6, 7]
                     # print(q_perturbed)
                     self.world.resetJointState(
                         control_info["robotID"], joint_indices, q_perturbed
@@ -665,6 +660,48 @@ class MPC:
                 print("MPC timeout")
                 print(self._solver_time)
                 return "MPC_TIMEOUT"
+
+    
+    def _read_properties(self):
+
+        """
+        Reads properties and assigns them to the correct location of the input vector of the MPC function
+        """
+        json_dict = self.json_dict
+        for i in range(self.num_properties):
+            prop = json_dict["props"][i]
+            self.x_vals[json_dict[prop["var"]]["start"] : json_dict[prop["var"]["end"]]] = self.properties[prop["name"]]["val"]
+
+    def _read_input_ports(self):
+
+        """
+        Reads the values supplied to the input ports of the MPC. And assigns it to the correct location of the MPC input vector.
+        """
+
+        json_dict = self.json_dict
+        for i in range(self.num_inp_ports):
+            port = json_dict["inp_ports"][i]
+            start = json_dict[port["var"]]["start"]
+            size = json_dict[port["var"]]["size"]
+            self.x_vals[start : start + size] = self.input_ports[port["name"]]["val"]
+
+    def _write_output_ports(self, sequence):
+
+        """
+        Writes the solution of the OCP/MPC to the relevant output ports. 
+
+        :param sequence: The time instant in the horizon whose values must be written into the port.
+        :type sequence: int
+        """
+        
+        json_dict = self.json_dict
+        for i in range(self.num_out_ports):
+            port = json_dict["out_ports"][i]
+            var = json_dict[port["name"]]["var"]
+            start = var["start"]
+            jump = var["jump"]
+            self.output_ports[port["name"]]["val"] = self.res_vals[start + sequence*jump : start + sequence*jump  + var["size"]]
+
 
 
 # TODO: set a method to let the user define the inputs and outputs of the function get from opti.to_function
