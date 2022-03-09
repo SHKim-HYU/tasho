@@ -3,7 +3,7 @@
 import casadi as cs
 import numpy as np
 from time import time
-import json
+import json, math
 
 
 class MPC:
@@ -74,7 +74,7 @@ class MPC:
 
         # creating the vector that will be the input to the CasADi functions
         self.x_vals = cs.DM.zeros(self.ocp_fun.nnz_in)
-        self.res_val = cs.DM.zeros(self.ocp_fun.nnz_out)
+        self.res_vals = cs.DM.zeros(self.ocp_fun.nnz_out)
 
         self.states_log = []
         self.controls_log = []
@@ -163,52 +163,32 @@ class MPC:
         #     print("Using just-in-time compilation ...")
             # cg_opts = {"jit":True, "compiler": "shell", "jit_options": {"verbose":True, "compiler": "ccache gcc" , "compiler_flags": self.parameters["codegen"]["flags"]}, "verbose":False, "jit_serialize": "embed"}
 
-    ## Function to provide the initial guess for warm starting the states, controls and variables in tc
-    # in a format that conforms to the inputs of _mpc_fun when .casadi or codegen is available
-    def _warm_start_casfun(self, sol_ocp, sol, options="reuse"):
-        # TODO: refactor this to completely do away with sol_ocp
-        tc = self.tc
-        i = 0
-        # reusing the solution from previous MPC iteration for warm starting
-        if self.mpc_ran == False or options == "reuse":
+    def _shift_states_and_controls(self):
 
-            sol_states = sol_ocp[0]
-            for state in tc.states:
-                sol[i] = sol_states[state].T
-                i += 1
+        """
+        Shifts all the states and controls by one step for warmstarting the OCP
+        """
+        
+        horizon = self.horizon
+        json_dict = self.json_dict
+        
+        # concatenate the control and the state variables for warmstarting
+        vars = json_dict["states"]  + json_dict["controls"]
+        x_vals = self.x_vals
+        res_vals = self.res_vals
 
-            sol_controls = sol_ocp[1]
-            for control in tc.controls:
-                sol[i] = sol_controls[control][0:-1].T
-                i += 1
+        # For every state and control, shift its values backward by one step for warmstarting
+        for v in vars:
+            start = json_dict[v]["start"]
+            jump = json_dict[v]["jump"]
+            x_vals[start: json_dict[v]["end"] - jump] = res_vals[start + jump : json_dict[v]["end"]]
 
-            sol_variables = sol_ocp[2]
-            for variable in tc.variables:
-                sol[i] = sol_variables[variable].T
-                i += 1
-
-        # warm starting by shiting the solution by 1 step
-        elif options == "shift":
-
-            sol_states = sol_ocp[0]
-            for state in tc.states:
-                sol[i] = cs.vertcat(sol_states[state][1:], sol_states[state][-1:]).T
-                i += 1
-
-            sol_controls = sol_ocp[1]
-            for control in tc.controls:
-                zeros_np = np.zeros(sol_controls[control][-1:].shape)
-                sol[i] = cs.vertcat(sol_controls[control][1:], zeros_np).T
-                i += 1
-
-            sol_variables = sol_ocp[2]
-            for variable in tc.variables:
-                sol[i] = sol_variables[variable]
-                i += 1
-
-        else:
-
-            raise Exception("Invalid MPC restart option " + options)
+        # For all states, simply copy the terminal state from the result. A better strategy is perhaps to simulate, but 
+        # this is also effective
+        for s in json_dict["states"]:
+            x_vals[json_dict[s]["end"] - json_dict[s]["jump"] : json_dict[s]["end"]] = res_vals[
+                json_dict[s]["end"] - json_dict[s]["jump"] : json_dict[s]["end"]]
+                
 
     def _sim_dynamics_update_params(self, params_val, sol_states, sol_controls):
         """
