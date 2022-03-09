@@ -164,59 +164,6 @@ class MPC:
             # cg_opts = {"jit":True, "compiler": "shell", "jit_options": {"verbose":True, "compiler": "ccache gcc" , "compiler_flags": self.parameters["codegen"]["flags"]}, "verbose":False, "jit_serialize": "embed"}
 
     ## Function to provide the initial guess for warm starting the states, controls and variables in tc
-    def _warm_start(self, sol_ocp, options="reuse"):
-
-        tc = self.tc
-        # reusing the solution from previous MPC iteration for warm starting
-        if self.mpc_ran == False or options == "reuse":
-
-            sol_states = sol_ocp[0]
-            for state in tc.states:
-                tc.set_initial(tc.states[state], sol_states[state].T)
-
-            sol_controls = sol_ocp[1]
-            for control in tc.controls:
-                tc.set_initial(tc.controls[control], sol_controls[control].T)
-
-            sol_variables = sol_ocp[2]
-            for variable in tc.variables:
-                tc.set_initial(tc.variables[variable], sol_variables[variable])
-
-        # warm starting by shiting the solution by 1 step
-        elif options == "shift":
-
-            sol_states = sol_ocp[0]
-            for state in tc.states:
-                # print(state)
-                # print(sol_states[state][1:].shape)
-                # print(sol_states[state][-1:].shape)
-                tc.set_initial(
-                    tc.states[state],
-                    cs.vertcat(sol_states[state][1:], sol_states[state][-1:]).T,
-                )
-                # tc.ocp.set_initial(tc.states[state], sol_states[state].T)
-
-            sol_controls = sol_ocp[1]
-            for control in tc.controls:
-                # tc.ocp.set_initial(tc.controls[control], sol_controls[control].T)
-                # print(control)
-                # print(sol_controls[control][1:-1].shape)
-                zeros_np = np.zeros(sol_controls[control][-1:].shape)
-                # print(zeros_np.shape)
-                tc.set_initial(
-                    tc.controls[control],
-                    cs.vertcat(sol_controls[control][1:-1], zeros_np, zeros_np).T,
-                )
-
-            sol_variables = sol_ocp[2]
-            for variable in tc.variables:
-                tc.set_initial(tc.variables[variable], sol_variables[variable])
-
-        else:
-
-            raise Exception("Invalid MPC restart option " + options)
-
-    ## Function to provide the initial guess for warm starting the states, controls and variables in tc
     # in a format that conforms to the inputs of _mpc_fun when .casadi or codegen is available
     def _warm_start_casfun(self, sol_ocp, sol, options="reuse"):
         # TODO: refactor this to completely do away with sol_ocp
