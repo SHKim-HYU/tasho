@@ -1,7 +1,4 @@
-# File to set the MPC options and to deploy it. Takes as input the task context.
-# Provides options for code-generation for deployment on the robot
-# Could also optionally create a rosnode that communicates with world_simulator for verifying the MPC in simulations
-# Monitor the variables to raise events
+# Simulates the MPC motion skill designed using Tasho
 
 import casadi as cs
 import numpy as np
@@ -10,18 +7,16 @@ import json
 
 
 class MPC:
-    ## MPC(tc, type)
-    # @params tc task context defined using the task protype function
-    # @params type Specifies the type of MPC interaction. 'bullet_notrealtime' - Here
-    # the bullet environment is simulated onyl after the MPC output is computed. So no computation time issues.
-    # 'bullet_realtime' - The MPC computation and bullet simulation happens at the same time and they communicate through
-    # @params parameters Extra details for the MPC. Such as the mapping between the parameter variables and the data from bullet
+    
 
-    def __init__(self, tc, sim_type, parameters):
+    def __init__(self, name, json_file):
 
-        self.tc = tc
-        self.type = sim_type
-        self.parameters = parameters
+        """
+        Creates an object that simulates the MPC controller. It is designed to be very similar to the
+        Orocos component used to deploy the Tasho controllers on the hardware. It is not real-time. Does not
+        run on a separate thread/process compared to the main program. The main purpose of this object is simulation.
+        """
+
         # Create a list of the MPC states, variables, controls and parameters in a fixed order
         self.params_names = tc.parameters.keys()
         self.states_names = tc.states.keys()
@@ -35,9 +30,6 @@ class MPC:
         self.controls_log = []
         self.variables_log = []
 
-        # casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
-        self.mpc_debug = False
-        self._mpc_fun = None
         self._opti_xplam = (
             []
         )  # list of all the decision variables, parameters and lagrange multipliers
@@ -50,24 +42,10 @@ class MPC:
         self._solver_time = (
             []
         )  # array to keep track of the time taken by the solver in every MPC step
-        self.torque_effort_sumsqr = 0
         self.max_mpc_iter = 100  # limit on the number of MPC iterations
-        self.codeGen = False
-        self.perturb = False
-
-        if sim_type == "bullet_notrealtime":
-
-            self.world = parameters["world"]  # object of world_simulator class
-
-        elif sim_type == "bullet_realtime":
-
-            print("Not implemented")
-
-        else:
-            print("[ERROR] Unknown simulation type")
 
     ## Configures the MPC from the current positions
-    def configMPC_fromcurrent(self, init_guess=None):
+    def configMPC(self, init_guess=None):
 
         # SOLVE the OCP in order to warm start the MPC
 
@@ -82,267 +60,18 @@ class MPC:
 
         # set the initial guesses
 
-        if init_guess != None:
-
-            print("Not implemented")
-
-        # For initial guesses, setting a robust solver (IPOPT)
-        tc.set_ocp_solver(
-            "ipopt",
-            {
-                "ipopt": {
-                    "max_iter": 1000,
-                    "hessian_approximation": "limited-memory",
-                    "limited_memory_max_history": 5,
-                    "tol": 1e-3,
-                }
-            },
-        )
-
-        tc.set_ocp_solver(
-            "ipopt",
-            {
-                "ipopt": {"max_iter": 1000, "tol": 1e-6, "linear_solver": "ma27"},
-                "error_on_fail": True,
-            },
-        )
-
-        # assuming that the discretization settings are already done!
-        # print(tc.ocp._method.M)
-        tc.set_discretization_settings(self.parameters["disc_settings"])
-
         sol = tc.solve_ocp()
         # print(tc.ocp._method.N)
         sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
         self.sol_ocp = [sol_states, sol_controls, sol_variables]
 
         # configure the solver for the MPC iterations
-        if self.parameters["solver_name"] == "ipopt":
 
-            if "lbfgs" in self.parameters["solver_params"]:
+        self._warm_start(self.sol_ocp)
+        sol = tc.solve_ocp()
+        if self.mpc_debug is not True:
+            self._create_mpc_fun_casadi(codeGen=self.codeGen, f_name="ocp_fun")
 
-                tc.set_ocp_solver(
-                    "ipopt",
-                    {
-                        "ipopt": {
-                            "max_iter": 1000,
-                            "hessian_approximation": "limited-memory",
-                            "limited_memory_max_history": 5,
-                            "tol": 1e-3,
-                            "print_level": 5,
-                        },
-                        "error_on_fail": True,
-                    },
-                )
-            else:
-                tc.set_ocp_solver(
-                    "ipopt",
-                    {
-                        "ipopt": {
-                            "max_iter": 100,
-                            "tol": 1e-3,
-                            "mu_init": 1e-2,
-                            "linear_solver": "ma27",
-                            "fixed_variable_treatment": "make_parameter",
-                            # "hessian_constant": "yes",
-                            # "jac_c_constant": "yes",
-                            # "jac_d_constant": "yes",
-                            # "accept_every_trial_step": "yes",
-                            "print_level": 5,
-                            # "mu_strategy": "monotone",
-                            "nlp_scaling_method": "none",
-                            "check_derivatives_for_naninf": "no",
-                            "ma97_scaling": "none",
-                            "ma97_order": "amd",
-                            "ma57_pivot_order": 0,
-                            "warm_start_init_point": "yes",
-                            "magic_steps": "yes",
-                            "fast_step_computation": "yes",
-                            "mu_allow_fast_monotone_decrease": "yes",
-                            "ma27_skip_inertia_check": "yes",
-
-                            # "ma27_ignore_singularity": "yes",
-                        },
-                        "error_on_fail": True,
-                    },
-                )
-            tc.set_discretization_settings(self.parameters["disc_settings"])
-            # tc.ocp._method.main_transcribe(tc.ocp)
-            self._warm_start(self.sol_ocp)
-            sol = tc.solve_ocp()
-            if self.mpc_debug is not True:
-                self._create_mpc_fun_casadi(codeGen=self.codeGen, f_name="ocp_fun")
-
-        elif self.parameters["solver_name"] == "sqpmethod":
-
-            if "qrqp" in self.parameters["solver_params"]:
-                kkt_tol_pr = 1e-3
-                kkt_tol_du = 1e-1
-                min_step_size = 1e-6
-                max_iter = 10
-                max_iter_ls = 3
-                qpsol_options = {
-                    "constr_viol_tol": kkt_tol_pr,
-                    "dual_inf_tol": kkt_tol_du,
-                    "verbose": False,
-                    "print_iter": False,
-                    "print_header": False,
-                    "dump_in": False,
-                    "error_on_fail": False,
-                }
-                solver_options = {
-                    "qpsol": "qrqp",
-                    "qpsol_options": qpsol_options,
-                    "verbose": False,
-                    "tol_pr": kkt_tol_pr,
-                    "tol_du": kkt_tol_du,
-                    "min_step_size": min_step_size,
-                    "max_iter": max_iter,
-                    "max_iter_ls": max_iter_ls,
-                    "print_iteration": True,
-                    "print_header": False,
-                    "print_status": False,
-                    "print_time": True,
-                    "error_on_fail": True,
-                }  # "convexify_strategy":"regularize"
-                tc.set_ocp_solver("sqpmethod", solver_options)
-
-            elif "osqp" in self.parameters["solver_params"]:
-                kkt_tol_pr = 1e-3
-                kkt_tol_du = 1e-1
-                min_step_size = 1e-4
-                max_iter = 5
-                max_iter_ls = 2
-                eps_abs = 1e-5
-                eps_rel = 1e-5
-                qpsol_options = {
-                    "osqp": {
-                        "alpha": 1,
-                        "eps_abs": eps_abs,
-                        "eps_rel": eps_rel,
-                        "verbose": 0,
-                    },
-                    "dump_in": False,
-                    "error_on_fail": False,
-                }
-                solver_options = {
-                    "qpsol": "osqp",
-                    "qpsol_options": qpsol_options,
-                    "verbose": False,
-                    "tol_pr": kkt_tol_pr,
-                    "tol_du": kkt_tol_du,
-                    "min_step_size": min_step_size,
-                    "max_iter": max_iter,
-                    "max_iter_ls": max_iter_ls,
-                    "print_iteration": True,
-                    "print_header": False,
-                    "print_status": False,
-                    "print_time": True,
-                    "error_on_fail": True,
-                }  # "convexify_strategy":"regularize"
-                tc.set_ocp_solver("sqpmethod", solver_options)
-
-            elif "qpoases" in self.parameters["solver_params"]:
-                kkt_tol_pr = 1e-3
-                kkt_tol_du = 1e-1
-                min_step_size = 1e-4
-                max_iter = 10
-                max_iter_ls = 0
-                qpoases_tol = 1e-4
-                qpsol_options = {
-                    "printLevel": "none",
-                    "enableEqualities": True,
-                    "initialStatusBounds": "inactive",
-                    "terminationTolerance": qpoases_tol,
-                }
-                solver_options = {
-                    "qpsol": "qpoases",
-                    "qpsol_options": qpsol_options,
-                    "verbose": False,
-                    "tol_pr": kkt_tol_pr,
-                    "tol_du": kkt_tol_du,
-                    "min_step_size": min_step_size,
-                    "max_iter": max_iter,
-                    "max_iter_ls": max_iter_ls,
-                    "print_iteration": True,
-                    "print_header": False,
-                    "print_status": False,
-                    "print_time": True,
-                    "error_on_fail": True,
-                }  # "convexify_strategy":"regularize"
-                tc.set_ocp_solver("sqpmethod", solver_options)
-
-            elif "ipopt" in self.parameters["solver_params"]:
-                kkt_tol_pr = 1e-3
-                kkt_tol_du = 1e-1
-                min_step_size = 1e-6
-                max_iter = 5
-                ipopt_max_iter = 20
-                max_iter_ls = 0
-
-                ipopt_tol = 1e-3
-                tiny_step_tol = 1e-6
-                mu_init = 0.001
-                linear_solver = "ma97"
-                # linear_solver = "mumps"
-
-                ipopt_options = {
-                    "tol": ipopt_tol,
-                    "tiny_step_tol": tiny_step_tol,
-                    "fixed_variable_treatment": "make_parameter",
-                    "hessian_constant": "yes",
-                    "jac_c_constant": "yes",
-                    "jac_d_constant": "yes",
-                    "accept_every_trial_step": "yes",
-                    "mu_init": mu_init,
-                    "print_level": 0,
-                    "linear_solver": linear_solver,
-                    # "mumps_mem_percent": 1000,
-                    "mumps_pivtolmax": 1e-6,
-                    # "mehrotra_algorithm": "no",
-                    "mu_strategy": "monotone",
-                    "nlp_scaling_method": "none",
-                    "check_derivatives_for_naninf": "no",
-                    "ma97_scaling": "none",
-                    "ma97_order": "amd",
-                    "ma57_pivot_order": 0,
-                    "warm_start_init_point": "yes",
-                    "magic_steps": "yes",
-                    "fast_step_computation": "yes",
-                    "mu_allow_fast_monotone_decrease": "yes",
-                    "ma27_skip_inertia_check": "yes",
-                    # "ma27_ignore_singularity": "yes",
-                    # "honor_original_bounds": "no",
-                    # "bound_mult_init_method": "constant",
-                    # "mu_oracle": "loqo",
-                    # "mu_linear_decrease_factor": 0.5,
-                }
-                nlpsol_options = {"ipopt": ipopt_options, "print_time": False}
-                qpsol_options = {
-                    "nlpsol": "ipopt",
-                    "nlpsol_options": nlpsol_options,
-                    "print_time": False,
-                    "verbose": False,
-                    "error_on_fail": False,
-                }
-                solver_options = {
-                    "qpsol": "nlpsol",
-                    "qpsol_options": qpsol_options,
-                    "tol_pr": kkt_tol_pr,
-                    "tol_du": kkt_tol_du,
-                    "min_step_size": min_step_size,
-                    "max_iter": max_iter,
-                    "max_iter_ls": max_iter_ls,
-                    "print_iteration": True,
-                    "print_header": False,
-                    "print_status": False,
-                    "print_time": True,
-                    "error_on_fail": True,
-                }  # "convexify_strategy":"regularize"
-                tc.set_ocp_solver("sqpmethod", solver_options)
-
-            tc.set_discretization_settings(self.parameters["disc_settings"])
-            tc.ocp._method.main_transcribe(tc.ocp)
             self._warm_start(self.sol_ocp)
             print("Solving with the SQP method")
             sol = tc.solve_ocp()
@@ -398,27 +127,7 @@ class MPC:
                             print("[ERROR] The file "+filename+".so doesn't exist. Try compiling the function first")
                             exit()
 
-
-        else:
-            # Set ipopt as default solver
-            print("Using IPOPT with LBFGS as the default solver")
-            tc.set_ocp_solver(
-                "ipopt",
-                {
-                    "ipopt": {
-                        "max_iter": 1000,
-                        "hessian_approximation": "limited-memory",
-                        "limited_memory_max_history": 5,
-                        "tol": 1e-3,
-                    }
-                },
-            )
-
-            if self.mpc_debug is not True:
-                self._create_mpc_fun_casadi(codeGen=self.codeGen)
-
         self.system_dynamics = self.tc.stages[0]._method.discrete_system(self.tc.stages[0])
-        # print(sol_controls['s_ddot'])
 
     # internal function to create the MPC function using casadi's opti.to_function capability
     def _create_mpc_fun_casadi(
@@ -889,242 +598,6 @@ class MPC:
                 print("MPC timeout")
                 print(self._solver_time)
                 return "MPC_TIMEOUT"
-
-    # Internal function to apply the output of the MPC to the non-realtime bullet environment
-    def _apply_control_nrbullet(self, sol_mpc, params_val):
-
-        if self.parameters["control_type"] == "joint_velocity":
-            control_info = self.parameters["control_info"]
-
-            joint_indices = control_info["joint_indices"]
-            if control_info["discretization"] == "constant_acceleration":
-                # Computing the average of the first two velocities to apply as input
-                # assuming constant acceleration input
-                # control_action = (
-                #     0.5 * (sol_mpc[0]["q_dot"][0, :] + sol_mpc[0]["q_dot"][1, :]).T
-                # )
-
-                for i in range(control_info["no_samples"]):
-                    control_action = (
-                        sol_mpc[0]["q_dot"][0, :] * (1 - i / control_info["no_samples"])
-                        + sol_mpc[0]["q_dot"][1, :] * i / control_info["no_samples"]
-                    ).T
-                    self.world.setController(
-                        control_info["robotID"],
-                        "velocity",
-                        joint_indices,
-                        targetVelocities=control_action,
-                    )
-                    self.world.run_simulation(1)
-
-                # simply giving the velocity at the next time step as the reference
-                # control_action = sol_mpc[0]['q_dot'][1,:].T
-                # future_joint_position = sol_mpc[0]['q'][0,:]
-                # print("q_dot shape is ")
-                # print(sol_mpc[0]['q_dot'].shape)
-                # print("control action shape is ")
-                # print(control_action.shape)
-                # print("joint indices length is")
-                # print(len(joint_indices))
-            # self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetPositions = future_joint_position, targetVelocities = control_action)
-            if "force_control" in control_info:
-                q_dot_force = control_info["fcon_fun"](
-                    params_val["q0"], params_val["f_des"], params_val["f_meas"]
-                )
-                # print("qdot force is ")
-                # print(q_dot_force)
-                # cap the magnitude of q_dot_force
-                # max_q_dot_force_norm = 0.1
-                # norm_q_dot_force = cs.norm_1(q_dot_force)
-                # if norm_q_dot_force > max_q_dot_force_norm:
-                #    print("norm of q_dot_force:")
-                #    print(norm_q_dot_force)
-                #    q_dot_force = q_dot_force/norm_q_dot_force*max_q_dot_force_norm
-                #    print("q dot force after normalization")
-                #    print(q_dot_force)
-                control_action = np.array(cs.vec(control_action) + q_dot_force)
-
-            # control_action = control_action[0]
-            # print(control_action)
-            # print(q_dot_force)
-            # self.world.setController(
-            #     control_info["robotID"],
-            #     "velocity",
-            #     joint_indices,
-            #     targetVelocities=control_action,
-            # )
-            # print("This ran")
-            # print(sol_mpc[0]['s_dot'])
-            # print(sol_mpc[0]['s'])
-
-            # self.world.run_simulation(control_info["no_samples"])
-
-        elif self.parameters["control_type"] == "joint_torque":
-
-            control_info = self.parameters["control_info"]
-            joint_indices = control_info["joint_indices"]
-            control_action = sol_mpc[1]["tau"][0, :].T
-            robot = self.parameters["params"]["robots"][control_info["robotID"]]
-
-            for i in range(control_info["no_samples"]):
-                self.world.setController(
-                    control_info["robotID"],
-                    "torque",
-                    joint_indices,
-                    targetTorques=control_action,
-                )
-                self.world.run_simulation(1)
-
-        elif self.parameters["control_type"] == "joint_acceleration":
-            # implemented using the inverse dynamics solver and applying joint torques
-
-            control_info = self.parameters["control_info"]
-            joint_indices = control_info["joint_indices"]
-            control_action = sol_mpc[1]["q_ddot"][0, :].T
-            robot = self.parameters["params"]["robots"][control_info["robotID"]]
-
-            # compute joint torques through inverse dynamics of casadi model
-            # joint_torques = np.array(robot.id(params_val['q0'], params_val['q_dot0'], control_action))
-
-            # compute joint torques using inverse dynamics functions from pybullet
-            joint_torques = self.world.computeInverseDynamics(
-                control_info["robotID"],
-                list(params_val["q0"]),
-                list(params_val["q_dot0"]),
-                list(control_action),
-            )
-
-            if "force_control" in control_info:
-                # compute the feedforward torque needed to apply the desired EE force
-                # print(control_info['jac_fun']([0]*7))
-                torque_forces = cs.mtimes(
-                    control_info["jac_fun"](params_val["q0"]).T, params_val["f_des"]
-                )
-                joint_torques = np.array(cs.vec(joint_torques) + cs.vec(torque_forces))
-
-            # print(joint_torques)
-
-            for i in range(control_info["no_samples"]):
-                self.torque_effort_sumsqr += (
-                    cs.sumsqr(joint_torques) * self.world.physics_ts
-                )
-                self.world.setController(
-                    control_info["robotID"],
-                    "torque",
-                    joint_indices,
-                    targetTorques=joint_torques,
-                )
-                self.world.run_simulation(1)
-
-                if not "force_control" in control_info:
-                    # computing the joint torque to apply at the same frequency as bullet simulation
-                    params_innerloop = self._read_params_nrbullet()
-                    joint_torques = self.world.computeInverseDynamics(
-                        control_info["robotID"],
-                        list(params_innerloop["q0"]),
-                        list(params_innerloop["q_dot0"]),
-                        list(control_action),
-                    )
-
-        elif self.parameters["control_type"] == "joint_position":
-
-            print("Not implemented")
-
-        else:
-
-            raise Exception(
-                "[Error] Unknown control type for bullet environment initialized"
-            )
-
-    # Internal function to read the values of the parameter variables from the bullet simulation environment
-    # in non realtime case
-    def _read_params_nrbullet(self):
-
-        params_val = {}
-        parameters = self.parameters
-
-        for params_name in self.params_names:
-
-            param_val = []
-            param_info = parameters["params"][params_name]
-
-            if param_info["type"] == "joint_position":
-
-                jointsInfo = self.world.readJointState(
-                    param_info["robotID"], param_info["joint_indices"]
-                )
-                for jointInfo in jointsInfo:
-                    param_val.append(jointInfo[0])
-
-                params_val[params_name] = param_val
-
-            elif param_info["type"] == "joint_velocity":
-
-                jointsInfo = self.world.readJointState(
-                    param_info["robotID"], param_info["joint_indices"]
-                )
-                for jointInfo in jointsInfo:
-                    param_val.append(jointInfo[1])
-
-                params_val[params_name] = param_val
-
-            elif param_info["type"] == "joint_torque":
-
-                jointsInfo = self.world.readJointState(
-                    param_info["robotID"], param_info["joint_indices"]
-                )
-                for jointInfo in jointsInfo:
-                    param_val.append(jointInfo[3])
-
-                params_val[params_name] = param_val
-
-            elif param_info["type"] == "joint_force":
-
-                jointsInfo = self.world.readJointState(
-                    param_info["robotID"], param_info["joint_indices"]
-                )
-                forces = jointsInfo[0][2][0:3]
-                print("Forces reading before correction")
-                print(jointsInfo[0][2])
-                forces_corrected = param_info["post_process"](
-                    param_info["fk"], params_val["q0"], forces
-                )
-
-                params_val[params_name] = forces_corrected
-                print("Force sensor readings:")
-                print(forces_corrected)
-
-            elif param_info["type"] == "progress_variable":
-                if self.mpc_ran:
-                    if "state" in param_info:
-
-                        params_val[params_name] = self.sol_mpc[0][params_name[0:-1]][1]
-
-                    elif "control" in param_info:
-
-                        params_val[params_name] = self.sol_mpc[1][params_name[0:-1]][1]
-                else:
-
-                    params_val[params_name] = 0
-
-            elif param_info["type"] == "set_value":
-
-                params_val[params_name] = param_info["value"]
-
-            elif param_info["type"] == "function_of_s":
-                if self.mpc_ran:
-                    _, normal = param_info["function"](self.sol_mpc[0]["s"][0])
-                    params_val[params_name] = normal * param_info["gain"]
-                else:
-                    params_val[params_name] = np.array([0, 0, 0]).T
-            else:
-
-                print(
-                    "[ERROR] Invalid type of parameter to be read from the simulation environment"
-                )
-        print(self.params_history.append(params_val))
-
-        return params_val
 
 
 # TODO: set a method to let the user define the inputs and outputs of the function get from opti.to_function
