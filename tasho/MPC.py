@@ -163,48 +163,6 @@ class MPC:
         #     print("Using just-in-time compilation ...")
             # cg_opts = {"jit":True, "compiler": "shell", "jit_options": {"verbose":True, "compiler": "ccache gcc" , "compiler_flags": self.parameters["codegen"]["flags"]}, "verbose":False, "jit_serialize": "embed"}
 
-    # internal function to create the MPC function using casadi's opti.to_function capability
-
-    def _read_solveroutput(self, sol):
-
-        sol_states = {}
-        sol_controls = {}
-        sol_variables = {}
-        tc = self.tc
-
-        if self._mpc_fun == None:
-            for state in tc.states:
-                _, sol_state = sol(tc.stages[0]).sample(tc.states[state], grid="control")
-                sol_states[state] = sol_state
-
-            for control in tc.controls:
-                _, sol_control = sol(tc.stages[0]).sample(tc.controls[control], grid="control")
-                sol_controls[control] = sol_control[0:-1]
-
-            for variable in tc.variables:
-                _, sol_variable = sol(tc.stages[0]).sample(tc.variables[variable], grid="control")
-                sol_variable = sol_variable[0]
-                sol_variables[variable] = sol_variable
-
-        # when the solver directly gives the list of decision variables
-        else:
-            i = 0
-            for state in self.states_names:
-                # print("Shape of state " + state + " is = ")
-                # print(sol[i].shape)
-                sol_states[state] = np.array(sol[i].T)
-                i += 1
-
-            for control in tc.controls:
-                sol_controls[control] = np.array(sol[i].T)
-                i += 1
-
-            for variable in tc.variables:
-                sol_variables[variable] = np.array(sol[i].T)
-                i += 1
-
-        return sol_states, sol_controls, sol_variables
-
     ## Function to provide the initial guess for warm starting the states, controls and variables in tc
     def _warm_start(self, sol_ocp, options="reuse"):
 
