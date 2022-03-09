@@ -228,141 +228,31 @@ class MPC:
 
         self.X_new = self.pred_fun(X, U, P, self.sampling_time)
 
-    # Continuous running of the MPC
     def runMPC(self):
+        """
+        The update hook, this function should be run in a loop to simulate the MPC controller.
+        """
 
-        sol_states = self.sol_ocp[0]
-        sol_controls = self.sol_ocp[1]
-        sol_variables = self.sol_ocp[2]
-        control_info = self.parameters["control_info"]
-        tc = self.tc
-        sol = [0] * len(self._opti_xplam)
-        par_start_element = (
-            len(self.states_names)
-            + len(self.controls_names)
-            + len(self.variables_names)
-        )
+        # First write the control actions computed during the previous iteration.
+        # The first time the MPC is run, this value comes from the computation in the configMPC function.
+        self._write_output_ports()
 
-        # TODO: change by adding termination criteria
-        for mpc_iter in range(self.max_mpc_iter):
+        # Get the latest sensor readings
+        self._read_input_ports()
 
-            if self.type == "bullet_notrealtime":
+        # Simulate the system by one step and shift the states and control vectors
+        # to warmstart the MPC
+        self._sim_dynamics_update()
+        self._shift_states_and_controls()
 
-                # reading and setting the latest parameter values and applying MPC action
-                params_val = self._read_params_nrbullet()
-                if mpc_iter == 20 and self.perturb:
-                    q_perturbed = params_val["q0"]
-                    q_perturbed[5] += 0.2
-                    joint_indices = [11, 12, 13, 14, 15, 16, 17, 1, 2, 3, 4, 5, 6, 7]
-                    # print(q_perturbed)
-                    self.world.resetJointState(
-                        control_info["robotID"], joint_indices, q_perturbed
-                    )
-                    # params_val = self._read_params_nrbullet()
+        # Solve the MPC problem
+        self.res_vals = self.mpc_fun(self.x_vals)
 
-                # if self.mpc_ran:
-                # for param in params_val:
-                #     print("Abs error in "+ param)
-                #     print(cs.fabs(cs.vec(old_params_val[param]) - cs.vec(params_val[param])))
-                sol_mpc = [sol_states, sol_controls, sol_variables]
-                self.sol_mpc = sol_mpc
-                self._apply_control_nrbullet(sol_mpc, params_val)
-                self.mpc_ran = True
 
-                # simulate to predict the future state when the first control input is applied
-                # to use that as the starting state for the MPC and accordingly update the params_val
-                self._sim_dynamics_update_params(params_val, sol_states, sol_controls)
-
-                # When the mpc_fun is not initialized as codegen or .casadi function
-                if self._mpc_fun == None:
-                    for params_name in self.params_names:
-                        tc.ocp.set_value(
-                            tc.parameters[params_name], params_val[params_name]
-                        )
-                    # set the states, controls and variables as initial values
-                    self._warm_start(
-                        [sol_states, sol_controls, sol_variables], options="shift"
-                    )
-                    try:
-                        sol = tc.solve_ocp()
-                    except:
-                        tc.ocp.show_infeasibilities(0.5 * 1e-6)
-                        raise Exception("Solver crashed")
-
-                else:
-                    # print("before calling printing system dynamics function")
-                    self._warm_start_casfun(
-                        [sol_states, sol_controls, sol_variables], sol, options="shift"
-                    )
-                    # print("this ran")
-                    # print(sol_variables)
-                    i = par_start_element
-                    for params_name in self.params_names:
-                        sol[i] = params_val[params_name]
-                        i += 1
-                    tic = time()
-                    sol = list(self._mpc_fun(*sol))
-                    toc = time() - tic
-                    self._solver_time.append(toc)
-
-                    # Monitors
-                    opti_form = self._opti_xplam_to_optiform(*sol)
-                    # computing the primal feasibility of the solution
-                    fun_pr = tc.function_primal_residual()
-                    residual_max = fun_pr(*opti_form)
-                    print("primal residual is : " + str(residual_max.full()))
-
-                    if residual_max.full() >= 1e-3:
-                        print("Solver infeasible")
-                        return "MPC_FAILED"
-
-                    # checking the termination criteria
-
-                    # print(opti_form)
-                    print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
-                    if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
-                        print(self._solver_time)
-                        print(
-                            "MPC termination criteria reached after "
-                            + str(mpc_iter)
-                            + " number of MPC samples. Exiting MPC loop."
-                        )
-
-                        self.world.setController(
-                            control_info["robotID"],
-                            "velocity",
-                            control_info["joint_indices"],
-                            targetVelocities=[0] * len(control_info["joint_indices"]),
-                        )
-                        return "MPC_SUCCEEDED"
-
-                sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
-
-                # Log solution
-                if ("log_solution" in self.parameters) and self.parameters["log_solution"]:
-                    self.states_log.append(sol_states)
-                    self.controls_log.append(sol_controls)
-                    self.variables_log.append(sol_variables)
-
-                self.mpc_ran = True
-
-                old_params_val = params_val  # to debug how the prediction varies from the actual plant after one step of
-                # control is applied
-                # Apply the control action to bullet environment
-                # self._apply_control_nrbullet(sol_mpc) #uncomment if the simulation of system to predict future is not done
-
-            elif self.type == "bullet_realtime":
-
-                print("Not implemented")
-
-            else:
-
-                print("[ERROR] Unknown simulation type")
-
-            if mpc_iter == self.max_mpc_iter - 1:
-                print("MPC timeout")
-                print(self._solver_time)
-                return "MPC_TIMEOUT"
+        # Aspects to re-write in a better way the code that was deleted below:
+        # TODO: Checking monitor functions (including the termination criteria)
+        # TODO: computing residuals (optional)
+        # TODO: log the solution
 
     
     def _read_properties(self):
