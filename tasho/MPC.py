@@ -12,9 +12,11 @@ class MPC:
     def __init__(self, name, json_file):
 
         """
-        Creates an object that simulates the MPC controller. It is designed to be very similar to the
+        Creates an object that simulates the MPC controller, which assumes a full state feedback. It is designed to be very similar to the
         Orocos component used to deploy the Tasho controllers on the hardware. It is not real-time. Does not
         run on a separate thread/process compared to the main program. The main purpose of this object is simulation.
+
+        MPC component is defined only for fixed-time single-stage OCP problems.
         """
 
         # Create a list of the MPC states, variables, controls and parameters in a fixed order
@@ -32,6 +34,7 @@ class MPC:
 
         # initializing common properties
         self.horizon = json_dict["horizon"]
+        self.sampling_time = json_dict["sampling_time"]
         self.ocp_file = json_dict["ocp_file"]
         self.mpc_file = json_dict["mpc_file"]
         self.pred_file = json_dict["pred_file"]
@@ -177,70 +180,53 @@ class MPC:
         x_vals = self.x_vals
         res_vals = self.res_vals
 
-        # For every state and control, shift its values backward by one step for warmstarting
-        for v in vars:
+        # For states, shift its values by backward by one step but leave the first state untouched
+        # because it is updated by sensor readings
+
+        for v in json_dict["states"]:
+            start = json_dict[v]["start"]
+            jump = json_dict[v]["jump"]
+            x_vals[start + jump : json_dict[v]["end"] - jump] = res_vals[start + 2*jump : json_dict[v]["end"]]
+
+        # For controls, shift its values backward by one step for warmstarting
+        for v in json_dict["controls"]:
             start = json_dict[v]["start"]
             jump = json_dict[v]["jump"]
             x_vals[start: json_dict[v]["end"] - jump] = res_vals[start + jump : json_dict[v]["end"]]
 
-        # For all states, simply copy the terminal state from the result. A better strategy is perhaps to simulate, but 
-        # this is also effective
-        for s in json_dict["states"]:
-            x_vals[json_dict[s]["end"] - json_dict[s]["jump"] : json_dict[s]["end"]] = res_vals[
-                json_dict[s]["end"] - json_dict[s]["jump"] : json_dict[s]["end"]]
+        # # For all states, simply copy the terminal state from the result. A better strategy is perhaps to simulate, but 
+        # # this is also effective
+        # for s in json_dict["states"]:
+        #     x_vals[json_dict[s]["end"] - json_dict[s]["jump"] : json_dict[s]["end"]] = res_vals[
+        #         json_dict[s]["end"] - json_dict[s]["jump"] : json_dict[s]["end"]]
                 
 
-    def _sim_dynamics_update_params(self, params_val, sol_states, sol_controls):
+    def _sim_dynamics_update(self):
         """
-        Internal function to simulate the dynamics by one time step to predict the states of the MPC
-        when the first control input is applied.
+        Internal function to simulate the system by one MPC time step to predict the state
+        from which the next control output will be applied. A practical method to deal with the MPC
+        computation delay. 
+
+        It should be run before shifting the states and controls.
         """
-        print("Before printing system dynamics")
-        print(params_val)
-        # obtain the current state of the system from params and the first control input
+
+        json_dict = self.json_dict
         X = []
+        # concatenate the initial states
+        for var in json_dict["states"]:
+            X = cs.vertcat(X, self._get_initial_state_control(var))
+
+        # concatenate initial controls
         U = []
-        control_info = self.parameters["control_info"]
-        for state in self.states_names:
-            X.append(params_val[state + "0"])
-        for control in self.controls_names:
-            U.append(sol_controls[control][0])
-        X = cs.vcat(X)
-        U = cs.vcat(U)
-        print("Ushape")
-        print(U.shape)
+        for var in json_dict["controls"]:
+            U = cs.vertcat(U, self._get_initial_state_control(var))
 
-        # simulate the system dynamics to obtain the future state
-        next_X = self.system_dynamics(x0=X, u=U, T=self.parameters["t_mpc"])["xf"]
-        # update the params_val with this info
-        start = 0
-        for state in self.states_names:
-            print(state)
-            state_shape = self.tc.states[state].shape
-            state_len = state_shape[0] * state_shape[1]
-            if state == "q_dot" and self.parameters["control_type"] == "joint_velocity":
-                # print(state)
-                # print(np.array(params_val[state+'0']).T)
-                # print(np.array(next_X[start:start+state_len]))
-                # params_val[state + "0"] = (
-                #     0.5
-                #     * (
-                #         np.array(params_val[state + "0"])
-                #         + np.array(next_X[start : start + state_len].T)
-                #     ).T
-                # )
-                params_val[state + "0"] = (
-                    np.array(params_val[state + "0"]) * (1 / control_info["no_samples"])
-                    + np.array(next_X[start : start + state_len].T)
-                    * (1 - 1 / control_info["no_samples"])
-                ).T
-            else:
-                params_val[state + "0"] = np.array(next_X[start : start + state_len])
-            # print(params_val[state+"0"])
-            start = state_len + start
+        # concatenate initial parameters
+        P = []
+        for var in json_dict["parameters"]:
+            P = cs.vertcat(P, self._get_initial_state_control(var))
 
-        # print("After printing system dynamics")
-        # print(params_val)
+        self.X_new = self.pred_fun(X, U, P, self.sampling_time)
 
     # Continuous running of the MPC
     def runMPC(self):
@@ -419,7 +405,20 @@ class MPC:
             jump = var["jump"]
             self.output_ports[port["name"]]["val"] = self.res_vals[start + sequence*jump : start + sequence*jump  + var["size"]]
 
+    def _get_initial_state_control(self, var, x_vals):
 
+        """
+        Returns the value at the start of the horizon of the given variable from the given array.
+
+        :param var: the variable whose initial value is returned
+        :type var: String
+
+        :param x_vals: The input/output vector of OCP/MPC
+        :type x_vals: Casadi DM vector
+        """
+        
+        json_dict = self.json_dict
+        return x_vals[json_dict["var"]["start"] : json_dict["var"]["start"] + json_dict["var"]["size"]]
 
 # TODO: set a method to let the user define the inputs and outputs of the function get from opti.to_function
 # TODO: This should also account for monitors
