@@ -74,6 +74,7 @@ class MPC:
 
         # creating the vector that will be the input to the CasADi functions
         self.x_vals = cs.DM.zeros(self.ocp_fun.nnz_in)
+        self.res_val = cs.DM.zeros(self.ocp_fun.nnz_out)
 
         self.states_log = []
         self.controls_log = []
@@ -123,87 +124,41 @@ class MPC:
         MPC object must be connected and initialized connected before calling configMPC().
         """
 
+        # read the properties
+        self._read_properties()
+        
+        # read the input ports
+        self._read_input_ports()
 
+        # Evaluate the OCP function
+        self.res_val = self.ocp_fun(self.x_vals)
 
-        tc = self.tc
-        self.mpc_ran = False
-        params_val = self._read_params_nrbullet()
-
-        # set the parameter values
-        for params_name in self.params_names:
-
-            tc.set_value(tc.parameters[params_name], params_val[params_name])
-
-        # set the initial guesses
-
-        sol = tc.solve_ocp()
-        # print(tc.ocp._method.N)
-        sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
-        self.sol_ocp = [sol_states, sol_controls, sol_variables]
+        # if the mpc solver is different from the OCP solver, evaluate it with the solution to warmstart
+        if self.ocp_file != self.mpc_file:
+            self.res_val = self.mpc_fun(self.res_val[0:self.x_vals.shape[0]])
 
         # configure the solver for the MPC iterations
-
-        self._warm_start(self.sol_ocp)
-        sol = tc.solve_ocp()
         if self.mpc_debug is not True:
             self._create_mpc_fun_casadi(codeGen=self.codeGen, f_name="ocp_fun")
 
-            self._warm_start(self.sol_ocp)
-            print("Solving with the SQP method")
-            sol = tc.solve_ocp()
-
-            if self.mpc_debug is not True:
-                if ("codegen" in self.parameters) and self.parameters["codegen"]:
-                    self.code_type = 2
-
-                    if self.parameters["codegen"]["filename"]:
-                        filename = self.parameters["codegen"]["filename"]
-                    else:
-                        filename = "mpc_fun"
-
-                    self._create_mpc_fun_casadi(
-                        codeGen=self.parameters["codegen"]["codegen"],
-                        f_name=filename,
-                    )
-
-                    if self.parameters["codegen"]["compilation"]:
-                        import os
-
-                        if self.parameters["codegen"]["compiler"]:
-                            compiler = self.parameters["codegen"]["compiler"]
-                        else:
-                            compiler = "gcc"
-
-                        print("Compiling MPC function ...")
-                        os.system(
-                            compiler
-                            + " "
-                            + self.parameters["codegen"]["flags"]
-                            + " "
-                            + filename
-                            + ".c -shared -fPIC -lm -o "
-                            + filename
-                            + ".so"
-                        )
-                        print("... Finished compilation of MPC function")
-
-                    if self.parameters["codegen"]["use_external"]:
-
-                        import os
-
-                        if os.path.isfile(filename+'.so'):
-                            print("Loading the compiled function back ...")
-
-                            self._mpc_fun = cs.external(
-                                filename, "./" + filename + ".so"
-                            )
-
-                            print("... Loaded")
-                        else:
-                            print("[ERROR] The file "+filename+".so doesn't exist. Try compiling the function first")
-                            exit()
-
-        self.system_dynamics = self.tc.stages[0]._method.discrete_system(self.tc.stages[0])
+        # if self.parameters["codegen"]["compilation"]:
+        #     import os
+        #     if self.parameters["codegen"]["compiler"]:
+        #         compiler = self.parameters["codegen"]["compiler"]
+        #     else:
+        #         compiler = "gcc"
+        #     print("Compiling MPC function ...")
+        #     os.system(
+        #         compiler
+        #         + " "
+        #         + self.parameters["codegen"]["flags"]
+        #         + " "
+        #         + filename
+        #         + ".c -shared -fPIC -lm -o "
+        #         + filename
+        #         + ".so"
+        #     )
+        #     print("... Finished compilation of MPC function")
 
     # internal function to create the MPC function using casadi's opti.to_function capability
     def _create_mpc_fun_casadi(
