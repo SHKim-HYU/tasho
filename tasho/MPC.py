@@ -18,13 +18,58 @@ class MPC:
         """
 
         # Create a list of the MPC states, variables, controls and parameters in a fixed order
-        self.params_names = tc.parameters.keys()
-        self.states_names = tc.states.keys()
-        self.controls_names = tc.controls.keys()
-        self.variables_names = tc.variables.keys()
-        self.variables_optiform_details = {}
+        self.properties = {}
+        self.input_ports = {}
+        self.output_ports = {}
+        self.event_input_port = {}
+        self.event_output_port = {}
+        self.max_mpc_iter = 1000  # limit on the number of MPC iterations
 
-        self.params_history = []
+        # Readint the json file
+        with open('json_file') as F:
+            json_dict = json.load(F)
+
+        # initializing common properties
+        self.horizon = json_dict["horizon"]
+        self.ocp_file = json_dict["ocp_file"]
+        self.mpc_file = json_dict["mpc_file"]
+        self.pred_file = json_dict["pred_file"]
+        self.num_states = json_dict['num_states']
+        self.num_controls = json_dict['num_controls']
+        self.num_properties = json_dict['num_properties']
+        self.num_inp_ports = json_dict['num_inp_ports']
+        self.num_out_ports = json_dict['num_out_ports']
+
+        if "max_iter" in json_dict:
+            self.max_mpc_iter = json_dict["max_mpc_iter"]
+
+        # create the properties
+        for i in range(self.num_properties):
+            prop = json_dict["props"][i]
+            self.properties[prop["name"]] = {'val':[], 'desc':prop["desc"]}
+
+        # creating the input ports
+        for i in range(self.num_inp_ports):
+            in_port = json_dict["inp_ports"][i]
+            self.input_ports[in_port["name"]] = {'val':[], 'desc':in_port['desc']}
+
+        # creating the output ports
+        for i in range(self.num_out_ports):
+            out_port = json_dict["out_port"]
+            self.output_ports[out_port["name"]] = {'val':[], 'desc':out_port['desc']}
+
+        # load the casadi OCP function
+        self.ocp_fun = self.load_casadi_fun(self.ocp_file, json_dict['ocp_fun_name'])
+
+        # load the casadi MPC function if different from the OCP function
+        if self.ocp_file != self.mpc_file:
+            self.mpc_fun = self.load_casadi_fun(self.mpc_file, json_dict['mpc_fun_name'])
+        else:
+            self.mpc_fun = self.ocp_fun
+
+        # load the prediction function to simulate the dynamics of the system
+        self.pred_fun = self.load_casadi_fun(self.pred_file, json_dict['pred_fun_name'])
+        self.variables_optiform_details = {}
 
         self.states_log = []
         self.controls_log = []
@@ -42,7 +87,29 @@ class MPC:
         self._solver_time = (
             []
         )  # array to keep track of the time taken by the solver in every MPC step
-        self.max_mpc_iter = 100  # limit on the number of MPC iterations
+        
+
+    def load_casadi_fun(casadi_file, cas_fun_name):
+        """
+        Loads serialized or code-generated CasADi function.
+
+        :param casadi_file: The location of the file from which the CasADi function must be loaded.
+        :type casadi_file: String
+
+        :param cas_fun_name: (optional) The name of the CasADi function that must be loaded. Must be specified for a .so file.
+        """
+
+        # loads a .casadi function, the easiest form.
+        if ".casadi" in casadi_file:
+            return cs.Function.load(casadi_file)
+        
+        # loads .so file, that is obtained by compiling a code-generated CasADi file
+        elif ".so" in casadi_file:
+            return cs.external(cas_fun_name, casadi_file)
+
+        else:
+            raise Exception("CasADi file of unknown format provided")
+
 
     ## Configures the MPC from the current positions
     def configMPC(self, init_guess=None):
