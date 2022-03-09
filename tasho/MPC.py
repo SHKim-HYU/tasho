@@ -420,9 +420,19 @@ class MPC:
         json_dict = self.json_dict
         return x_vals[json_dict["var"]["start"] : json_dict["var"]["start"] + json_dict["var"]["size"]]
 
-# TODO: set a method to let the user define the inputs and outputs of the function get from opti.to_function
-# TODO: This should also account for monitors
-# TODO: Set offline solution for initialization ( mpc.set_offline_solution(solver, options, ?))
+    def _set_initial_state(self, X_new):
+
+        """
+        Setting the initial state to the state obtained by simulating the sensor readings by one step.
+        """
+
+        counter = 0
+        json_dict = self.json_dict
+        x_vals = self.x_vals
+        
+        for var in json_dict["states"]:
+            x_vals[json_dict[var]["start"]:json_dict[var]["start"] + json_dict[var]["size"]] = X_new[counter + json_dict[var]["size"]]
+            counter += json_dict[var]["size"]
 
 if __name__ == "__main__":
 
