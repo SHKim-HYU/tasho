@@ -66,6 +66,13 @@ The green cube is the crude estimate of the white cube's future position and is 
 
 <img src="docs/aux/video/kinova_obj_pickup_mpc.gif" width="500" height="290">
 
+### Bouncing ball example
+
+The solver computes the initial velocity of the ball so that the ball reaches the goal position (green cross) after a specified number of bounces. The multi-stage capability of Tasho allows to easily optimize through discontinuous state-transitions that occur during bounces.
+
+<img src="docs/aux/video/bouncing_ball.gif" width="500" height="370">
+
+
 ## Orocos component for hardware deployment
 
 The Orocos component for hardware deployment of the Tasho code can be found [here](https://github.com/AjSat/tasho_orocos)
