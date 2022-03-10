@@ -60,6 +60,12 @@ The dual arm robot follows a trajectory such that the laser pointer held by one 
 
 [![[Watch the video]](docs/aux/img/dual_arm_laser2.png)](https://kuleuven-my.sharepoint.com/:v:/g/personal/ajay_sathya_kuleuven_be/ESiS-UUF2TZMmoxMzgloBq4BUD__OqNtwGi2enZ4Ar3bzQ?e=xE3nDi)
 
+### MPC for object pick-up
+
+The green cube is the crude estimate of the white cube's future position and is provided as the set-point to the MPC controller
+
+<img src="docs/aux/video/kinova_obj_pickup_mpc.gif" width="500" height="290">
+
 ## Orocos component for hardware deployment
 
 The Orocos component for hardware deployment of the Tasho code can be found [here](https://github.com/AjSat/tasho_orocos)
