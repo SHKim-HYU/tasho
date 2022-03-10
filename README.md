@@ -26,7 +26,7 @@
 You can install Tasho (ideally into a virtual environment) via pip using the following command:
 
 ```
-pip install git+https://gitlab.kuleuven.be/meco-software/tasho.git@main
+pip install git+https://gitlab.kuleuven.be/meco-software/tasho.git@master
 ```
 
 ### Option 2: Installing from cloned repository
