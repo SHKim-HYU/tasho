@@ -287,7 +287,7 @@ class Task:
         Remove terminal constraints passed as arguments.
         """
 
-        self._remove_x_constraint("path", *args)
+        self._remove_x_constraint("terminal", *args)
 
     def _remove_x_constraint(self, x, *args):
 
@@ -295,7 +295,8 @@ class Task:
             assert isinstance(arg, ConstraintExpression), "All arguments must be constraint expressions."
             assert (x, arg.uid) in self._constraints, "Attempting to remove a constraint not present."
 
-            self._constraints.pop((x, arg.uid))          
+            self._constraints.pop((x, arg.uid))
+            self._remove_from_graph((x, arg.uid))          
 
     def include_subtask(self, task2):
 

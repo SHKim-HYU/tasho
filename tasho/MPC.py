@@ -7,7 +7,6 @@ import json, math
 
 
 class MPC:
-    
 
     def __init__(self, name, json_file):
 
