@@ -22,8 +22,8 @@ class MPC:
         self.properties = {}
         self.input_ports = {}
         self.output_ports = {}
-        self.event_input_port = {}
-        self.event_output_port = {}
+        self.event_input_port = []
+        self.event_output_port = []
         self.max_mpc_iter = 1000  # limit on the number of MPC iterations
 
         # Readint the json file
@@ -42,6 +42,12 @@ class MPC:
         self.num_properties = json_dict['num_props']
         self.num_inp_ports = json_dict['num_inp_ports']
         self.num_out_ports = json_dict['num_out_ports']
+        self.num_monitors = len(json_dict["monitor_names"])
+        self.monitor_flags = {}
+
+        # Set all monitor flags to False by default
+        for m in json_dict["monitor_names"]:
+            self.monitor_flags[m] = False
 
         if "max_iter" in json_dict:
             self.max_mpc_iter = json_dict["max_mpc_iter"]
@@ -231,7 +237,7 @@ class MPC:
         # First write the control actions computed during the previous iteration.
         # The first time the MPC is run, this value comes from the computation in the configMPC function.
         self._write_output_ports(0)
-
+        self._write_monitor_events()
         # Get the latest sensor readings
         self._read_input_ports()
 
@@ -304,6 +310,28 @@ class MPC:
         
         json_dict = self.json_dict
         return self.x_vals[json_dict[var]["start"] : json_dict[var]["start"] + json_dict[var]["size"]]
+
+    def _write_monitor_events(self):
+
+        """
+        Reads the monitor function values and writes events if there is a change in the value.
+        """
+
+        self.event_output_port = []
+
+        json_dict = self.json_dict
+        for m in json_dict["monitor_names"]:
+
+            # detect if there is a change in the monitored Boolean function
+            if (self.res_vals[json_dict["monitor_locations"][m]].full().squeeze() < 0) != self.monitor_flags[m]:
+                self.monitor_flags[m] = self.res_vals[json_dict["monitor_locations"][m]] < 0
+
+                if self.monitor_flags[m]:
+                    self.event_output_port.append(m+"_true")
+                else:
+                    self.event_output_port.append(m+"_false")
+            
+
 
     def _set_initial_state(self, X_new):
 
