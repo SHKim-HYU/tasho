@@ -71,13 +71,29 @@ class Task:
 
         return var
 
-    def add_variable(self, var):
+    def add_variable(self, var : Variable):
 
+        """
+        Adds a Variable object created outside the self task to the self task.
+
+        :param var: The Variable object that must be added to the task.
+        :type var: Variable object
+        """
+
+        assert isinstance(var, Variable), "The provided argument is not a Variable object"
         if var.uid not in self._variables:
             self._variables[var.uid] = var
             self._add_to_graph(var)
             return
         self._logger.info("Not adding variable " + var.uid + " because a variable with identical uid already exists.")
+
+    def add_variables(self, *args):
+
+        """
+        Executes add_variable function for all the arguments passed as parameters
+        """
+
+        list(map(self.add_variable, args))
         
     def substitute_expression(self, old_var, new_var):
 
@@ -120,10 +136,22 @@ class Task:
         """ 
         Deletes a variable or expression from the task. All the successor nodes of the expression are also deleted.
         Also delete the entries where this variable/expression is a derivative of some other state variable.
+
+        :param expr: The expression that must be removed.
+        :type expr: Expression/Variable object or a string with the expression's uid
         """
 
         # TODO: remove derivative entries
-        if isinstance(expr, Variable) and not isinstance(expr, Expression) and expr.type == 'state': self._state_dynamics.pop(expr.uid)
+        if isinstance(expr, str): 
+            if expr in self.expressions:
+                expr = self.expressions[expr]
+            elif expr in self.variables:
+                expr = self.variables[expr]
+            else:
+                raise Exception(f"No variable or expression named {expr} exists in the task")
+        elif isinstance(expr, Variable) and not isinstance(expr, Expression) and expr.type == 'state': self._state_dynamics.pop(expr.uid)
+
+        
 
         children = list(self.graph.successors(expr.uid))
         for c in children:
@@ -143,6 +171,15 @@ class Task:
         self.graph.remove_node(expr.uid)
         
         # raise Exception("Not implemented")
+
+    def remove_expressions(self, *args):
+
+        """
+        Removes all the expressions that are passed as arguments to the function.
+        """
+
+        for arg in args:
+            self.remove_expression(arg)
 
     def set_der(self, var, dyn):
 
@@ -178,14 +215,30 @@ class Task:
         self._add_to_graph(expr)
         return expr
 
-    def add_expression(self, expr):
+    def add_expression(self, expr : Expression):
+
+        """
+        Adds an expression created outside into the task. It assumes that the parents of 
+        the expression are already in the task.
+
+        :param expr: The expression that must be added to the task.
+        :type expr: Expression.
+        """
         if expr.uid not in self._expressions:
             self._expressions[expr.uid] = expr
             self._add_to_graph(expr)
         else:
             self._logger.info("Not adding expression " + expr.uid + " because an expression with identical uid already exists.")
 
-    def add_expr_recursively(self, expr):
+    def add_expr_recursively(self, expr : Expression):
+
+        """
+        Adds and expression into the task. It does not assume that its parents are already in the task.
+        It also recursively adds its parent expressions into the task.
+
+        :param expr: The expression that must be added to the task.
+        :type expr: Expression.
+        """
 
         if expr.uid in self._expressions or expr.uid in self._variables: return
         
@@ -197,32 +250,57 @@ class Task:
 
     def create_constraint_expression(self, name, mid, expression, constraint_hardness, **kwargs):
 
+        """
+        Create a constraint expression using the Variables and Expressions already present in the task.
+        """
+
         con_expr = ConstraintExpression(name, mid, expression, constraint_hardness, **kwargs)
         assert con_expr.uid not in self._constraint_expressions, con_expr.uid + " already used for a constraint expression."
         self._constraint_expressions[con_expr.uid] = con_expr
         self._add_to_graph(con_expr)
         return con_expr
 
-    def add_constraint_expression(self, expr):
+    def add_constraint_expression(self, con_expr : ConstraintExpression):
 
-        if expr.uid not in self._constraint_expressions:
-            self._constraint_expressions[expr.uid] = expr
-            self._add_to_graph(expr)
+        """
+        Adds the given constraint expression into a task.
+
+        :param con_expr: The constraint Expression object that needs to be added to the task.
+        :type con_expr: ConstraintExpression
+        """
+
+        if con_expr.uid not in self._constraint_expressions:
+            
+            # if the expression in con_expr not present in the task, add it
+            if con_expr.expr not in self._expressions or con_expr not in self._variables:
+                self.add_expr_recursively(con_expr._expression)
+            
+            self._constraint_expressions[con_expr.uid] = con_expr
+            self._add_to_graph(con_expr)
         else:
-            self._logger.info("Not adding constraint expression " + expr.uid + " because a constraint expression with an identical uid exists.")
+            self._logger.info("Not adding constraint expression " + con_expr.uid + " because a constraint expression with an identical uid exists.")
 
-    def remove_constraint_expression(self, expr):
+    def remove_constraint_expression(self, con_expr):
 
-        assert expr.uid in self.constraint_expressions
+        """
+        Removes the desired constraint expression from the graph.
+
+        :param con_expr: The constraint expresssion that must be removed.
+        :type con_expr: Constraint expression object or the uid string of the constraint expression.
+        """
+
+        if isinstance(con_expr, str): con_expr = self.constraint_expressions[con_expr]
+        else:
+            assert con_expr.uid in self.constraint_expressions, "Constraint expression to be removed not found in the task."
 
         con_types = ["initial", "path", "terminal"]
         for con in con_types:
-            if (con, expr.uid) in self._constraints:
-                self._remove_x_constraint(con, expr)
+            if (con, con_expr.uid) in self._constraints:
+                self._remove_x_constraint(con, con_expr)
 
-        self._constraint_expressions.pop(expr.uid)
+        self._constraint_expressions.pop(con_expr.uid)
         
-        self._remove_from_graph(expr.uid)
+        self._remove_from_graph(con_expr.uid)
 
     def add_path_constraints(self, *args):
 
@@ -259,8 +337,6 @@ class Task:
             assert isinstance(arg, ConstraintExpression), "All arguments are expected to be constraint expressions."
             assert (x, arg.uid) not in self._constraints, "The imposed constraint is already present among constraints of the task."
             
-            if arg.expr not in self._expressions:
-                self.add_expr_recursively(arg._expression)
             self.add_constraint_expression(arg)
             self._constraints[(x, arg.uid)] = (x, arg.uid)
             self._add_to_graph((x, arg.uid))
@@ -292,8 +368,11 @@ class Task:
     def _remove_x_constraint(self, x, *args):
 
         for arg in args:
-            assert isinstance(arg, ConstraintExpression), "All arguments must be constraint expressions."
-            assert (x, arg.uid) in self._constraints, "Attempting to remove a constraint not present."
+            if isinstance(arg, str): 
+                arg = self.constraint_expressions[arg]
+            else:
+                assert isinstance(arg, ConstraintExpression), "All arguments must be constraint expressions."
+                assert (x, arg.uid) in self._constraints, "Attempting to remove a constraint not present."
 
             self._constraints.pop((x, arg.uid))
             self._remove_from_graph((x, arg.uid))          

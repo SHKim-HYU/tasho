@@ -147,8 +147,9 @@ class task_context:
             return control
 
         elif type == "parameter":
-            parameter = ocp.parameter(shape[0], shape[1])
-            self.parameters[name] = [parameter, stage]
+            # parameter = ocp.parameter(shape[0], shape[1])
+            # self.parameters[name] = [parameter, stage]
+            parameter = self.create_parameter(name, shape, 1, stage = stage)
 
             return parameter
 
@@ -1002,7 +1003,7 @@ class task_context:
         # self.set_discretization_settings(self.disc_settings)
         # self.stages[0]._method.main_transcribe(self.stages[0])
         ocp_xplm, vars_db, ocp_xplm_out = self._unroll_controller_vars()
-        if not cg_opts["jit"]:
+        if not cg_opts['jit']:
             ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm_out)
         else:
             jit_opts = {
@@ -1011,7 +1012,7 @@ class task_context:
                 "jit_options": {
                     "verbose": True,
                     "compiler": "ccache gcc",
-                    "compiler_flags": self.parameters["codegen"]["flags"],
+                    "compiler_flags": cg_opts["codegen"]["flags"],
                 },
                 "verbose": False,
                 "jit_serialize": "embed",
@@ -1044,9 +1045,9 @@ class task_context:
             _, temp = ocp.sample(self.states[state][0], grid="control")
             temp2 = []
             for i in range(self.horizon[stage] + 1):
-                temp2.append(temp[:, i])
+                temp2.append(cs.vec(temp[:, i]))
             vars_db[state] = {"start": counter, "size": temp.shape[0]}
-            op_xplm.append(cs.vcat(temp2))
+            op_xplm.append(cs.vec(cs.vcat(temp2)))
             counter += temp.shape[0] * temp.shape[1]
             vars_db[state]["end"] = counter
 
@@ -1058,7 +1059,7 @@ class task_context:
             temp2 = []
             for i in range(self.horizon[stage]):
                 temp2.append(
-                    ocp._method.eval_at_control(ocp, self.controls[control][0], i)
+                    cs.vec(ocp._method.eval_at_control(ocp, self.controls[control][0], i))
                 )
             vars_db[control] = {
                 "start": counter,
@@ -1074,7 +1075,7 @@ class task_context:
             stage = self.variables[variable][1]
             ocp = self.stages[stage]
             temp = ocp._method.eval_at_control(ocp, self.variables[variable][0], 0)
-            op_xplm.append(temp)
+            op_xplm.append(cs.vec(temp))
             vars_db[variable] = {
                 "start": counter,
                 "size": temp.shape[0],
@@ -1087,7 +1088,7 @@ class task_context:
             stage = self.parameters[parameter][1]
             ocp = self.stages[stage]
             temp = ocp._method.eval_at_control(ocp, self.parameters[parameter][0], 0)
-            op_xplm.append(temp)
+            op_xplm.append(cs.vec(temp))
             vars_db[parameter] = {
                 "start": counter,
                 "size": temp.shape[0],
