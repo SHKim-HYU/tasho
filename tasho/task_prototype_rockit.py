@@ -17,6 +17,7 @@ import casadi as cs
 from tasho import input_resolution
 from tasho import default_mpc_options
 from tasho.utils import geometry
+import json
 
 # This may be replaced by some method get_ocp_variables, which calls self.states, self.controls, ...
 from collections import namedtuple
@@ -955,6 +956,12 @@ class task_context:
             vars_db["mpc_file"] = location + self.name + "_mpc.casadi"
             # TODO: also add the case where .c files are generated
 
+            # generating the discrete-time system update function for the first stage
+            disc_system = self.stages[0].discrete_system()
+            disc_system.save(location + self.name+"_pred.casadi")
+            vars_db["pred_file"] = location + self.name+"_pred.casadi"
+            vars_db["pred_fun_name"] = 'F'
+
         # Updating the json file and dumping it
         vars_db["num_inp_ports"] = len(self.tc_dict["inp_ports"])
         vars_db["num_out_ports"] = len(self.tc_dict["out_ports"])
@@ -964,13 +971,17 @@ class task_context:
         vars_db["num_parameters"] = len(self.parameters)
         vars_db["states"] = list(self.states.keys())
         vars_db["controls"] = list(self.controls.keys())
+        vars_db["parameters"] = list(self.parameters.keys())
         vars_db["inp_ports"] = self.tc_dict["inp_ports"]
         vars_db["out_ports"] = self.tc_dict["out_ports"]
         vars_db["props"] = self.tc_dict["props"]
         vars_db["horizon"] = self.horizon[0] #TODO: what to do here really?
-        vars_db["mpc_ts"] = self.ocp_rate
+        vars_db["sampling_time"] = self.ocp_rate
         vars_db["ocp_fun_name"] = self.name + "_ocp"
         vars_db["ocp_file"] = location + self.name + "_ocp.casadi"
+
+        with open(location + self.name + '.json', "w") as write_file:
+            json.dump(vars_db, write_file, indent = 4)
 
         return vars_db
 
@@ -1042,11 +1053,11 @@ class task_context:
         for state in self.states.keys():
             stage = self.states[state][1]
             ocp = self.stages[stage]
-            _, temp = ocp.sample(self.states[state][0], grid="control")
+            _, temp = ocp.sample(cs.vec(self.states[state][0]), grid="control")
             temp2 = []
             for i in range(self.horizon[stage] + 1):
-                temp2.append(cs.vec(temp[:, i]))
-            vars_db[state] = {"start": counter, "size": temp.shape[0]}
+                temp2.append(temp[:, i])
+            vars_db[state] = {"start": counter, "size": temp.shape[0], "jump": temp.shape[0]}
             op_xplm.append(cs.vec(cs.vcat(temp2)))
             counter += temp.shape[0] * temp.shape[1]
             vars_db[state]["end"] = counter
@@ -1055,11 +1066,11 @@ class task_context:
         for control in self.controls.keys():
             stage = self.controls[control][1]
             ocp = self.stages[self.controls[control][1]]
-            _, temp = ocp.sample(self.controls[control][0], grid="control")
+            _, temp = ocp.sample(cs.vec(self.controls[control][0]), grid="control")
             temp2 = []
             for i in range(self.horizon[stage]):
                 temp2.append(
-                    cs.vec(ocp._method.eval_at_control(ocp, self.controls[control][0], i))
+                    ocp._method.eval_at_control(ocp, cs.vec(self.controls[control][0]), i)
                 )
             vars_db[control] = {
                 "start": counter,
@@ -1074,8 +1085,8 @@ class task_context:
         for variable in self.variables.keys():
             stage = self.variables[variable][1]
             ocp = self.stages[stage]
-            temp = ocp._method.eval_at_control(ocp, self.variables[variable][0], 0)
-            op_xplm.append(cs.vec(temp))
+            temp = ocp._method.eval_at_control(ocp, cs.vec(self.variables[variable][0]), 0)
+            op_xplm.append(temp)
             vars_db[variable] = {
                 "start": counter,
                 "size": temp.shape[0],
@@ -1087,8 +1098,8 @@ class task_context:
         for parameter in self.parameters.keys():
             stage = self.parameters[parameter][1]
             ocp = self.stages[stage]
-            temp = ocp._method.eval_at_control(ocp, self.parameters[parameter][0], 0)
-            op_xplm.append(cs.vec(temp))
+            temp = ocp._method.eval_at_control(ocp, cs.vec(self.parameters[parameter][0]), 0)
+            op_xplm.append(temp)
             vars_db[parameter] = {
                 "start": counter,
                 "size": temp.shape[0],

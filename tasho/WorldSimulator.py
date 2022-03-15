@@ -194,6 +194,15 @@ class WorldSimulator:
 
         return joint_pos
 
+    def readJointVelocities(self, robotID, joint_indices):
+
+        joint_vel = []
+        joint_states = p.getJointStates(robotID, joint_indices)
+        for j in joint_indices:
+            joint_vel.append(joint_states[j][1])
+
+        return joint_vel
+
     def enableJointForceSensor(self, robotID, joint_indices):
 
         """Wrapper function around pybullet to activate computation

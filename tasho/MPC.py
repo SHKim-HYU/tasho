@@ -27,7 +27,7 @@ class MPC:
         self.max_mpc_iter = 1000  # limit on the number of MPC iterations
 
         # Readint the json file
-        with open('json_file') as F:
+        with open(json_file, "r") as F:
             json_dict = json.load(F)
         self.json_dict = json_dict
 
@@ -39,7 +39,7 @@ class MPC:
         self.pred_file = json_dict["pred_file"]
         self.num_states = json_dict['num_states']
         self.num_controls = json_dict['num_controls']
-        self.num_properties = json_dict['num_properties']
+        self.num_properties = json_dict['num_props']
         self.num_inp_ports = json_dict['num_inp_ports']
         self.num_out_ports = json_dict['num_out_ports']
 
@@ -58,7 +58,7 @@ class MPC:
 
         # creating the output ports
         for i in range(self.num_out_ports):
-            out_port = json_dict["out_port"]
+            out_port = json_dict["out_ports"][i]
             self.output_ports[out_port["name"]] = {'val':[], 'desc':out_port['desc']}
 
         # load the casadi OCP function
@@ -75,8 +75,8 @@ class MPC:
         self.variables_optiform_details = {}
 
         # creating the vector that will be the input to the CasADi functions
-        self.x_vals = cs.DM.zeros(self.ocp_fun.nnz_in)
-        self.res_vals = cs.DM.zeros(self.ocp_fun.nnz_out)
+        self.x_vals = cs.DM.zeros(self.ocp_fun.nnz_in())
+        self.res_vals = cs.DM.zeros(self.ocp_fun.nnz_out())
 
         self.states_log = []
         self.controls_log = []
@@ -96,7 +96,7 @@ class MPC:
         )  # array to keep track of the time taken by the solver in every MPC step
         
 
-    def load_casadi_fun(casadi_file, cas_fun_name):
+    def load_casadi_fun(self, casadi_file, cas_fun_name):
         """
         Loads serialized or code-generated CasADi function.
 
@@ -138,10 +138,6 @@ class MPC:
         # if the mpc solver is different from the OCP solver, evaluate it with the solution to warmstart
         if self.ocp_file != self.mpc_file:
             self.res_val = self.mpc_fun(self.res_val[0:self.x_vals.shape[0]])
-
-        # configure the solver for the MPC iterations
-        if self.mpc_debug is not True:
-            self._create_mpc_fun_casadi(codeGen=self.codeGen, f_name="ocp_fun")
 
         # if self.parameters["codegen"]["compilation"]:
         #     import os
@@ -225,7 +221,7 @@ class MPC:
         for var in json_dict["parameters"]:
             P = cs.vertcat(P, self._get_initial_state_control(var))
 
-        self.X_new = self.pred_fun(X, U, P, self.sampling_time)
+        self.X_new = self.pred_fun(X, U, 0, self.sampling_time, P)
 
     def runMPC(self):
         """
@@ -234,7 +230,7 @@ class MPC:
 
         # First write the control actions computed during the previous iteration.
         # The first time the MPC is run, this value comes from the computation in the configMPC function.
-        self._write_output_ports()
+        self._write_output_ports(0)
 
         # Get the latest sensor readings
         self._read_input_ports()
@@ -275,7 +271,7 @@ class MPC:
             port = json_dict["inp_ports"][i]
             start = json_dict[port["var"]]["start"]
             size = json_dict[port["var"]]["size"]
-            self.x_vals[start : start + size] = self.input_ports[port["name"]]["val"]
+            self.x_vals[start : start + size] = cs.DM(self.input_ports[port["name"]]["val"])
 
     def _write_output_ports(self, sequence):
 
@@ -289,12 +285,12 @@ class MPC:
         json_dict = self.json_dict
         for i in range(self.num_out_ports):
             port = json_dict["out_ports"][i]
-            var = json_dict[port["name"]]["var"]
+            var = json_dict[port["var"]]
             start = var["start"]
             jump = var["jump"]
             self.output_ports[port["name"]]["val"] = self.res_vals[start + sequence*jump : start + sequence*jump  + var["size"]]
 
-    def _get_initial_state_control(self, var, x_vals):
+    def _get_initial_state_control(self, var):
 
         """
         Returns the value at the start of the horizon of the given variable from the given array.
@@ -307,7 +303,7 @@ class MPC:
         """
         
         json_dict = self.json_dict
-        return x_vals[json_dict["var"]["start"] : json_dict["var"]["start"] + json_dict["var"]["size"]]
+        return self.x_vals[json_dict[var]["start"] : json_dict[var]["start"] + json_dict[var]["size"]]
 
     def _set_initial_state(self, X_new):
 

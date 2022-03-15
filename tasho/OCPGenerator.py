@@ -147,3 +147,4 @@ class OCPGenerator:
                 self._evaluate_expressions(task._expressions[parent], task, exprs_evaluated)
         
         expr.evaluate_expression(task)
+        exprs_evaluated |= set(expr.uid)
