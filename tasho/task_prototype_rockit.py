@@ -47,7 +47,7 @@ class task_context:
         self.ocp = ocp
         self.horizon = []
         self.stages = []
-        self.tc_name = name
+        self.name = name
         self.states = {}
         self.controls = {}
         self.variables = {}
@@ -951,8 +951,8 @@ class task_context:
             )
             self.mpc_fun = mpc_fun
             # TODO: add monitor value in OCP and MPC xplm
-            vars_db["mpc_fun_name"] = self.tc_name + "_mpc"
-            vars_db["mpc_file"] = location + self.tc_name + "_mpc.casadi"
+            vars_db["mpc_fun_name"] = self.name + "_mpc"
+            vars_db["mpc_file"] = location + self.name + "_mpc.casadi"
             # TODO: also add the case where .c files are generated
 
         # Updating the json file and dumping it
@@ -969,8 +969,8 @@ class task_context:
         vars_db["props"] = self.tc_dict["props"]
         vars_db["horizon"] = self.horizon[0] #TODO: what to do here really?
         vars_db["mpc_ts"] = self.ocp_rate
-        vars_db["ocp_fun_name"] = self.tc_name + "_ocp"
-        vars_db["ocp_file"] = location + self.tc_name + "_ocp.casadi"
+        vars_db["ocp_fun_name"] = self.name + "_ocp"
+        vars_db["ocp_file"] = location + self.name + "_ocp.casadi"
 
         return vars_db
 
@@ -1004,7 +1004,7 @@ class task_context:
         # self.stages[0]._method.main_transcribe(self.stages[0])
         ocp_xplm, vars_db, ocp_xplm_out = self._unroll_controller_vars()
         if not cg_opts['jit']:
-            ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm_out)
+            ocp_fun = self.ocp.to_function(self.name + name, ocp_xplm, ocp_xplm_out)
         else:
             jit_opts = {
                 "jit": True,
@@ -1018,15 +1018,15 @@ class task_context:
                 "jit_serialize": "embed",
             }
             ocp_fun = self.ocp.to_function(
-                self.tc_name + name, ocp_xplm, ocp_xplm_out, jit_opts
+                self.name + name, ocp_xplm, ocp_xplm_out, jit_opts
             )
 
         if cg_opts["save"]:
-            ocp_fun.save(location + self.tc_name + name + ".casadi")
+            ocp_fun.save(location + self.name + name + ".casadi")
 
         if cg_opts["codegen"]:
             ocp_fun.generate(
-                location + self.tc_name + name + ".c", {"with_header": True}
+                location + self.name + name + ".c", {"with_header": True}
             )
 
         return ocp_fun, vars_db
