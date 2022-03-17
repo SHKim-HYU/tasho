@@ -13,7 +13,7 @@
 
 **Tasho** stands for "TAsk Specification with receding HOrizon control". It is a user-friendly Python toolbox that provides a unified workflow that streamlines and automates many steps from specification to experimental deployment to enable rapid prototyping of OCP/MPC based motion skills in robotics.
 
-(Note: Documentation and examples are under heavy development. Will be stable by March 12th, 2022. Thank you for your patience.)
+(Note: Tutorials Python notebooks on how to use Tasho coming up soon by the end of March.)
 
 **Authors:** [Ajay Sathya](https://scholar.google.com/citations?hl=es&user=A00LDswAAAAJ) and [Alejandro Astudillo](https://scholar.google.com/citations?user=9ONkJZAAAAAJ).  
 **With support from [Joris Gillis](https://scholar.google.com/citations?hl=es&user=sQtYwmgAAAAJ), [Wilm Decré](https://scholar.google.com/citations?hl=es&user=ZgAnArUAAAAJ), [Goele Pipeleers](https://scholar.google.com/citations?hl=es&user=TKWS1vEAAAAJ) and [Jan Swevers](https://scholar.google.com/citations?hl=es&user=X_fnO1YAAAAJ) from the [MECO Research Team](https://www.mech.kuleuven.be/en/pma/research/meco/) at KU Leuven, Belgium.**
