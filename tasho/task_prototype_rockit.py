@@ -17,6 +17,7 @@ import casadi as cs
 from tasho import input_resolution
 from tasho import default_mpc_options
 from tasho.utils import geometry
+import json
 
 # This may be replaced by some method get_ocp_variables, which calls self.states, self.controls, ...
 from collections import namedtuple
@@ -47,7 +48,7 @@ class task_context:
         self.ocp = ocp
         self.horizon = []
         self.stages = []
-        self.tc_name = name
+        self.name = name
         self.states = {}
         self.controls = {}
         self.variables = {}
@@ -141,14 +142,16 @@ class task_context:
             return state
 
         elif type == "control":
-            control = ocp.control(shape[0], shape[1])
-            self.controls[name] = [control, stage]
+            # control = ocp.control(shape[0], shape[1])
+            # self.controls[name] = [control, stage]
+            control = self.create_control(name, shape, stage = stage)
 
             return control
 
         elif type == "parameter":
-            parameter = ocp.parameter(shape[0], shape[1])
-            self.parameters[name] = [parameter, stage]
+            # parameter = ocp.parameter(shape[0], shape[1])
+            # self.parameters[name] = [parameter, stage]
+            parameter = self.create_parameter(name, shape, 1, stage = stage)
 
             return parameter
 
@@ -351,7 +354,7 @@ class task_context:
 
             if variable_type == "state" or variable_type == "control":
                 slack_variable = self.create_expression(
-                    "slack_path_con", "control", expression.shape
+                    "slack_path_con_" + str(np.random.randint(0, 100000)), "control", expression.shape
                 )
                 ocp.subject_to(
                     -slack_variable <= (expression - reference <= slack_variable)
@@ -477,7 +480,7 @@ class task_context:
                         elif path_con["norm"] == "L1":
                             # print("L1 norm added")
                             slack_variable = self.create_expression(
-                                "slack_path_con",
+                                "slack_path_con_" + str(np.random.randint(0, 100000)),
                                 "control",
                                 path_con["expression"].shape,
                             )
@@ -502,7 +505,7 @@ class task_context:
                         elif path_con["norm"] == "L2_nonsquared":
                             # print("L1 norm added")
                             slack_variable = self.create_expression(
-                                "slack_path_con",
+                                "slack_path_con_" + str(np.random.randint(0, 100000)),
                                 "control",
                                 (1, 1),
                             )
@@ -562,7 +565,7 @@ class task_context:
                                 self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "L1":
                             slack_variable = self.create_expression(
-                                "slack_path_con",
+                                "slack_path_con_" + str(np.random.randint(0, 100000)),
                                 "control",
                                 path_con["expression"].shape,
                             )
@@ -950,9 +953,15 @@ class task_context:
             )
             self.mpc_fun = mpc_fun
             # TODO: add monitor value in OCP and MPC xplm
-            vars_db["mpc_fun_name"] = self.tc_name + "_mpc"
-            vars_db["mpc_file"] = location + self.tc_name + "_mpc.casadi"
+            vars_db["mpc_fun_name"] = self.name + "_mpc"
+            vars_db["mpc_file"] = location + self.name + "_mpc.casadi"
             # TODO: also add the case where .c files are generated
+
+            # generating the discrete-time system update function for the first stage
+            disc_system = self.stages[0].discrete_system()
+            disc_system.save(location + self.name+"_pred.casadi")
+            vars_db["pred_file"] = location + self.name+"_pred.casadi"
+            vars_db["pred_fun_name"] = 'F'
 
         # Updating the json file and dumping it
         vars_db["num_inp_ports"] = len(self.tc_dict["inp_ports"])
@@ -963,13 +972,17 @@ class task_context:
         vars_db["num_parameters"] = len(self.parameters)
         vars_db["states"] = list(self.states.keys())
         vars_db["controls"] = list(self.controls.keys())
+        vars_db["parameters"] = list(self.parameters.keys())
         vars_db["inp_ports"] = self.tc_dict["inp_ports"]
         vars_db["out_ports"] = self.tc_dict["out_ports"]
         vars_db["props"] = self.tc_dict["props"]
         vars_db["horizon"] = self.horizon[0] #TODO: what to do here really?
-        vars_db["mpc_ts"] = self.ocp_rate
-        vars_db["ocp_fun_name"] = self.tc_name + "_ocp"
-        vars_db["ocp_file"] = location + self.tc_name + "_ocp.casadi"
+        vars_db["sampling_time"] = self.ocp_rate
+        vars_db["ocp_fun_name"] = self.name + "_ocp"
+        vars_db["ocp_file"] = location + self.name + "_ocp.casadi"
+
+        with open(location + self.name + '.json', "w") as write_file:
+            json.dump(vars_db, write_file, indent = 4)
 
         return vars_db
 
@@ -1002,8 +1015,8 @@ class task_context:
         # self.set_discretization_settings(self.disc_settings)
         # self.stages[0]._method.main_transcribe(self.stages[0])
         ocp_xplm, vars_db, ocp_xplm_out = self._unroll_controller_vars()
-        if not cg_opts["jit"]:
-            ocp_fun = self.ocp.to_function(self.tc_name + name, ocp_xplm, ocp_xplm_out)
+        if not cg_opts['jit']:
+            ocp_fun = self.ocp.to_function(self.name + name, ocp_xplm, ocp_xplm_out)
         else:
             jit_opts = {
                 "jit": True,
@@ -1011,21 +1024,21 @@ class task_context:
                 "jit_options": {
                     "verbose": True,
                     "compiler": "ccache gcc",
-                    "compiler_flags": self.parameters["codegen"]["flags"],
+                    "compiler_flags": cg_opts["codegen"]["flags"],
                 },
                 "verbose": False,
                 "jit_serialize": "embed",
             }
             ocp_fun = self.ocp.to_function(
-                self.tc_name + name, ocp_xplm, ocp_xplm_out, jit_opts
+                self.name + name, ocp_xplm, ocp_xplm_out, jit_opts
             )
 
         if cg_opts["save"]:
-            ocp_fun.save(location + self.tc_name + name + ".casadi")
+            ocp_fun.save(location + self.name + name + ".casadi")
 
         if cg_opts["codegen"]:
             ocp_fun.generate(
-                location + self.tc_name + name + ".c", {"with_header": True}
+                location + self.name + name + ".c", {"with_header": True}
             )
 
         return ocp_fun, vars_db
@@ -1041,12 +1054,12 @@ class task_context:
         for state in self.states.keys():
             stage = self.states[state][1]
             ocp = self.stages[stage]
-            _, temp = ocp.sample(self.states[state][0], grid="control")
+            _, temp = ocp.sample(cs.vec(self.states[state][0]), grid="control")
             temp2 = []
             for i in range(self.horizon[stage] + 1):
                 temp2.append(temp[:, i])
-            vars_db[state] = {"start": counter, "size": temp.shape[0]}
-            op_xplm.append(cs.vcat(temp2))
+            vars_db[state] = {"start": counter, "size": temp.shape[0], "jump": temp.shape[0]}
+            op_xplm.append(cs.vec(cs.vcat(temp2)))
             counter += temp.shape[0] * temp.shape[1]
             vars_db[state]["end"] = counter
 
@@ -1054,11 +1067,11 @@ class task_context:
         for control in self.controls.keys():
             stage = self.controls[control][1]
             ocp = self.stages[self.controls[control][1]]
-            _, temp = ocp.sample(self.controls[control][0], grid="control")
+            _, temp = ocp.sample(cs.vec(self.controls[control][0]), grid="control")
             temp2 = []
             for i in range(self.horizon[stage]):
                 temp2.append(
-                    ocp._method.eval_at_control(ocp, self.controls[control][0], i)
+                    ocp._method.eval_at_control(ocp, cs.vec(self.controls[control][0]), i)
                 )
             vars_db[control] = {
                 "start": counter,
@@ -1073,7 +1086,7 @@ class task_context:
         for variable in self.variables.keys():
             stage = self.variables[variable][1]
             ocp = self.stages[stage]
-            temp = ocp._method.eval_at_control(ocp, self.variables[variable][0], 0)
+            temp = ocp._method.eval_at_control(ocp, cs.vec(self.variables[variable][0]), 0)
             op_xplm.append(temp)
             vars_db[variable] = {
                 "start": counter,
@@ -1086,7 +1099,7 @@ class task_context:
         for parameter in self.parameters.keys():
             stage = self.parameters[parameter][1]
             ocp = self.stages[stage]
-            temp = ocp._method.eval_at_control(ocp, self.parameters[parameter][0], 0)
+            temp = ocp._method.eval_at_control(ocp, cs.vec(self.parameters[parameter][0]), 0)
             op_xplm.append(temp)
             vars_db[parameter] = {
                 "start": counter,

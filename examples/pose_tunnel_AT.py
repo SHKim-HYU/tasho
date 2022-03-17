@@ -1,5 +1,10 @@
+# Shows an example of how two tasks (tunnel following by a dis-embodied end effector and a point-to-point motion by kinova)
+# can be composed after slight modifications to quickly program a tunnel following robot motion planner
+
+
 import casadi as cs
 from time import sleep
+from tasho import TaskModel
 from tasho.templates.P2P import P2P
 from tasho.templates.SE3_tunnel import SE3Tunnel
 from tasho.templates.Regularization import Regularization
@@ -36,7 +41,7 @@ if case == 1:
    4.02677039]
 
 
-tunnel_task = SE3Tunnel("contouring", SE3_path_fun, vel_limit, acc_limit, trans_tunnel_size, rot_tunnel_size)
+tunnel_disembodiedEE = SE3Tunnel("contouring", SE3_path_fun, vel_limit, acc_limit, trans_tunnel_size, rot_tunnel_size)
     
 robot.set_joint_acceleration_limits(lb=-360*3.14159/180, ub=360*3.14159/180)
 ndof = robot.nq
@@ -48,10 +53,10 @@ task_P2P = P2P(robot, link_name, goal_pose, q_current, 0.001)
 task_P2P.remove_expression(goal_pose)
 
 # Substituting the SE3_traj in tunnel-following with the fk_pose of the robot
-tunnel_task.substitute_expression(tunnel_task.variables['SE3_traj_contouring'], task_P2P.expressions["pose_7_kinova"])
+tunnel_disembodiedEE.substitute_expression(tunnel_disembodiedEE.variables['SE3_traj_contouring'], task_P2P.expressions["pose_7_kinova"])
 
 # Including task_P2P within to create the tunnel-following task
-tunnel_task.include_subtask(task_P2P)
+tunnel_task = TaskModel.compose("lemniscate", "tunnel_following", tunnel_disembodiedEE, task_P2P)# .include_subtask(task_P2P)
 
 # Uncomment the following line to generate the task graph
 # tunnel_task.write_task_graph("tunnel_following.svg")

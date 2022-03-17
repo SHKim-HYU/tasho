@@ -1,43 +1,94 @@
-# File to set the MPC options and to deploy it. Takes as input the task context.
-# Provides options for code-generation for deployment on the robot
-# Could also optionally create a rosnode that communicates with world_simulator for verifying the MPC in simulations
-# Monitor the variables to raise events
+# Simulates the MPC motion skill designed using Tasho
 
 import casadi as cs
 import numpy as np
-from time import time
-import json
+
+import json, time, math
 
 
 class MPC:
-    ## MPC(tc, type)
-    # @params tc task context defined using the task protype function
-    # @params type Specifies the type of MPC interaction. 'bullet_notrealtime' - Here
-    # the bullet environment is simulated onyl after the MPC output is computed. So no computation time issues.
-    # 'bullet_realtime' - The MPC computation and bullet simulation happens at the same time and they communicate through
-    # @params parameters Extra details for the MPC. Such as the mapping between the parameter variables and the data from bullet
 
-    def __init__(self, tc, sim_type, parameters):
+    def __init__(self, name, json_file):
 
-        self.tc = tc
-        self.type = sim_type
-        self.parameters = parameters
+        """
+        Creates an object that simulates the MPC controller, which assumes a full state feedback. It is designed to be very similar to the
+        Orocos component used to deploy the Tasho controllers on the hardware. It is not real-time. Does not
+        run on a separate thread/process compared to the main program. The main purpose of this object is simulation.
+
+        MPC component is defined only for fixed-time single-stage OCP problems.
+        """
+
         # Create a list of the MPC states, variables, controls and parameters in a fixed order
-        self.params_names = tc.parameters.keys()
-        self.states_names = tc.states.keys()
-        self.controls_names = tc.controls.keys()
-        self.variables_names = tc.variables.keys()
+        self.properties = {}
+        self.input_ports = {}
+        self.output_ports = {}
+        self.event_input_port = []
+        self.event_output_port = []
+        self.max_mpc_iter = 1000  # limit on the number of MPC iterations
+        self.solver_times = []
+
+        # Readint the json file
+        with open(json_file, "r") as F:
+            json_dict = json.load(F)
+        self.json_dict = json_dict
+
+        # initializing common properties
+        self.horizon = json_dict["horizon"]
+        self.sampling_time = json_dict["sampling_time"]
+        self.ocp_file = json_dict["ocp_file"]
+        self.mpc_file = json_dict["mpc_file"]
+        self.pred_file = json_dict["pred_file"]
+        self.num_states = json_dict['num_states']
+        self.num_controls = json_dict['num_controls']
+        self.num_properties = json_dict['num_props']
+        self.num_inp_ports = json_dict['num_inp_ports']
+        self.num_out_ports = json_dict['num_out_ports']
+        self.num_monitors = len(json_dict["monitor_names"])
+        self.monitor_flags = {}
+
+        # Set all monitor flags to False by default
+        for m in json_dict["monitor_names"]:
+            self.monitor_flags[m] = False
+
+        if "max_iter" in json_dict:
+            self.max_mpc_iter = json_dict["max_mpc_iter"]
+
+        # create the properties
+        for i in range(self.num_properties):
+            prop = json_dict["props"][i]
+            self.properties[prop["name"]] = {'val':[], 'desc':prop["desc"]}
+
+        # creating the input ports
+        for i in range(self.num_inp_ports):
+            in_port = json_dict["inp_ports"][i]
+            self.input_ports[in_port["name"]] = {'val':[], 'desc':in_port['desc']}
+
+        # creating the output ports
+        for i in range(self.num_out_ports):
+            out_port = json_dict["out_ports"][i]
+            self.output_ports[out_port["name"]] = {'val':[], 'desc':out_port['desc']}
+
+        # load the casadi OCP function
+        self.ocp_fun = self.load_casadi_fun(self.ocp_file, json_dict['ocp_fun_name'])
+
+        # load the casadi MPC function if different from the OCP function
+        if self.ocp_file != self.mpc_file:
+            self.mpc_fun = self.load_casadi_fun(self.mpc_file, json_dict['mpc_fun_name'])
+        else:
+            self.mpc_fun = self.ocp_fun
+
+        # load the prediction function to simulate the dynamics of the system
+        self.pred_fun = self.load_casadi_fun(self.pred_file, json_dict['pred_fun_name'])
         self.variables_optiform_details = {}
 
-        self.params_history = []
+        # creating the vector that will be the input to the CasADi functions
+        self.x_vals = cs.DM.zeros(self.ocp_fun.nnz_in())
+        self.res_vals = cs.DM.zeros(self.ocp_fun.nnz_out())
 
         self.states_log = []
         self.controls_log = []
         self.variables_log = []
 
-        # casadi function (could be codegenerated) to run the MPC (to avoid the preparation step)
-        self.mpc_debug = False
-        self._mpc_fun = None
         self._opti_xplam = (
             []
         )  # list of all the decision variables, parameters and lagrange multipliers
@@ -50,1086 +101,254 @@ class MPC:
         self._solver_time = (
             []
         )  # array to keep track of the time taken by the solver in every MPC step
-        self.torque_effort_sumsqr = 0
-        self.max_mpc_iter = 100  # limit on the number of MPC iterations
-        self.codeGen = False
-        self.perturb = False
+        
 
-        if sim_type == "bullet_notrealtime":
+    def load_casadi_fun(self, casadi_file, cas_fun_name):
+        """
+        Loads serialized or code-generated CasADi function.
 
-            self.world = parameters["world"]  # object of world_simulator class
+        :param casadi_file: The location of the file from which the CasADi function must be loaded.
+        :type casadi_file: String
 
-        elif sim_type == "bullet_realtime":
+        :param cas_fun_name: (optional) The name of the CasADi function that must be loaded. Must be specified for a .so file.
+        """
 
-            print("Not implemented")
+        # loads a .casadi function, the easiest form.
+        if ".casadi" in casadi_file:
+            return cs.Function.load(casadi_file)
+        
+        # loads .so file, that is obtained by compiling a code-generated CasADi file
+        elif ".so" in casadi_file:
+            return cs.external(cas_fun_name, casadi_file)
 
         else:
-            print("[ERROR] Unknown simulation type")
+            raise Exception("CasADi file of unknown format provided")
+
 
     ## Configures the MPC from the current positions
-    def configMPC_fromcurrent(self, init_guess=None):
+    def configMPC(self):
 
-        # SOLVE the OCP in order to warm start the MPC
-
-        tc = self.tc
-        self.mpc_ran = False
-        params_val = self._read_params_nrbullet()
-
-        # set the parameter values
-        for params_name in self.params_names:
-
-            tc.set_value(tc.parameters[params_name], params_val[params_name])
-
-        # set the initial guesses
-
-        if init_guess != None:
-
-            print("Not implemented")
-
-        # For initial guesses, setting a robust solver (IPOPT)
-        tc.set_ocp_solver(
-            "ipopt",
-            {
-                "ipopt": {
-                    "max_iter": 1000,
-                    "hessian_approximation": "limited-memory",
-                    "limited_memory_max_history": 5,
-                    "tol": 1e-3,
-                }
-            },
-        )
-
-        tc.set_ocp_solver(
-            "ipopt",
-            {
-                "ipopt": {"max_iter": 1000, "tol": 1e-6, "linear_solver": "ma27"},
-                "error_on_fail": True,
-            },
-        )
-
-        # assuming that the discretization settings are already done!
-        # print(tc.ocp._method.M)
-        tc.set_discretization_settings(self.parameters["disc_settings"])
-
-        sol = tc.solve_ocp()
-        # print(tc.ocp._method.N)
-        sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
-        self.sol_ocp = [sol_states, sol_controls, sol_variables]
-
-        # configure the solver for the MPC iterations
-        if self.parameters["solver_name"] == "ipopt":
-
-            if "lbfgs" in self.parameters["solver_params"]:
-
-                tc.set_ocp_solver(
-                    "ipopt",
-                    {
-                        "ipopt": {
-                            "max_iter": 1000,
-                            "hessian_approximation": "limited-memory",
-                            "limited_memory_max_history": 5,
-                            "tol": 1e-3,
-                            "print_level": 5,
-                        },
-                        "error_on_fail": True,
-                    },
-                )
-            else:
-                tc.set_ocp_solver(
-                    "ipopt",
-                    {
-                        "ipopt": {
-                            "max_iter": 100,
-                            "tol": 1e-3,
-                            "mu_init": 1e-2,
-                            "linear_solver": "ma27",
-                            "fixed_variable_treatment": "make_parameter",
-                            # "hessian_constant": "yes",
-                            # "jac_c_constant": "yes",
-                            # "jac_d_constant": "yes",
-                            # "accept_every_trial_step": "yes",
-                            "print_level": 5,
-                            # "mu_strategy": "monotone",
-                            "nlp_scaling_method": "none",
-                            "check_derivatives_for_naninf": "no",
-                            "ma97_scaling": "none",
-                            "ma97_order": "amd",
-                            "ma57_pivot_order": 0,
-                            "warm_start_init_point": "yes",
-                            "magic_steps": "yes",
-                            "fast_step_computation": "yes",
-                            "mu_allow_fast_monotone_decrease": "yes",
-                            "ma27_skip_inertia_check": "yes",
-
-                            # "ma27_ignore_singularity": "yes",
-                        },
-                        "error_on_fail": True,
-                    },
-                )
-            tc.set_discretization_settings(self.parameters["disc_settings"])
-            # tc.ocp._method.main_transcribe(tc.ocp)
-            self._warm_start(self.sol_ocp)
-            sol = tc.solve_ocp()
-            if self.mpc_debug is not True:
-                self._create_mpc_fun_casadi(codeGen=self.codeGen, f_name="ocp_fun")
-
-        elif self.parameters["solver_name"] == "sqpmethod":
-
-            if "qrqp" in self.parameters["solver_params"]:
-                kkt_tol_pr = 1e-3
-                kkt_tol_du = 1e-1
-                min_step_size = 1e-6
-                max_iter = 10
-                max_iter_ls = 3
-                qpsol_options = {
-                    "constr_viol_tol": kkt_tol_pr,
-                    "dual_inf_tol": kkt_tol_du,
-                    "verbose": False,
-                    "print_iter": False,
-                    "print_header": False,
-                    "dump_in": False,
-                    "error_on_fail": False,
-                }
-                solver_options = {
-                    "qpsol": "qrqp",
-                    "qpsol_options": qpsol_options,
-                    "verbose": False,
-                    "tol_pr": kkt_tol_pr,
-                    "tol_du": kkt_tol_du,
-                    "min_step_size": min_step_size,
-                    "max_iter": max_iter,
-                    "max_iter_ls": max_iter_ls,
-                    "print_iteration": True,
-                    "print_header": False,
-                    "print_status": False,
-                    "print_time": True,
-                    "error_on_fail": True,
-                }  # "convexify_strategy":"regularize"
-                tc.set_ocp_solver("sqpmethod", solver_options)
-
-            elif "osqp" in self.parameters["solver_params"]:
-                kkt_tol_pr = 1e-3
-                kkt_tol_du = 1e-1
-                min_step_size = 1e-4
-                max_iter = 5
-                max_iter_ls = 2
-                eps_abs = 1e-5
-                eps_rel = 1e-5
-                qpsol_options = {
-                    "osqp": {
-                        "alpha": 1,
-                        "eps_abs": eps_abs,
-                        "eps_rel": eps_rel,
-                        "verbose": 0,
-                    },
-                    "dump_in": False,
-                    "error_on_fail": False,
-                }
-                solver_options = {
-                    "qpsol": "osqp",
-                    "qpsol_options": qpsol_options,
-                    "verbose": False,
-                    "tol_pr": kkt_tol_pr,
-                    "tol_du": kkt_tol_du,
-                    "min_step_size": min_step_size,
-                    "max_iter": max_iter,
-                    "max_iter_ls": max_iter_ls,
-                    "print_iteration": True,
-                    "print_header": False,
-                    "print_status": False,
-                    "print_time": True,
-                    "error_on_fail": True,
-                }  # "convexify_strategy":"regularize"
-                tc.set_ocp_solver("sqpmethod", solver_options)
-
-            elif "qpoases" in self.parameters["solver_params"]:
-                kkt_tol_pr = 1e-3
-                kkt_tol_du = 1e-1
-                min_step_size = 1e-4
-                max_iter = 10
-                max_iter_ls = 0
-                qpoases_tol = 1e-4
-                qpsol_options = {
-                    "printLevel": "none",
-                    "enableEqualities": True,
-                    "initialStatusBounds": "inactive",
-                    "terminationTolerance": qpoases_tol,
-                }
-                solver_options = {
-                    "qpsol": "qpoases",
-                    "qpsol_options": qpsol_options,
-                    "verbose": False,
-                    "tol_pr": kkt_tol_pr,
-                    "tol_du": kkt_tol_du,
-                    "min_step_size": min_step_size,
-                    "max_iter": max_iter,
-                    "max_iter_ls": max_iter_ls,
-                    "print_iteration": True,
-                    "print_header": False,
-                    "print_status": False,
-                    "print_time": True,
-                    "error_on_fail": True,
-                }  # "convexify_strategy":"regularize"
-                tc.set_ocp_solver("sqpmethod", solver_options)
-
-            elif "ipopt" in self.parameters["solver_params"]:
-                kkt_tol_pr = 1e-3
-                kkt_tol_du = 1e-1
-                min_step_size = 1e-6
-                max_iter = 5
-                ipopt_max_iter = 20
-                max_iter_ls = 0
-
-                ipopt_tol = 1e-3
-                tiny_step_tol = 1e-6
-                mu_init = 0.001
-                linear_solver = "ma97"
-                # linear_solver = "mumps"
-
-                ipopt_options = {
-                    "tol": ipopt_tol,
-                    "tiny_step_tol": tiny_step_tol,
-                    "fixed_variable_treatment": "make_parameter",
-                    "hessian_constant": "yes",
-                    "jac_c_constant": "yes",
-                    "jac_d_constant": "yes",
-                    "accept_every_trial_step": "yes",
-                    "mu_init": mu_init,
-                    "print_level": 0,
-                    "linear_solver": linear_solver,
-                    # "mumps_mem_percent": 1000,
-                    "mumps_pivtolmax": 1e-6,
-                    # "mehrotra_algorithm": "no",
-                    "mu_strategy": "monotone",
-                    "nlp_scaling_method": "none",
-                    "check_derivatives_for_naninf": "no",
-                    "ma97_scaling": "none",
-                    "ma97_order": "amd",
-                    "ma57_pivot_order": 0,
-                    "warm_start_init_point": "yes",
-                    "magic_steps": "yes",
-                    "fast_step_computation": "yes",
-                    "mu_allow_fast_monotone_decrease": "yes",
-                    "ma27_skip_inertia_check": "yes",
-                    # "ma27_ignore_singularity": "yes",
-                    # "honor_original_bounds": "no",
-                    # "bound_mult_init_method": "constant",
-                    # "mu_oracle": "loqo",
-                    # "mu_linear_decrease_factor": 0.5,
-                }
-                nlpsol_options = {"ipopt": ipopt_options, "print_time": False}
-                qpsol_options = {
-                    "nlpsol": "ipopt",
-                    "nlpsol_options": nlpsol_options,
-                    "print_time": False,
-                    "verbose": False,
-                    "error_on_fail": False,
-                }
-                solver_options = {
-                    "qpsol": "nlpsol",
-                    "qpsol_options": qpsol_options,
-                    "tol_pr": kkt_tol_pr,
-                    "tol_du": kkt_tol_du,
-                    "min_step_size": min_step_size,
-                    "max_iter": max_iter,
-                    "max_iter_ls": max_iter_ls,
-                    "print_iteration": True,
-                    "print_header": False,
-                    "print_status": False,
-                    "print_time": True,
-                    "error_on_fail": True,
-                }  # "convexify_strategy":"regularize"
-                tc.set_ocp_solver("sqpmethod", solver_options)
-
-            tc.set_discretization_settings(self.parameters["disc_settings"])
-            tc.ocp._method.main_transcribe(tc.ocp)
-            self._warm_start(self.sol_ocp)
-            print("Solving with the SQP method")
-            sol = tc.solve_ocp()
-
-            if self.mpc_debug is not True:
-                if ("codegen" in self.parameters) and self.parameters["codegen"]:
-                    self.code_type = 2
-
-                    if self.parameters["codegen"]["filename"]:
-                        filename = self.parameters["codegen"]["filename"]
-                    else:
-                        filename = "mpc_fun"
-
-                    self._create_mpc_fun_casadi(
-                        codeGen=self.parameters["codegen"]["codegen"],
-                        f_name=filename,
-                    )
-
-                    if self.parameters["codegen"]["compilation"]:
-                        import os
-
-                        if self.parameters["codegen"]["compiler"]:
-                            compiler = self.parameters["codegen"]["compiler"]
-                        else:
-                            compiler = "gcc"
-
-                        print("Compiling MPC function ...")
-                        os.system(
-                            compiler
-                            + " "
-                            + self.parameters["codegen"]["flags"]
-                            + " "
-                            + filename
-                            + ".c -shared -fPIC -lm -o "
-                            + filename
-                            + ".so"
-                        )
-                        print("... Finished compilation of MPC function")
-
-                    if self.parameters["codegen"]["use_external"]:
-
-                        import os
-
-                        if os.path.isfile(filename+'.so'):
-                            print("Loading the compiled function back ...")
-
-                            self._mpc_fun = cs.external(
-                                filename, "./" + filename + ".so"
-                            )
-
-                            print("... Loaded")
-                        else:
-                            print("[ERROR] The file "+filename+".so doesn't exist. Try compiling the function first")
-                            exit()
-
-
-        else:
-            # Set ipopt as default solver
-            print("Using IPOPT with LBFGS as the default solver")
-            tc.set_ocp_solver(
-                "ipopt",
-                {
-                    "ipopt": {
-                        "max_iter": 1000,
-                        "hessian_approximation": "limited-memory",
-                        "limited_memory_max_history": 5,
-                        "tol": 1e-3,
-                    }
-                },
-            )
-
-            if self.mpc_debug is not True:
-                self._create_mpc_fun_casadi(codeGen=self.codeGen)
-
-        self.system_dynamics = self.tc.stages[0]._method.discrete_system(self.tc.stages[0])
-        # print(sol_controls['s_ddot'])
-
-    # internal function to create the MPC function using casadi's opti.to_function capability
-    def _create_mpc_fun_casadi(
-        self, codeGen=False, f_name="mpc_fun", codeGen_dest="./"
-    ):
-
-        tc = self.tc
-        # create a list of ocp decision variables in the following order
-        # states, controls, variables, parameters, lagrange_multipliers
-        opti_xplam = []
-        opti_xplam_cg = []
-        vars_db = self.variables_optiform_details
-        counter = 0
-        print(counter)
-        for state in self.states_names:
-            _, temp = tc.stages[0].sample(tc.states[state], grid="control")
-            temp2 = []
-            for i in range(tc.horizon + 1):
-                temp2.append(temp[:, i])
-            opti_xplam.append(temp)
-            vars_db[state] = {"start": counter, "size": temp.shape[0]}
-            opti_xplam_cg.append(cs.vcat(temp2))
-            counter += temp.shape[0] * temp.shape[1]
-            vars_db[state]["end"] = counter
-
-        # obtain the opti variables related to control
-        for control in self.controls_names:
-            _, temp = tc.stages[0].sample(tc.controls[control], grid="control")
-            temp2 = []
-            for i in range(tc.horizon):
-                temp2.append(
-                    tc.stages[0]._method.eval_at_control(tc.stages[0], tc.controls[control], i)
-                )
-            vars_db[control] = {"start": counter, "size": temp.shape[0]}
-            counter += temp.shape[0] * (temp.shape[1] - 1)
-            vars_db[control]["end"] = counter
-            opti_xplam.append(cs.hcat(temp2))
-            opti_xplam_cg.append(cs.vcat(temp2))
-
-        # obtain the opti variables related for variables
-        for variable in self.variables_names:
-            temp = tc.stages[0]._method.eval_at_control(tc.stages[0], tc.variables[variable], 0)
-            # print(temp)
-            opti_xplam.append(temp)
-            opti_xplam_cg.append(temp)
-            vars_db[variable] = {"start": counter, "size": temp.shape[0]}
-            counter += temp.shape[0]
-            vars_db[variable]["end"] = counter
-
-        for parameter in self.params_names:
-            temp = tc.stages[0]._method.eval_at_control(
-                tc.stages[0], tc.parameters[parameter], 0
-            )  # tc.ocp.sample(tc.parameters[parameter])
-            # print(temp)
-            opti_xplam.append(temp)
-            opti_xplam_cg.append(temp)
-            vars_db[parameter] = {"start": counter, "size": temp.shape[0]}
-            counter += temp.shape[0]
-            vars_db[parameter]["end"] = counter
-
-        # adding the lagrange multiplier terms as well
-        # print(tc.ocp.opti.p)
-        # print(opti_xplam[3])
-        # print(opti_xplam[4])
-        # print(opti_xplam[5])
-        # print(opti_xplam[6])
-        opti_xplam.append(tc.ocp._method.opti.lam_g)
-        vars_db["lam_g"] = {
-            "start": counter,
-            "size": tc.ocp._method.opti.lam_g.shape[0],
-        }
-        counter += tc.ocp._method.opti.lam_g.shape[0]
-        vars_db["lam_g"]["end"] = counter
-        vars_db["horizon"] = tc.horizon
-        vars_db["ocp_rate"] = tc.ocp_rate
-        # setting the MPC function!
-        # opti = tc.ocp.opti
-        opti = tc.ocp._method.opti
-        # self._mpc_fun = opti.to_function(
-        #     "mpc_fun", [opti.p, opti.x, opti.lam_g], [opti.x, opti.lam_g, opti.f]
-        # )
-        if self.parameters["codegen"]["jit"]:
-            print("Using just-in-time compilation ...")
-            cg_opts = {"jit":True, "compiler": "shell", "jit_options": {"verbose":True, "compiler": "ccache gcc" , "compiler_flags": self.parameters["codegen"]["flags"]}, "verbose":False, "jit_serialize": "embed"}
-
-            self._mpc_fun = tc.ocp.to_function(f_name, opti_xplam, opti_xplam, cg_opts)
-            self._mpc_fun_cg = tc.ocp.to_function(
-                f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)], cg_opts
-            )
-        else:
-            self._mpc_fun = tc.ocp.to_function(f_name, opti_xplam, opti_xplam)
-            self._mpc_fun_cg = tc.ocp.to_function(
-                f_name, [cs.vcat(opti_xplam_cg)], [cs.vcat(opti_xplam_cg)]
-            )
-        self._opti_xplam = opti_xplam
-
-        self._opti_xplam_to_optiform = cs.Function(
-            "opti_xplam_to_optiform", opti_xplam, [opti.x, opti.p, opti.lam_g]
-        )
-        if codeGen:
-            if self.code_type == 0:
-                self._mpc_fun_cg.generate(
-                    f_name + ".c", {"with_header": True, "main": True}
-                )
-                C = cs.Importer(f_name + ".c", "clang")
-                self._mpc_fun = cs.external("mpc_", C)
-            elif self.code_type == 1:
-                vars_db["casadi_fun"] = codeGen_dest + f_name + ".casadi"
-                vars_db["fun_name"] = f_name
-                print(vars_db)
-                with open(codeGen_dest + f_name + "_property.json", "w") as fp:
-                    json.dump(vars_db, fp)
-                self._mpc_fun_cg.save(f_name + ".casadi")
-            elif self.code_type == 2:
-                self._mpc_fun_cg.generate(
-                    f_name + ".c", {"with_header": True, "main": True}
-                )
-                vars_db["casadi_fun"] = codeGen_dest + f_name + ".casadi"
-                vars_db["fun_name"] = f_name
-                print(vars_db)
-                with open(codeGen_dest + f_name + "_property.json", "w") as fp:
-                #     json.dump(vars_db, fp)
-                    json.dump(vars_db, fp, indent=2)
-                self._mpc_fun_cg.save(codeGen_dest + f_name + ".casadi")
-                # self._mpc_fun_cg.save(f_name + ".casadi")
-            # self._mpc_fun = cs.external('f', './mpc_fun.so')
-
-    ## obtain the solution of the ocp
-    def _read_solveroutput(self, sol):
-
-        sol_states = {}
-        sol_controls = {}
-        sol_variables = {}
-        tc = self.tc
-
-        if self._mpc_fun == None:
-            for state in tc.states:
-                _, sol_state = sol(tc.stages[0]).sample(tc.states[state], grid="control")
-                sol_states[state] = sol_state
-
-            for control in tc.controls:
-                _, sol_control = sol(tc.stages[0]).sample(tc.controls[control], grid="control")
-                sol_controls[control] = sol_control[0:-1]
-
-            for variable in tc.variables:
-                _, sol_variable = sol(tc.stages[0]).sample(tc.variables[variable], grid="control")
-                sol_variable = sol_variable[0]
-                sol_variables[variable] = sol_variable
-
-        # when the solver directly gives the list of decision variables
-        else:
-            i = 0
-            for state in self.states_names:
-                # print("Shape of state " + state + " is = ")
-                # print(sol[i].shape)
-                sol_states[state] = np.array(sol[i].T)
-                i += 1
-
-            for control in tc.controls:
-                sol_controls[control] = np.array(sol[i].T)
-                i += 1
-
-            for variable in tc.variables:
-                sol_variables[variable] = np.array(sol[i].T)
-                i += 1
-
-        return sol_states, sol_controls, sol_variables
-
-    ## Function to provide the initial guess for warm starting the states, controls and variables in tc
-    def _warm_start(self, sol_ocp, options="reuse"):
-
-        tc = self.tc
-        # reusing the solution from previous MPC iteration for warm starting
-        if self.mpc_ran == False or options == "reuse":
-
-            sol_states = sol_ocp[0]
-            for state in tc.states:
-                tc.set_initial(tc.states[state], sol_states[state].T)
-
-            sol_controls = sol_ocp[1]
-            for control in tc.controls:
-                tc.set_initial(tc.controls[control], sol_controls[control].T)
-
-            sol_variables = sol_ocp[2]
-            for variable in tc.variables:
-                tc.set_initial(tc.variables[variable], sol_variables[variable])
-
-        # warm starting by shiting the solution by 1 step
-        elif options == "shift":
-
-            sol_states = sol_ocp[0]
-            for state in tc.states:
-                # print(state)
-                # print(sol_states[state][1:].shape)
-                # print(sol_states[state][-1:].shape)
-                tc.set_initial(
-                    tc.states[state],
-                    cs.vertcat(sol_states[state][1:], sol_states[state][-1:]).T,
-                )
-                # tc.ocp.set_initial(tc.states[state], sol_states[state].T)
-
-            sol_controls = sol_ocp[1]
-            for control in tc.controls:
-                # tc.ocp.set_initial(tc.controls[control], sol_controls[control].T)
-                # print(control)
-                # print(sol_controls[control][1:-1].shape)
-                zeros_np = np.zeros(sol_controls[control][-1:].shape)
-                # print(zeros_np.shape)
-                tc.set_initial(
-                    tc.controls[control],
-                    cs.vertcat(sol_controls[control][1:-1], zeros_np, zeros_np).T,
-                )
-
-            sol_variables = sol_ocp[2]
-            for variable in tc.variables:
-                tc.set_initial(tc.variables[variable], sol_variables[variable])
-
-        else:
-
-            raise Exception("Invalid MPC restart option " + options)
-
-    ## Function to provide the initial guess for warm starting the states, controls and variables in tc
-    # in a format that conforms to the inputs of _mpc_fun when .casadi or codegen is available
-    def _warm_start_casfun(self, sol_ocp, sol, options="reuse"):
-        # TODO: refactor this to completely do away with sol_ocp
-        tc = self.tc
-        i = 0
-        # reusing the solution from previous MPC iteration for warm starting
-        if self.mpc_ran == False or options == "reuse":
-
-            sol_states = sol_ocp[0]
-            for state in tc.states:
-                sol[i] = sol_states[state].T
-                i += 1
-
-            sol_controls = sol_ocp[1]
-            for control in tc.controls:
-                sol[i] = sol_controls[control][0:-1].T
-                i += 1
-
-            sol_variables = sol_ocp[2]
-            for variable in tc.variables:
-                sol[i] = sol_variables[variable].T
-                i += 1
-
-        # warm starting by shiting the solution by 1 step
-        elif options == "shift":
-
-            sol_states = sol_ocp[0]
-            for state in tc.states:
-                sol[i] = cs.vertcat(sol_states[state][1:], sol_states[state][-1:]).T
-                i += 1
-
-            sol_controls = sol_ocp[1]
-            for control in tc.controls:
-                zeros_np = np.zeros(sol_controls[control][-1:].shape)
-                sol[i] = cs.vertcat(sol_controls[control][1:], zeros_np).T
-                i += 1
-
-            sol_variables = sol_ocp[2]
-            for variable in tc.variables:
-                sol[i] = sol_variables[variable]
-                i += 1
-
-        else:
-
-            raise Exception("Invalid MPC restart option " + options)
-
-    def _sim_dynamics_update_params(self, params_val, sol_states, sol_controls):
         """
-        Internal function to simulate the dynamics by one time step to predict the states of the MPC
-        when the first control input is applied.
+        Configures the MPC solver, solves the OCP and warmstarts the MPC. The properties and ports of the
+        MPC object must be connected and initialized connected before calling configMPC().
         """
-        print("Before printing system dynamics")
-        print(params_val)
-        # obtain the current state of the system from params and the first control input
+
+        # read the properties
+        self._read_properties()
+        
+        # read the input ports
+        self._read_input_ports()
+
+        # Evaluate the OCP function
+        self.res_vals = self.ocp_fun(self.x_vals)
+
+        # if the mpc solver is different from the OCP solver, evaluate it with the solution to warmstart
+        if self.ocp_file != self.mpc_file:
+            self.res_vals = self.mpc_fun(self.res_vals[0:self.x_vals.shape[0]])
+
+        # if self.parameters["codegen"]["compilation"]:
+        #     import os
+        #     if self.parameters["codegen"]["compiler"]:
+        #         compiler = self.parameters["codegen"]["compiler"]
+        #     else:
+        #         compiler = "gcc"
+        #     print("Compiling MPC function ...")
+        #     os.system(
+        #         compiler
+        #         + " "
+        #         + self.parameters["codegen"]["flags"]
+        #         + " "
+        #         + filename
+        #         + ".c -shared -fPIC -lm -o "
+        #         + filename
+        #         + ".so"
+        #     )
+        #     print("... Finished compilation of MPC function")
+        # if self.parameters["codegen"]["jit"]:
+        #     print("Using just-in-time compilation ...")
+            # cg_opts = {"jit":True, "compiler": "shell", "jit_options": {"verbose":True, "compiler": "ccache gcc" , "compiler_flags": self.parameters["codegen"]["flags"]}, "verbose":False, "jit_serialize": "embed"}
+
+    def _shift_states_and_controls(self):
+
+        """
+        Shifts all the states and controls by one step for warmstarting the OCP
+        """
+        
+        horizon = self.horizon
+        json_dict = self.json_dict
+        
+        # concatenate the control and the state variables for warmstarting
+        vars = json_dict["states"]  + json_dict["controls"]
+        x_vals = self.x_vals
+        res_vals = self.res_vals
+
+        # For states, shift its values by backward by one step but leave the first state untouched
+        # because it is updated by sensor readings
+
+        for v in json_dict["states"]:
+            start = json_dict[v]["start"]
+            jump = json_dict[v]["jump"]
+            x_vals[start + jump : json_dict[v]["end"] - jump] = res_vals[start + 2*jump : json_dict[v]["end"]]
+
+        # For controls, shift its values backward by one step for warmstarting
+        for v in json_dict["controls"]:
+            start = json_dict[v]["start"]
+            jump = json_dict[v]["jump"]
+            x_vals[start: json_dict[v]["end"] - jump] = res_vals[start + jump : json_dict[v]["end"]]
+
+        # # For all states, simply copy the terminal state from the result. A better strategy is perhaps to simulate, but 
+        # # this is also effective
+        # for s in json_dict["states"]:
+        #     x_vals[json_dict[s]["end"] - json_dict[s]["jump"] : json_dict[s]["end"]] = res_vals[
+        #         json_dict[s]["end"] - json_dict[s]["jump"] : json_dict[s]["end"]]
+                
+
+    def _sim_dynamics_update(self):
+        """
+        Internal function to simulate the system by one MPC time step to predict the state
+        from which the next control output will be applied. A practical method to deal with the MPC
+        computation delay. 
+
+        It should be run before shifting the states and controls.
+        """
+
+        json_dict = self.json_dict
         X = []
+        # concatenate the initial states
+        for var in json_dict["states"]:
+            X = cs.vertcat(X, self._get_initial_state_control(var))
+
+        # concatenate initial controls
         U = []
-        control_info = self.parameters["control_info"]
-        for state in self.states_names:
-            X.append(params_val[state + "0"])
-        for control in self.controls_names:
-            U.append(sol_controls[control][0])
-        X = cs.vcat(X)
-        U = cs.vcat(U)
-        print("Ushape")
-        print(U.shape)
+        for var in json_dict["controls"]:
+            U = cs.vertcat(U, self._get_initial_state_control(var))
 
-        # simulate the system dynamics to obtain the future state
-        next_X = self.system_dynamics(x0=X, u=U, T=self.parameters["t_mpc"])["xf"]
-        # update the params_val with this info
-        start = 0
-        for state in self.states_names:
-            print(state)
-            state_shape = self.tc.states[state].shape
-            state_len = state_shape[0] * state_shape[1]
-            if state == "q_dot" and self.parameters["control_type"] == "joint_velocity":
-                # print(state)
-                # print(np.array(params_val[state+'0']).T)
-                # print(np.array(next_X[start:start+state_len]))
-                # params_val[state + "0"] = (
-                #     0.5
-                #     * (
-                #         np.array(params_val[state + "0"])
-                #         + np.array(next_X[start : start + state_len].T)
-                #     ).T
-                # )
-                params_val[state + "0"] = (
-                    np.array(params_val[state + "0"]) * (1 / control_info["no_samples"])
-                    + np.array(next_X[start : start + state_len].T)
-                    * (1 - 1 / control_info["no_samples"])
-                ).T
-            else:
-                params_val[state + "0"] = np.array(next_X[start : start + state_len])
-            # print(params_val[state+"0"])
-            start = state_len + start
+        # concatenate initial parameters
+        P = []
+        for var in json_dict["parameters"]:
+            P = cs.vertcat(P, self._get_initial_state_control(var))
 
-        # print("After printing system dynamics")
-        # print(params_val)
+        self.X_new = self.pred_fun(X, U, 0, self.sampling_time, P)
 
-    # Continuous running of the MPC
     def runMPC(self):
+        """
+        The update hook, this function should be run in a loop to simulate the MPC controller.
+        """
 
-        sol_states = self.sol_ocp[0]
-        sol_controls = self.sol_ocp[1]
-        sol_variables = self.sol_ocp[2]
-        control_info = self.parameters["control_info"]
-        tc = self.tc
-        sol = [0] * len(self._opti_xplam)
-        par_start_element = (
-            len(self.states_names)
-            + len(self.controls_names)
-            + len(self.variables_names)
-        )
+        # First write the control actions computed during the previous iteration.
+        # The first time the MPC is run, this value comes from the computation in the configMPC function.
+        self._write_output_ports(0)
+        self._write_monitor_events()
+        # Get the latest sensor readings
+        self._read_input_ports()
 
-        # TODO: change by adding termination criteria
-        for mpc_iter in range(self.max_mpc_iter):
+        # Simulate the system by one step and shift the states and control vectors
+        # to warmstart the MPC
+        self._sim_dynamics_update()
+        self._shift_states_and_controls()
 
-            if self.type == "bullet_notrealtime":
+        # Solve the MPC problem
+        tic = time.time()
+        self.res_vals = self.mpc_fun(self.x_vals)
+        toc = time.time() - tic
 
-                # reading and setting the latest parameter values and applying MPC action
-                params_val = self._read_params_nrbullet()
-                if mpc_iter == 20 and self.perturb:
-                    q_perturbed = params_val["q0"]
-                    q_perturbed[5] += 0.2
-                    joint_indices = [
-                        11,
-                        12,
-                        13,
-                        14,
-                        15,
-                        16,
-                        17,
-                        1,
-                        2,
-                        3,
-                        4,
-                        5,
-                        6,
-                        7,
-                    ]
-                    # print(q_perturbed)
-                    self.world.resetJointState(
-                        control_info["robotID"], joint_indices, q_perturbed
-                    )
-                    # params_val = self._read_params_nrbullet()
+        # Aspects to re-write in a better way the code that was deleted below:
+        # TODO: Checking monitor functions (including the termination criteria)
+        # TODO: computing residuals (optional)
+        # TODO: log the solution
+        self.solver_times.append(toc)
 
-                # if self.mpc_ran:
-                # for param in params_val:
-                #     print("Abs error in "+ param)
-                #     print(cs.fabs(cs.vec(old_params_val[param]) - cs.vec(params_val[param])))
-                sol_mpc = [sol_states, sol_controls, sol_variables]
-                self.sol_mpc = sol_mpc
-                self._apply_control_nrbullet(sol_mpc, params_val)
-                self.mpc_ran = True
+    
+    def _read_properties(self):
 
-                # simulate to predict the future state when the first control input is applied
-                # to use that as the starting state for the MPC and accordingly update the params_val
-                self._sim_dynamics_update_params(params_val, sol_states, sol_controls)
+        """
+        Reads properties and assigns them to the correct location of the input vector of the MPC function
+        """
+        json_dict = self.json_dict
+        for i in range(self.num_properties):
+            prop = json_dict["props"][i]
+            self.x_vals[json_dict[prop["var"]]["start"] : json_dict[prop["var"]["end"]]] = self.properties[prop["name"]]["val"]
 
-                # When the mpc_fun is not initialized as codegen or .casadi function
-                if self._mpc_fun == None:
-                    for params_name in self.params_names:
-                        tc.ocp.set_value(
-                            tc.parameters[params_name], params_val[params_name]
-                        )
-                    # set the states, controls and variables as initial values
-                    self._warm_start(
-                        [sol_states, sol_controls, sol_variables], options="shift"
-                    )
-                    try:
-                        sol = tc.solve_ocp()
-                    except:
-                        tc.ocp.show_infeasibilities(0.5 * 1e-6)
-                        raise Exception("Solver crashed")
+    def _read_input_ports(self):
 
+        """
+        Reads the values supplied to the input ports of the MPC. And assigns it to the correct location of the MPC input vector.
+        """
+
+        json_dict = self.json_dict
+        for i in range(self.num_inp_ports):
+            port = json_dict["inp_ports"][i]
+            start = json_dict[port["var"]]["start"]
+            size = json_dict[port["var"]]["size"]
+            self.x_vals[start : start + size] = cs.DM(self.input_ports[port["name"]]["val"])
+
+    def _write_output_ports(self, sequence):
+
+        """
+        Writes the solution of the OCP/MPC to the relevant output ports. 
+
+        :param sequence: The time instant in the horizon whose values must be written into the port.
+        :type sequence: int
+        """
+        
+        json_dict = self.json_dict
+        for i in range(self.num_out_ports):
+            port = json_dict["out_ports"][i]
+            var = json_dict[port["var"]]
+            start = var["start"]
+            jump = var["jump"]
+            self.output_ports[port["name"]]["val"] = self.res_vals[start + sequence*jump : start + sequence*jump  + var["size"]]
+
+    def _get_initial_state_control(self, var):
+
+        """
+        Returns the value at the start of the horizon of the given variable from the given array.
+
+        :param var: the variable whose initial value is returned
+        :type var: String
+
+        :param x_vals: The input/output vector of OCP/MPC
+        :type x_vals: Casadi DM vector
+        """
+        
+        json_dict = self.json_dict
+        return self.x_vals[json_dict[var]["start"] : json_dict[var]["start"] + json_dict[var]["size"]]
+
+    def _write_monitor_events(self):
+
+        """
+        Reads the monitor function values and writes events if there is a change in the value.
+        """
+
+        self.event_output_port = []
+
+        json_dict = self.json_dict
+        for m in json_dict["monitor_names"]:
+
+            # detect if there is a change in the monitored Boolean function
+            if (self.res_vals[json_dict["monitor_locations"][m]].full().squeeze() < 0) != self.monitor_flags[m]:
+                self.monitor_flags[m] = self.res_vals[json_dict["monitor_locations"][m]] < 0
+
+                if self.monitor_flags[m]:
+                    self.event_output_port.append(m+"_true")
                 else:
-                    # print("before calling printing system dynamics function")
-                    self._warm_start_casfun(
-                        [sol_states, sol_controls, sol_variables], sol, options="shift"
-                    )
-                    # print("this ran")
-                    # print(sol_variables)
-                    i = par_start_element
-                    for params_name in self.params_names:
-                        sol[i] = params_val[params_name]
-                        i += 1
-                    tic = time()
-                    sol = list(self._mpc_fun(*sol))
-                    toc = time() - tic
-                    self._solver_time.append(toc)
-
-                    # Monitors
-                    opti_form = self._opti_xplam_to_optiform(*sol)
-                    # computing the primal feasibility of the solution
-                    fun_pr = tc.function_primal_residual()
-                    residual_max = fun_pr(*opti_form)
-                    print("primal residual is : " + str(residual_max.full()))
-
-                    if residual_max.full() >= 1e-3:
-                        print("Solver infeasible")
-                        return "MPC_FAILED"
-
-                    # checking the termination criteria
-
-                    # print(opti_form)
-                    print(tc.monitors["termination_criteria"]["monitor_fun"](opti_form))
-                    if tc.monitors["termination_criteria"]["monitor_fun"](opti_form):
-                        print(self._solver_time)
-                        print(
-                            "MPC termination criteria reached after "
-                            + str(mpc_iter)
-                            + " number of MPC samples. Exiting MPC loop."
-                        )
-
-                        self.world.setController(
-                            control_info["robotID"],
-                            "velocity",
-                            control_info["joint_indices"],
-                            targetVelocities=[0] * len(control_info["joint_indices"]),
-                        )
-                        return "MPC_SUCCEEDED"
-
-                sol_states, sol_controls, sol_variables = self._read_solveroutput(sol)
-
-                # Log solution
-                if ("log_solution" in self.parameters) and self.parameters["log_solution"]:
-                    self.states_log.append(sol_states)
-                    self.controls_log.append(sol_controls)
-                    self.variables_log.append(sol_variables)
-
-                self.mpc_ran = True
-
-                old_params_val = params_val  # to debug how the prediction varies from the actual plant after one step of
-                # control is applied
-                # Apply the control action to bullet environment
-                # self._apply_control_nrbullet(sol_mpc) #uncomment if the simulation of system to predict future is not done
-
-            elif self.type == "bullet_realtime":
-
-                print("Not implemented")
-
-            else:
-
-                print("[ERROR] Unknown simulation type")
-
-            if mpc_iter == self.max_mpc_iter - 1:
-                print("MPC timeout")
-                print(self._solver_time)
-                return "MPC_TIMEOUT"
-
-    # Internal function to apply the output of the MPC to the non-realtime bullet environment
-    def _apply_control_nrbullet(self, sol_mpc, params_val):
-
-        if self.parameters["control_type"] == "joint_velocity":
-            control_info = self.parameters["control_info"]
-
-            joint_indices = control_info["joint_indices"]
-            if control_info["discretization"] == "constant_acceleration":
-                # Computing the average of the first two velocities to apply as input
-                # assuming constant acceleration input
-                # control_action = (
-                #     0.5 * (sol_mpc[0]["q_dot"][0, :] + sol_mpc[0]["q_dot"][1, :]).T
-                # )
-
-                for i in range(control_info["no_samples"]):
-                    control_action = (
-                        sol_mpc[0]["q_dot"][0, :] * (1 - i / control_info["no_samples"])
-                        + sol_mpc[0]["q_dot"][1, :] * i / control_info["no_samples"]
-                    ).T
-                    self.world.setController(
-                        control_info["robotID"],
-                        "velocity",
-                        joint_indices,
-                        targetVelocities=control_action,
-                    )
-                    self.world.run_simulation(1)
-
-                # simply giving the velocity at the next time step as the reference
-                # control_action = sol_mpc[0]['q_dot'][1,:].T
-                # future_joint_position = sol_mpc[0]['q'][0,:]
-                # print("q_dot shape is ")
-                # print(sol_mpc[0]['q_dot'].shape)
-                # print("control action shape is ")
-                # print(control_action.shape)
-                # print("joint indices length is")
-                # print(len(joint_indices))
-            # self.world.setController(control_info['robotID'], 'velocity', joint_indices, targetPositions = future_joint_position, targetVelocities = control_action)
-            if "force_control" in control_info:
-                q_dot_force = control_info["fcon_fun"](
-                    params_val["q0"], params_val["f_des"], params_val["f_meas"]
-                )
-                # print("qdot force is ")
-                # print(q_dot_force)
-                # cap the magnitude of q_dot_force
-                # max_q_dot_force_norm = 0.1
-                # norm_q_dot_force = cs.norm_1(q_dot_force)
-                # if norm_q_dot_force > max_q_dot_force_norm:
-                #    print("norm of q_dot_force:")
-                #    print(norm_q_dot_force)
-                #    q_dot_force = q_dot_force/norm_q_dot_force*max_q_dot_force_norm
-                #    print("q dot force after normalization")
-                #    print(q_dot_force)
-                control_action = np.array(cs.vec(control_action) + q_dot_force)
-
-            # control_action = control_action[0]
-            # print(control_action)
-            # print(q_dot_force)
-            # self.world.setController(
-            #     control_info["robotID"],
-            #     "velocity",
-            #     joint_indices,
-            #     targetVelocities=control_action,
-            # )
-            # print("This ran")
-            # print(sol_mpc[0]['s_dot'])
-            # print(sol_mpc[0]['s'])
-
-            # self.world.run_simulation(control_info["no_samples"])
-
-        elif self.parameters["control_type"] == "joint_torque":
-
-            control_info = self.parameters["control_info"]
-            joint_indices = control_info["joint_indices"]
-            control_action = sol_mpc[1]["tau"][0, :].T
-            robot = self.parameters["params"]["robots"][control_info["robotID"]]
-
-            for i in range(control_info["no_samples"]):
-                self.world.setController(
-                    control_info["robotID"],
-                    "torque",
-                    joint_indices,
-                    targetTorques=control_action,
-                )
-                self.world.run_simulation(1)
-
-        elif self.parameters["control_type"] == "joint_acceleration":
-            # implemented using the inverse dynamics solver and applying joint torques
-
-            control_info = self.parameters["control_info"]
-            joint_indices = control_info["joint_indices"]
-            control_action = sol_mpc[1]["q_ddot"][0, :].T
-            robot = self.parameters["params"]["robots"][control_info["robotID"]]
-
-            # compute joint torques through inverse dynamics of casadi model
-            # joint_torques = np.array(robot.id(params_val['q0'], params_val['q_dot0'], control_action))
-
-            # compute joint torques using inverse dynamics functions from pybullet
-            joint_torques = self.world.computeInverseDynamics(
-                control_info["robotID"],
-                list(params_val["q0"]),
-                list(params_val["q_dot0"]),
-                list(control_action),
-            )
-
-            if "force_control" in control_info:
-                # compute the feedforward torque needed to apply the desired EE force
-                # print(control_info['jac_fun']([0]*7))
-                torque_forces = cs.mtimes(
-                    control_info["jac_fun"](params_val["q0"]).T, params_val["f_des"]
-                )
-                joint_torques = np.array(cs.vec(joint_torques) + cs.vec(torque_forces))
-
-            # print(joint_torques)
-
-            for i in range(control_info["no_samples"]):
-                self.torque_effort_sumsqr += (
-                    cs.sumsqr(joint_torques) * self.world.physics_ts
-                )
-                self.world.setController(
-                    control_info["robotID"],
-                    "torque",
-                    joint_indices,
-                    targetTorques=joint_torques,
-                )
-                self.world.run_simulation(1)
-
-                if not "force_control" in control_info:
-                    # computing the joint torque to apply at the same frequency as bullet simulation
-                    params_innerloop = self._read_params_nrbullet()
-                    joint_torques = self.world.computeInverseDynamics(
-                        control_info["robotID"],
-                        list(params_innerloop["q0"]),
-                        list(params_innerloop["q_dot0"]),
-                        list(control_action),
-                    )
-
-        elif self.parameters["control_type"] == "joint_position":
-
-            print("Not implemented")
-
-        else:
-
-            raise Exception(
-                "[Error] Unknown control type for bullet environment initialized"
-            )
-
-    # Internal function to read the values of the parameter variables from the bullet simulation environment
-    # in non realtime case
-    def _read_params_nrbullet(self):
-
-        params_val = {}
-        parameters = self.parameters
-
-        for params_name in self.params_names:
-
-            param_val = []
-            param_info = parameters["params"][params_name]
-
-            if param_info["type"] == "joint_position":
-
-                jointsInfo = self.world.readJointState(
-                    param_info["robotID"], param_info["joint_indices"]
-                )
-                for jointInfo in jointsInfo:
-                    param_val.append(jointInfo[0])
-
-                params_val[params_name] = param_val
-
-            elif param_info["type"] == "joint_velocity":
-
-                jointsInfo = self.world.readJointState(
-                    param_info["robotID"], param_info["joint_indices"]
-                )
-                for jointInfo in jointsInfo:
-                    param_val.append(jointInfo[1])
-
-                params_val[params_name] = param_val
-
-            elif param_info["type"] == "joint_torque":
-
-                jointsInfo = self.world.readJointState(
-                    param_info["robotID"], param_info["joint_indices"]
-                )
-                for jointInfo in jointsInfo:
-                    param_val.append(jointInfo[3])
-
-                params_val[params_name] = param_val
-
-            elif param_info["type"] == "joint_force":
-
-                jointsInfo = self.world.readJointState(
-                    param_info["robotID"], param_info["joint_indices"]
-                )
-                forces = jointsInfo[0][2][0:3]
-                print("Forces reading before correction")
-                print(jointsInfo[0][2])
-                forces_corrected = param_info["post_process"](
-                    param_info["fk"], params_val["q0"], forces
-                )
-
-                params_val[params_name] = forces_corrected
-                print("Force sensor readings:")
-                print(forces_corrected)
-
-            elif param_info["type"] == "progress_variable":
-                if self.mpc_ran:
-                    if "state" in param_info:
-
-                        params_val[params_name] = self.sol_mpc[0][params_name[0:-1]][1]
-
-                    elif "control" in param_info:
-
-                        params_val[params_name] = self.sol_mpc[1][params_name[0:-1]][1]
-                else:
-
-                    params_val[params_name] = 0
-
-            elif param_info["type"] == "set_value":
-
-                params_val[params_name] = param_info["value"]
-
-            elif param_info["type"] == "function_of_s":
-                if self.mpc_ran:
-                    _, normal = param_info["function"](self.sol_mpc[0]["s"][0])
-                    params_val[params_name] = normal * param_info["gain"]
-                else:
-                    params_val[params_name] = np.array([0, 0, 0]).T
-            else:
-
-                print(
-                    "[ERROR] Invalid type of parameter to be read from the simulation environment"
-                )
-        print(self.params_history.append(params_val))
-
-        return params_val
-
-
-# TODO: set a method to let the user define the inputs and outputs of the function get from opti.to_function
-# TODO: This should also account for monitors
-# TODO: Set offline solution for initialization ( mpc.set_offline_solution(solver, options, ?))
+                    self.event_output_port.append(m+"_false")
+            
+
+
+    def _set_initial_state(self, X_new):
+
+        """
+        Setting the initial state to the state obtained by simulating the sensor readings by one step.
+        """
+
+        counter = 0
+        json_dict = self.json_dict
+        x_vals = self.x_vals
+        
+        for var in json_dict["states"]:
+            x_vals[json_dict[var]["start"]:json_dict[var]["start"] + json_dict[var]["size"]] = X_new[counter + json_dict[var]["size"]]
+            counter += json_dict[var]["size"]
 
 if __name__ == "__main__":
 

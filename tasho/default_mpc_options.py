@@ -27,9 +27,13 @@ def get_default_mpc_options():
     op_dict["ipopt"] = {"solver_name": "ipopt"}
     op_dict["ipopt"]["options"] = {
         "ipopt": {
-            "max_iter": 25,
+            "max_iter": 1000,
             "tol": 1e-3,
-            "mu_init": 1e-3,
+            "mu_init": 1e-5,
+            "warm_start_init_point" : 'yes',
+            'warm_start_bound_push' : 1e-7,
+            'warm_start_slack_bound_push' : 1e-7,
+            'warm_start_mult_bound_push' : 1e-7,
             "linear_solver": "mumps",
             "fixed_variable_treatment": "make_parameter",
             "hessian_constant": "no",
@@ -48,14 +52,13 @@ def get_default_mpc_options():
             "fast_step_computation": "yes",
             "mu_allow_fast_monotone_decrease": "yes",
             "ma27_skip_inertia_check": "yes",
-            "error_on_fail": True,
             "ma27_ignore_singularity": "yes",
         },
         "error_on_fail": True,
     }
 
     op_dict["ipopt_hsl"] = deepcopy(op_dict["ipopt"])
-    op_dict["ipopt_hsl"]["options"]["ipopt"]["linear_solver"] = "ma27"
+    op_dict["ipopt_hsl"]["options"]["ipopt"]["linear_solver"] = "ma97"
 
     # Now setting up the default options for the SQPMethods
     kkt_tol_pr = 1e-3

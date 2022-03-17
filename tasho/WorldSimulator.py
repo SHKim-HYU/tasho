@@ -1,8 +1,3 @@
-# Simulator file, running either a physics engine or a simple integrator model for velocity control of a robot
-# This file is meant to be used for verifying the performance of algorithms in simulation.
-# The class should have robot related variables that are updated continiously in run_simulation for communication
-# with a middleware (ROS)
-
 import numpy as np
 import pybullet as p
 import pybullet_data
@@ -90,8 +85,8 @@ class WorldSimulator:
         package_path = robotsmeco.__path__[0]
         if robot_name != None:
             if robot_name == "yumi":
-                robotID = p.loadURDF(
-                    "/models/robots/ABB/yumi/yumi.urdf",
+                robotID = p.loadURDF(package_path + 
+                    "/robots/ABB/yumi/yumi.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
@@ -103,25 +98,23 @@ class WorldSimulator:
                     orientation,
                     useFixedBase=fixedBase,
                 )
-            elif robot_name == "panda":
-                print("not implemented")
-            elif robot_name == "iiwa7":
-                robotID = p.loadURDF(
-                    "kuka_iiwa/model.urdf",
-                    position,
-                    orientation,
-                    useFixedBase=fixedBase,
-                )
+            # elif robot_name == "iiwa7":
+            #     robotID = p.loadURDF(
+            #         "kuka_iiwa/model.urdf",
+            #         position,
+            #         orientation,
+            #         useFixedBase=fixedBase,
+            #     )
             elif robot_name == "kr60":
-                robotID = p.loadURDF(
-                    "/models/robots/KUKA/kr60/kr60_description/kr60ha.urdf",
+                robotID = p.loadURDF(package_path + 
+                    "robots/KUKA/kr60/kr60_description/kr60ha.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
                 )
             elif robot_name == "atlas":
-                robotID = p.loadURDF(
-                    "/models/robots/Atlas/Atlas_description/urdf/atlas.urdf",
+                robotID = p.loadURDF(package_path + 
+                    "/robots/Atlas/Atlas_description/urdf/atlas.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,
@@ -186,13 +179,22 @@ class WorldSimulator:
         return jointStates
 
     def readJointPositions(self, robotID, joint_indices):
-
+        
         joint_pos = []
         joint_states = p.getJointStates(robotID, joint_indices)
-        for j in joint_indices:
-            joint_pos.append(joint_states[j][0])
+        for s in joint_states:
+            joint_pos.append(s[0])
 
         return joint_pos
+
+    def readJointVelocities(self, robotID, joint_indices):
+
+        joint_vel = []
+        joint_states = p.getJointStates(robotID, joint_indices)
+        for s in joint_states:
+            joint_vel.append(s[1])
+
+        return joint_vel
 
     def enableJointForceSensor(self, robotID, joint_indices):
 
