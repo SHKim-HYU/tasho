@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 print("Moving-object picking with Kinova Gen3")
 
-visualizationBullet = True #by default turned off
+visualizationBullet = False #by default turned off
 HSL = False
 
 ################################################
