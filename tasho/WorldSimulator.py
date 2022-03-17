@@ -179,11 +179,11 @@ class WorldSimulator:
         return jointStates
 
     def readJointPositions(self, robotID, joint_indices):
-
+        
         joint_pos = []
         joint_states = p.getJointStates(robotID, joint_indices)
-        for j in joint_indices:
-            joint_pos.append(joint_states[j][0])
+        for s in joint_states:
+            joint_pos.append(s[0])
 
         return joint_pos
 
@@ -191,8 +191,8 @@ class WorldSimulator:
 
         joint_vel = []
         joint_states = p.getJointStates(robotID, joint_indices)
-        for j in joint_indices:
-            joint_vel.append(joint_states[j][1])
+        for s in joint_states:
+            joint_vel.append(s[1])
 
         return joint_vel
 

@@ -142,8 +142,9 @@ class task_context:
             return state
 
         elif type == "control":
-            control = ocp.control(shape[0], shape[1])
-            self.controls[name] = [control, stage]
+            # control = ocp.control(shape[0], shape[1])
+            # self.controls[name] = [control, stage]
+            control = self.create_control(name, shape, stage = stage)
 
             return control
 

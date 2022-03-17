@@ -2,8 +2,8 @@
 
 import casadi as cs
 import numpy as np
-from time import time
-import json, math
+
+import json, time, math
 
 
 class MPC:
@@ -25,6 +25,7 @@ class MPC:
         self.event_input_port = []
         self.event_output_port = []
         self.max_mpc_iter = 1000  # limit on the number of MPC iterations
+        self.solver_times = []
 
         # Readint the json file
         with open(json_file, "r") as F:
@@ -139,11 +140,11 @@ class MPC:
         self._read_input_ports()
 
         # Evaluate the OCP function
-        self.res_val = self.ocp_fun(self.x_vals)
+        self.res_vals = self.ocp_fun(self.x_vals)
 
         # if the mpc solver is different from the OCP solver, evaluate it with the solution to warmstart
         if self.ocp_file != self.mpc_file:
-            self.res_val = self.mpc_fun(self.res_val[0:self.x_vals.shape[0]])
+            self.res_vals = self.mpc_fun(self.res_vals[0:self.x_vals.shape[0]])
 
         # if self.parameters["codegen"]["compilation"]:
         #     import os
@@ -247,13 +248,15 @@ class MPC:
         self._shift_states_and_controls()
 
         # Solve the MPC problem
+        tic = time.time()
         self.res_vals = self.mpc_fun(self.x_vals)
-
+        toc = time.time() - tic
 
         # Aspects to re-write in a better way the code that was deleted below:
         # TODO: Checking monitor functions (including the termination criteria)
         # TODO: computing residuals (optional)
         # TODO: log the solution
+        self.solver_times.append(toc)
 
     
     def _read_properties(self):

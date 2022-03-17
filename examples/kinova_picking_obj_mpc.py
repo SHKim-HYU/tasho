@@ -41,71 +41,26 @@ goal_pose = Variable.Variable(robot.name, "goal_pose", 'parameter', (4,4))
 
 task_P2P = P2P(robot, 7, goal_pose, q_init, 0.001)
 task_P2P.remove_initial_constraints(task_P2P.constraint_expressions['stationary_qd_kinova'])
-task_P2P.remove_terminal_constraints(
-    task_P2P.constraint_expressions['rot_con_pose_7_kinova_vs_goal'], 
-    task_P2P.constraint_expressions['trans_con_pose_7_kinova_vs_goal'])
+task_P2P.remove_terminal_constraints('rot_con_pose_7_kinova_vs_goal',
+                                    'trans_con_pose_7_kinova_vs_goal')
 task_P2P.add_initial_constraints(ConstraintExpression(robot.name, "eq", Expression(robot.name, "err_qd_qinit", lambda a, b : a - b, qd_init, task_P2P.variables['qd_kinova']),
                              "hard", reference = 0))
 task_P2P.add_path_constraints(Regularization(task_P2P.expressions['trans_error_pose_7_kinova_vs_goal'], 1.0, norm = "L1"),
                             Regularization(task_P2P.expressions['ax_ang_error_pose_7_kinova_vs_goal'], 1), 
                             Regularization(task_P2P.variables['qd_kinova'], 1e-4))
 
-task_P2P.write_task_graph("after_sub.svg")
+# task_P2P.write_task_graph("after_sub.svg")
 # Initialize the task context object
 
 pOCP = OCPGenerator(task_P2P, False, {"time_period":horizon_size*t_mpc, "horizon_steps":horizon_size})
 
 tc = pOCP.tc
-# tc = tp.task_context(horizon_size * t_mpc, horizon_steps = horizon_size)
-
-# Add object of interest for the robot (in this case a cube)
-# cube_pos = tc.create_expression("cube_pos", "parameter", (3, 1))
-# T_goal = cs.vertcat(
-#     cs.hcat([0, 1, 0, cube_pos[0]]),
-#     cs.hcat([1, 0, 0, cube_pos[1]]),
-#     cs.hcat([0, 0, -1, cube_pos[2]]),
-#     cs.hcat([0, 0, 0, 1]),
-# )
-
-# Define constraints at the end of the horizon (final ee position and final joint velocity)
-
-
-# position_con = {"hard": False, "expression": T_ee[0:3,3], "reference": T_goal[0:3,3], "norm": "L1"}
-# rot_err, _ = geometry.rotmat_to_axisangle(T_ee[0:3, 0:3]@T_goal[0:3, 0:3])
-# rotation_con = {"hard":False, "expression":rot_err, "reference":0, "norm":"L1"} 
-# zero_vel = {"hard": True, "expression": q_dot, "reference": 0}
-# final_constraints = {"final_constraints": [position_con, rotation_con, zero_vel]}
-# tc.add_task_constraint(final_constraints)
-
-# Add penality terms on joint velocity and acceleration for regulatization
-
-# vel_regularization = {
-#     "hard": False,
-#     "expression": q_dot,
-#     "reference": 0,
-#     "gain": 1e-3,
-# }
-# acc_regularization = {
-#     "hard": False,
-#     "expression": q_ddot,
-#     "reference": 0,
-#     "gain": 1e-3,
-# }
-# task_objective = {"path_constraints": [vel_regularization, acc_regularization]}
-# tc.add_task_constraint(task_objective)
-
-# tc.add_regularization(
-#     expression=q_dot, weight=1e-3, norm="L2", variable_type="state", reference=0
-# )
-# tc.add_regularization(
-#     expression=q_ddot, weight=1e-3, norm="L2", variable_type="control", reference=0
-# )
 
 ################################################
 # Set solver and discretization options
 ################################################
-# tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3}})
-tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3, "linear_solver":"ma27"}}) #use this if you have hsl
+tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3}})
+# tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3, "linear_solver":"ma27"}}) #use this if you have hsl
 
 
 ################################################
@@ -127,28 +82,35 @@ tc.set_value(goal_pose, goal_pose_val)
 tc.set_value(q_0, q0_val)
 tc.set_value(qd_0, qd0_val)
 
+# Add an output port for joint velocities as well
+tc.tc_dict["out_ports"].append({"name":"port_out_qd_kinova", "var":"qd_kinova", "desc": "output port for the joint velocities"})
+
 # Add a monitor for termination criteria
 tc.add_monitor({"name":"termination_criteria", "expression":cs.sqrt(cs.sumsqr(pOCP.stage_tasks[0].expressions["trans_error_pose_7_kinova_vs_goal"].x)) - 2e-2, "reference":0, "lower":True, "initial":True})
 
 ################################################
 # Solve the OCP that describes the task
 ################################################
-sol = tc.solve_ocp()
-mpc_options = default_mpc_options.get_default_mpc_options()
 
-# Generate the controller component
+mpc_options = default_mpc_options.get_default_mpc_options()
 tc.ocp_solver = "ipopt"
-tc.ocp_options = mpc_options["ipopt_hsl"]
+tc.ocp_options = mpc_options["ipopt_hsl"]["options"]
 tc.mpc_solver = tc.ocp_solver
 tc.mpc_options = tc.ocp_options
+tc.set_ocp_solver("ipopt", tc.mpc_options)
+
+sol = tc.solve_ocp()
+
+
+# Generate the controller component
 vars_db = tc.generate_MPC_component("./", {"ocp_cg_opts":{"save":True, "codegen":False, "jit":False}, "mpc":True, "mpc_cg_opts":{"save":True, "codegen":False, "jit":False}})
 
-MPC_component = MPC("kinova_obj_pickup", "./n" + tc.name + ".json")
+MPC_component = MPC("kinova_obj_pickup", "./" + tc.name + ".json")
 
 ################################################
 # MPC Simulation
 ################################################
-visualizationBullet = True
+visualizationBullet = False #by default turned off
 
 if visualizationBullet:
 
@@ -226,13 +188,8 @@ if visualizationBullet:
         )
         predicted_pos_log.append(predicted_pos.full())
         p.resetBasePositionAndOrientation(cube2ID, predicted_pos.full(), [0.0, 0.0, 0.0, 1.0])
-        
         predicted_pos[2] += 0.05  # cube height
         print("Predicted position of cube", predicted_pos)
-        # Set parameter values
-        
-        # tc.set_value(q_0, q_now)
-        # tc.set_value(qd_0, q_dot_sol[1])
         predicted_pos_val = cs.vertcat(
             cs.hcat([0, 1, 0, predicted_pos[0]]),
             cs.hcat([1, 0, 0, predicted_pos[1]]),
@@ -241,19 +198,11 @@ if visualizationBullet:
         )
 
         MPC_component.input_ports["port_inp_goal_pose_kinova"]["val"] = cs.vec(predicted_pos_val)
-        # tc.set_value(goal_pose, predicted_pos_val)
         
         if i == 0:
             MPC_component.configMPC()
 
         MPC_component.runMPC()
-        # Solve the ocp
-        # sol = tc.solve_ocp()
-
-        # Sample the solution for the next MPC execution
-        # ts, q_sol = tc.sol_sample(q, grid="control")
-        # _, q_dot_sol = tc.sol_sample(qd, grid="control")
-        # _, q_ddot_sol = tc.sol_sample(q_ddot)
 
         q_log.append(q_now)
         q_dot_log.append(qd_now)
@@ -290,9 +239,5 @@ if visualizationBullet:
     #     kinovaID, "velocity", joint_indices, targetVelocities=[0]*7
     # )
 
-
-    
-    # obj.run_simulation(500)
-
     obj.end_simulation()
-    # print(predicted_pos_log)
+
