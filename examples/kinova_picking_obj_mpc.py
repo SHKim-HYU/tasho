@@ -13,6 +13,9 @@ import matplotlib.pyplot as plt
 
 print("Moving-object picking with Kinova Gen3")
 
+visualizationBullet = True #by default turned off
+HSL = False
+
 ################################################
 # Define robot and initial joint angles
 ################################################
@@ -59,7 +62,7 @@ tc = pOCP.tc
 ################################################
 # Set solver and discretization options
 ################################################
-tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3}})
+tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 5,"tol": 1e-3}})
 # tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3, "linear_solver":"ma27"}}) #use this if you have hsl
 
 
@@ -93,8 +96,10 @@ tc.add_monitor({"name":"termination_criteria", "expression":cs.sqrt(cs.sumsqr(pO
 ################################################
 
 mpc_options = default_mpc_options.get_default_mpc_options()
-tc.ocp_solver = "ipopt"
-tc.ocp_options = mpc_options["ipopt_hsl"]["options"]
+
+if HSL:
+    tc.ocp_solver = "ipopt"
+    tc.ocp_options = mpc_options["ipopt_hsl"]["options"]
 tc.mpc_solver = tc.ocp_solver
 tc.mpc_options = tc.ocp_options
 tc.set_ocp_solver("ipopt", tc.mpc_options)
@@ -110,7 +115,7 @@ MPC_component = MPC("kinova_obj_pickup", "./" + tc.name + ".json")
 ################################################
 # MPC Simulation
 ################################################
-visualizationBullet = False #by default turned off
+
 
 if visualizationBullet:
 
