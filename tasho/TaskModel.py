@@ -480,7 +480,7 @@ class Task:
         return self._constraint_expressions
 
 
-def compose(self, name, mid, *args):
+def compose(name, mid, *args):
 
     """ 
     Creates a new task by composing all the tasks that are passed as arguments to the function.
@@ -490,6 +490,6 @@ def compose(self, name, mid, *args):
     task = Task(name, mid)
 
     for arg in args:
-        task.compose_within(arg)
+        task.include_subtask(arg)
 
     return task 

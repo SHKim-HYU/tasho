@@ -354,7 +354,7 @@ class task_context:
 
             if variable_type == "state" or variable_type == "control":
                 slack_variable = self.create_expression(
-                    "slack_path_con", "control", expression.shape
+                    "slack_path_con_" + str(np.random.randint(0, 100000)), "control", expression.shape
                 )
                 ocp.subject_to(
                     -slack_variable <= (expression - reference <= slack_variable)
@@ -480,7 +480,7 @@ class task_context:
                         elif path_con["norm"] == "L1":
                             # print("L1 norm added")
                             slack_variable = self.create_expression(
-                                "slack_path_con",
+                                "slack_path_con_" + str(np.random.randint(0, 100000)),
                                 "control",
                                 path_con["expression"].shape,
                             )
@@ -505,7 +505,7 @@ class task_context:
                         elif path_con["norm"] == "L2_nonsquared":
                             # print("L1 norm added")
                             slack_variable = self.create_expression(
-                                "slack_path_con",
+                                "slack_path_con_" + str(np.random.randint(0, 100000)),
                                 "control",
                                 (1, 1),
                             )
@@ -565,7 +565,7 @@ class task_context:
                                 self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "L1":
                             slack_variable = self.create_expression(
-                                "slack_path_con",
+                                "slack_path_con_" + str(np.random.randint(0, 100000)),
                                 "control",
                                 path_con["expression"].shape,
                             )

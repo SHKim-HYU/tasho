@@ -53,8 +53,6 @@ task_P2P = P2P(robot, link_name, goal_pose, q_current, 0.001)
 reg_jacc = task_P2P.constraint_expressions['reg_qdd_'+robot.name].change_weight(0.1)
 task_P2P.add_path_constraints(Regularization(task_P2P.variables['qd_'+robot.name], 1))
 
-# Substituting a variable
-
 horizon_steps = 10
 horizon_period = 3.0
 OCP_gen = OCPGenerator(task_P2P, False, {"time_period": horizon_period, "horizon_steps":horizon_steps})
