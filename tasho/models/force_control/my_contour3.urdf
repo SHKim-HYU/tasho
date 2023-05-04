@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<robot name="my_contour">
+  <link name="contourLink">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+       <mass value=".0"/>
+       <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+    <visual>
+      <origin rpy="1.5707 0 1.5707 " xyz="0.64 -0.05 0.02"/>
+      <geometry>
+		<mesh filename="two_cylinders.obj" scale="1.0 1.0 1.0"/>
+         <!--cylinder radius="0.1" length="0.1"/-->
+      </geometry>
+       <material name="white">
+        <color rgba="0.02 0.63 0.80 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy=" 1.5707 0 1.5707" xyz="0.64 -0.05 0.02"/>
+      <geometry>
+	    <mesh filename="two_cylinders.obj" scale="1.0 1.0 1.0"/>
+         <!--cylinder radius="0.1" length="0.1"/-->
+      </geometry>
+    </collision>
+  </link>
+</robot>
+

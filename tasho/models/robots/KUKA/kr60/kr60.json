@@ -1,0 +1,61 @@
+{
+    "name": "kuka_kr60ha",
+    "n_dof": "6",
+    "n_joints": "7",
+    "n_q": "6",
+    "n_frames": "19",
+    "gravity": {
+        "x": "0",
+        "y": "0",
+        "z": "-9.8100000000000005"
+    },
+    "forward_kinematics_path" : "kr60_fk.casadi",
+    "forward_dynamics_path" : "kr60_fd.casadi",
+    "inverse_dynamics_path" : "kr60_id.casadi",
+    "Jacobian_forward_dynamics_path": "kr60_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "kr60_J_id.casadi",
+    "joints": {
+        "joint_1": {
+            "joint_types": "JointModelRevoluteUnaligned",
+            "joint_pos_ub": "3.2288591161900002",
+            "joint_pos_lb": "-3.2288591161900002",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "2.23402144255"
+        },
+        "joint_2": {
+            "joint_types": "JointModelRY",
+            "joint_pos_ub": "0.61086523819799998",
+            "joint_pos_lb": "-2.35619449019",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "2.09439510239"
+        },
+        "joint_3": {
+            "joint_types": "JointModelRY",
+            "joint_pos_ub": "2.75762021815",
+            "joint_pos_lb": "-2.09439510239",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "2.23402144255"
+        },
+        "joint_4": {
+            "joint_types": "JointModelRevoluteUnaligned",
+            "joint_pos_ub": "6.1086523819799998",
+            "joint_pos_lb": "-6.1086523819799998",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "4.5378560551899998"
+        },
+        "joint_5": {
+            "joint_types": "JointModelRY",
+            "joint_pos_ub": "2.0769418098700001",
+            "joint_pos_lb": "-2.0769418098700001",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "4.2760566673899998"
+        },
+        "joint_6": {
+            "joint_types": "JointModelRevoluteUnaligned",
+            "joint_pos_ub": "6.1086523819799998",
+            "joint_pos_lb": "-6.1086523819799998",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "5.6199601914199997"
+        }
+    }
+}

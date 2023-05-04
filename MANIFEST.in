@@ -1,2 +1,3 @@
+graft tasho/models/objects
 graft tasho/templates
 graft tasho/utils

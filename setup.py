@@ -30,7 +30,7 @@ setuptools.setup(
         'scipy',
         'networkx',
         'pydot',
-        'robotsmeco @ git+https://gitlab.kuleuven.be/meco-software/robot-models-meco.git@main',
+        #'robotsmeco @ git+https://gitlab.kuleuven.be/meco-software/robot-models-meco.git@main',
         'pybullet',
     ],
     classifiers=[

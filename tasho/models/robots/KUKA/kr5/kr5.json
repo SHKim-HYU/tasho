@@ -1,0 +1,61 @@
+{
+    "name": "KR5sixxR650WP_description",
+    "n_dof": "6",
+    "n_joints": "7",
+    "n_q": "6",
+    "n_frames": "17",
+    "gravity": {
+        "x": "0",
+        "y": "0",
+        "z": "-9.8100000000000005"
+    },
+    "forward_kinematics_path" : "kr5_fk.casadi",
+    "forward_dynamics_path" : "kr5_fd.casadi",
+    "inverse_dynamics_path" : "kr5_id.casadi",
+    "Jacobian_forward_dynamics_path": "kr5_J_fd.casadi",
+    "Jacobian_inverse_dynamics_path": "kr5_J_id.casadi",
+    "joints": {
+        "shoulder_yaw": {
+            "joint_types": "JointModelRZ",
+            "joint_pos_ub": "2.9670999999999998",
+            "joint_pos_lb": "-2.9670999999999998",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "6.5449999999999999"
+        },
+        "shoulder_pitch": {
+            "joint_types": "JointModelRY",
+            "joint_pos_ub": "2.35619449",
+            "joint_pos_lb": "-1.7453292520000001",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "5.2359999999999998"
+        },
+        "elbow_pitch": {
+            "joint_types": "JointModelRY",
+            "joint_pos_ub": "0.95993108900000002",
+            "joint_pos_lb": "-3.6477381370000002",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "6.5449999999999999"
+        },
+        "elbow_roll": {
+            "joint_types": "JointModelRX",
+            "joint_pos_ub": "3.3161",
+            "joint_pos_lb": "-3.3161",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "7.1558000000000002"
+        },
+        "wrist_pitch": {
+            "joint_types": "JointModelRY",
+            "joint_pos_ub": "2.094395102",
+            "joint_pos_lb": "-2.094395102",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "7.1558000000000002"
+        },
+        "wrist_roll": {
+            "joint_types": "JointModelRX",
+            "joint_pos_ub": "6.2482787200000001",
+            "joint_pos_lb": "-6.2482787200000001",
+            "joint_torque_limit": "0",
+            "joint_vel_limit": "11.5191731"
+        }
+    }
+}
