@@ -211,6 +211,16 @@ class WorldSimulator:
 
         return True
 
+    def resetMultiJointState(self, robotIDs, joint_indices, new_joint_states):
+        for idx, robotID in enumerate(robotIDs):
+            for i in range(len(joint_indices)):
+                if len(new_joint_states)>1:
+                    p.resetJointState(robotID, joint_indices[i], new_joint_states[idx][i])
+                else:
+                    p.resetJointState(robotID, joint_indices[i], new_joint_states[0][i])
+
+        return True
+
     def computeInverseDynamics(self, robotID, positions, velocities, accelerations):
         """Use pybullet function to compute the inverse dynamics of the given robot"""
         # print("computing inverse dynamics")
