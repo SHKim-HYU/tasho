@@ -2,7 +2,7 @@ import numpy as np
 import pybullet as p
 import pybullet_data
 import time
-import robotsmeco
+import robotshyu
 
 class WorldSimulator:
     def __init__(self, plane_spawn=True, bullet_gui=True, physics_ts=1.0 / 240):
@@ -82,7 +82,7 @@ class WorldSimulator:
     def add_robot(
         self, position, orientation, robot_name=None, robot_urdf=None, fixedBase=True
     ):
-        package_path = robotsmeco.__path__[0]
+        package_path = robotshyu.__path__[0]
         if robot_name != None:
             if robot_name == "yumi":
                 robotID = p.loadURDF(package_path + 
