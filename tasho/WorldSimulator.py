@@ -127,8 +127,8 @@ class WorldSimulator:
                     useFixedBase=fixedBase,
                 )
             elif robot_name == "mmo_500_ppr":
-                robotID = p.loadURDF(
-                    "/models/robots/MMO_500/mmo500_description/mmo_500_ppr.urdf",
+                robotID = p.loadURDF(package_path + 
+                    "/robots/MMO_500/mmo500_description/mmo_500_ppr.urdf",
                     position,
                     orientation,
                     useFixedBase=fixedBase,

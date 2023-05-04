@@ -2,7 +2,7 @@
 
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution, WorldSimulator
-from tasho import robot as rob
+from robotshyu import Robot as rob
 import casadi as cs
 import numpy as np
 import matplotlib.pyplot as plt
