@@ -17,7 +17,7 @@ def get_default_mpc_options():
             "limited_memory_max_history": 5,
             "tol": 1e-3,
         },
-        "error_on_fail": True,
+        "error_on_fail": False,
     }
 
     op_dict["ipopt_lbfgs_hsl"] = deepcopy(op_dict["ipopt_lbfgs"])
@@ -54,11 +54,16 @@ def get_default_mpc_options():
             "ma27_skip_inertia_check": "yes",
             "ma27_ignore_singularity": "yes",
         },
-        "error_on_fail": True,
+        "error_on_fail": False,
     }
 
     op_dict["ipopt_hsl"] = deepcopy(op_dict["ipopt"])
     op_dict["ipopt_hsl"]["options"]["ipopt"]["linear_solver"] = "ma97"
+
+    # initial guess for ipopt
+    op_dict['ipopt_init']={"solver_name":"ipopt"}
+    op_dict['ipopt_init']["options"]={"ipopt": {"print_level": 0, "tol": 1e-3,}}
+
 
     # Now setting up the default options for the SQPMethods
     kkt_tol_pr = 1e-3

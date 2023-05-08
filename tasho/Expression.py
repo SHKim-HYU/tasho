@@ -30,8 +30,15 @@ class Expression(Variable):
 
         #TODO: shouldn't the reference to parents be in the task class instead?
         self._parents = parents
-        self._x = expr_fun(*[p.x for p in parents]) #placeholder MX expression
-        self._parent_uid = [x.uid for x in parents]
+        if mid=="nonholonomic":
+            _q = parents[0]
+            _qd = parents[1]
+
+            self._x = expr_fun(_qd.x[0], _qd.x[1], _q.x[2]) #placeholder MX expression
+            self._parent_uid = [_qd.uid, _qd.uid, _q.uid]
+        else:
+            self._x = expr_fun(*[p.x for p in parents]) #placeholder MX expression
+            self._parent_uid = [x.uid for x in parents]
 
     def evaluate_expression(self, task):
 

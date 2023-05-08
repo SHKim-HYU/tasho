@@ -80,7 +80,7 @@ class WorldSimulator:
         return cubeID
 
     def add_robot(
-        self, position, orientation, robot_name=None, robot_urdf=None, fixedBase=True
+        self, position, orientation, robot_name=None, robot_urdf=None, robot_pkg=None, frame=False, fixedBase=True
     ):
         package_path = robotshyu.__path__[0]
         if robot_name != None:
@@ -139,6 +139,19 @@ class WorldSimulator:
             robotID = p.loadURDF(
                 robot_urdf, position, orientation, useFixedBase=fixedBase
             )
+        elif robot_pkg != None:
+            if frame:
+                robotID = p.loadURDF(robot_pkg.urdf_frame_path,
+                    position,
+                    orientation,
+                    useFixedBase=fixedBase,
+                )
+            else:
+                robotID = p.loadURDF(robot_pkg.urdf_path,
+                    position,
+                    orientation,
+                    useFixedBase=fixedBase,
+                )
         else:
             print("[Error] No valid robot name or robot urdf given")
             return

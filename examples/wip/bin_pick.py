@@ -12,7 +12,8 @@
 import sys
 from tasho import task_prototype_rockit as tp
 from tasho import input_resolution
-from tasho import robot as rob
+#from tasho import robot as rob
+from robotshyu import Robot as rob
 import casadi as cs
 from casadi import pi, cos, sin
 from rockit import MultipleShooting, Ocp
@@ -190,14 +191,14 @@ if __name__ == "__main__":
 
     ## Performing code-generation (to potentially deploy an orocos component)
     cg_opts = {"ocp_cg_opts":{"jit":False, "save":True, "codegen":False}}
-    varsdb = tc.generate_MPC_component("/home/ajay/Desktop/bin_picking_", cg_opts)
+    varsdb = tc.generate_MPC_component("./bin_picking_", cg_opts)
 
     #print json in a prettified form
     import pprint
     pprint.pprint(varsdb)
 
     #Load casadi function to test:
-    casfun = cs.Function.load("/home/ajay/Desktop/bin_picking_tc_ocp.casadi")
+    casfun = cs.Function.load("./bin_picking_tc_ocp.casadi")
 
     sol_cg = casfun([0]*1168)
 
@@ -313,13 +314,13 @@ if __name__ == "__main__":
 )
 
 ## Performing code-generation (to potentially deploy an orocos component)
-varsdb = tc2.generate_MPC_component("/home/ajay/Desktop/bin_dropping_", cg_opts)
+varsdb = tc2.generate_MPC_component("./bin_dropping_", cg_opts)
 
 #print json in a prettified form
 import pprint
 pprint.pprint(varsdb)
 
 #Load casadi function to test:
-casfun2 = cs.Function.load("/home/ajay/Desktop/bin_dropping_tc_ocp.casadi")
+casfun2 = cs.Function.load("./bin_dropping_tc_ocp.casadi")
 
 sol_cg = casfun2([0]*858)

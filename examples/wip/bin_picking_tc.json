@@ -1,0 +1,167 @@
+{
+    "q0": {
+        "start": 0,
+        "size": 6,
+        "jump": 6,
+        "end": 66
+    },
+    "q_dot0": {
+        "start": 66,
+        "size": 6,
+        "jump": 6,
+        "end": 132
+    },
+    "q1": {
+        "start": 132,
+        "size": 6,
+        "jump": 6,
+        "end": 168
+    },
+    "q_dot1": {
+        "start": 168,
+        "size": 6,
+        "jump": 6,
+        "end": 204
+    },
+    "q2": {
+        "start": 204,
+        "size": 6,
+        "jump": 6,
+        "end": 240
+    },
+    "q_dot2": {
+        "start": 240,
+        "size": 6,
+        "jump": 6,
+        "end": 276
+    },
+    "q_ddot0": {
+        "start": 276,
+        "size": 6,
+        "jump": 6,
+        "end": 336
+    },
+    "sep_hyp": {
+        "start": 336,
+        "size": 4,
+        "jump": 4,
+        "end": 376
+    },
+    "q_ddot1": {
+        "start": 376,
+        "size": 6,
+        "jump": 6,
+        "end": 406
+    },
+    "q_ddot2": {
+        "start": 406,
+        "size": 6,
+        "jump": 6,
+        "end": 436
+    },
+    "q00": {
+        "start": 436,
+        "size": 6,
+        "jump": 6,
+        "end": 442
+    },
+    "q_dot00": {
+        "start": 442,
+        "size": 6,
+        "jump": 6,
+        "end": 448
+    },
+    "lam_g": {
+        "start": 448,
+        "size": 717,
+        "end": 1165
+    },
+    "time_grid_stage_0": {
+        "start": 1165,
+        "end": 1176,
+        "size": 11
+    },
+    "time_grid_stage_1": {
+        "start": 1176,
+        "end": 1182,
+        "size": 6
+    },
+    "time_grid_stage_2": {
+        "start": 1182,
+        "end": 1188,
+        "size": 6
+    },
+    "monitor_names": [
+        "termination_criteria"
+    ],
+    "monitor_locations": {
+        "termination_criteria": 1188
+    },
+    "num_inp_ports": 2,
+    "num_out_ports": 4,
+    "num_props": 0,
+    "num_states": 6,
+    "num_controls": 4,
+    "num_parameters": 2,
+    "states": [
+        "q0",
+        "q_dot0",
+        "q1",
+        "q_dot1",
+        "q2",
+        "q_dot2"
+    ],
+    "controls": [
+        "q_ddot0",
+        "sep_hyp",
+        "q_ddot1",
+        "q_ddot2"
+    ],
+    "parameters": [
+        "q00",
+        "q_dot00"
+    ],
+    "inp_ports": [
+        {
+            "name": "port_inp_q00",
+            "var": "q00",
+            "desc": "[default] Read values for parameter q00",
+            "warm_start": 1,
+            "wvar": "q0"
+        },
+        {
+            "name": "port_inp_q_dot00",
+            "var": "q_dot00",
+            "desc": "[default] Read values for parameter q_dot00",
+            "warm_start": 1,
+            "wvar": "q_dot0"
+        }
+    ],
+    "out_ports": [
+        {
+            "name": "port_out_q_ddot0",
+            "var": "q_ddot0",
+            "desc": "[default] write values for control q_ddot0"
+        },
+        {
+            "name": "port_out_sep_hyp",
+            "var": "sep_hyp",
+            "desc": "[default] write values for control sep_hyp"
+        },
+        {
+            "name": "port_out_q_ddot1",
+            "var": "q_ddot1",
+            "desc": "[default] write values for control q_ddot1"
+        },
+        {
+            "name": "port_out_q_ddot2",
+            "var": "q_ddot2",
+            "desc": "[default] write values for control q_ddot2"
+        }
+    ],
+    "props": [],
+    "horizon": 10,
+    "sampling_time": null,
+    "ocp_fun_name": "tc_ocp",
+    "ocp_file": "./bin_picking_tc_ocp.casadi"
+}

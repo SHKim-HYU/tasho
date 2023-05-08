@@ -46,8 +46,8 @@ def P2P(robot, link_name, goal_pose, current_location, rot_tol = 1e-3):
     # Adding the joint position, velocity and acceleration limits
     p2p.add_path_constraints(BoxConstraint(q, robot.joint_lb, robot.joint_ub),
                             BoxConstraint(qd, robot.joint_vel_lb, robot.joint_vel_ub),
-                            BoxConstraint(qdd, robot.joint_acc_lb, robot.joint_acc_ub),
-                            Regularization(qdd, 1e-3))
+                            BoxConstraint(qdd, robot.joint_acc_lb, robot.joint_acc_ub))
+                            # Regularization(qdd, 1e-3))
 
     # Pose error between the specified link and the desired link
     p2p.add_terminal_constraints(*ConstraintSE3(fk_pose, goal_pose, rot_tol),
