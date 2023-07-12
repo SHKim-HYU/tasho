@@ -1,0 +1,110 @@
+{
+    "q_kinova": {
+        "start": 0,
+        "size": 7,
+        "jump": 7,
+        "end": 77
+    },
+    "qd_kinova": {
+        "start": 77,
+        "size": 7,
+        "jump": 7,
+        "end": 154
+    },
+    "qdd_kinova": {
+        "start": 154,
+        "size": 7,
+        "jump": 7,
+        "end": 224
+    },
+    "q_init_kinova": {
+        "start": 224,
+        "size": 7,
+        "jump": 7,
+        "end": 231
+    },
+    "goal_pose_kinova": {
+        "start": 231,
+        "size": 16,
+        "jump": 16,
+        "end": 247
+    },
+    "qd_init_kinova": {
+        "start": 247,
+        "size": 7,
+        "jump": 7,
+        "end": 254
+    },
+    "lam_g": {
+        "start": 254,
+        "size": 371,
+        "end": 625
+    },
+    "time_grid_stage_0": {
+        "start": 625,
+        "end": 636,
+        "size": 11
+    },
+    "monitor_names": [
+        "termination_criteria"
+    ],
+    "monitor_locations": {
+        "termination_criteria": 636
+    },
+    "mpc_fun_name": "tc_mpc",
+    "mpc_file": "./tc_mpc.casadi",
+    "pred_file": "./tc_pred.casadi",
+    "pred_fun_name": "F",
+    "num_inp_ports": 3,
+    "num_out_ports": 2,
+    "num_props": 0,
+    "num_states": 2,
+    "num_controls": 1,
+    "num_parameters": 3,
+    "states": [
+        "q_kinova",
+        "qd_kinova"
+    ],
+    "controls": [
+        "qdd_kinova"
+    ],
+    "parameters": [
+        "q_init_kinova",
+        "goal_pose_kinova",
+        "qd_init_kinova"
+    ],
+    "inp_ports": [
+        {
+            "name": "port_inp_q_init_kinova",
+            "var": "q_init_kinova",
+            "desc": "[default] Read values for parameter q_init_kinova"
+        },
+        {
+            "name": "port_inp_goal_pose_kinova",
+            "var": "goal_pose_kinova",
+            "desc": "[default] Read values for parameter goal_pose_kinova"
+        },
+        {
+            "name": "port_inp_qd_init_kinova",
+            "var": "qd_init_kinova",
+            "desc": "[default] Read values for parameter qd_init_kinova"
+        }
+    ],
+    "out_ports": [
+        {
+            "name": "port_out_qdd_kinova",
+            "var": "qdd_kinova",
+            "desc": "[default] write values for control qdd_kinova"
+        },
+        {
+            "name": "port_out_qd_kinova",
+            "var": "qd_kinova",
+            "desc": "output port for the joint velocities"
+        }
+    ],
+    "props": [],
+    "horizon": 10,
+    "sampling_time": 0.05,
+    "ocp_fun_name": "tc_ocp",
+    "ocp_file": "./tc_ocp.casadi"
+}

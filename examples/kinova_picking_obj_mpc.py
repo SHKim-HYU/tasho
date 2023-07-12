@@ -4,16 +4,18 @@ from tasho.ConstraintExpression import ConstraintExpression
 from tasho.Expression import Expression
 from tasho.templates.P2P import P2P
 from tasho.MPC import MPC 
-from tasho import robot as rob
+from robotshyu import Robot as rob
 from tasho import environment as env
 import casadi as cs
 from tasho.templates.Regularization import Regularization
 import numpy as np
+import tasho
 import matplotlib.pyplot as plt
+import time
 
 print("Moving-object picking with Kinova Gen3")
 
-visualizationBullet = False #by default turned off
+visualizationBullet = True #by default turned off
 HSL = False
 
 ################################################
@@ -62,7 +64,7 @@ tc = pOCP.tc
 ################################################
 # Set solver and discretization options
 ################################################
-tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 5,"tol": 1e-3}})
+tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3}})
 # tc.set_ocp_solver("ipopt", {"ipopt": {"print_level": 0,"tol": 1e-3, "linear_solver":"ma27"}}) #use this if you have hsl
 
 
@@ -132,11 +134,11 @@ if visualizationBullet:
 
     # Set environment
     environment = env.Environment()
-
-    cube1 = env.Cube(length = 1, position = [0.5, -0.2, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "/models/objects/cube_small.urdf")
+    package_path = tasho.__path__[0]
+    cube1 = env.Cube(length = 1, position = [0.5, -0.2, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = package_path+"/models/objects/cube_small.urdf")
     environment.add_object(cube1, "cube")
     
-    table1 = env.Box(height = 0.3, position = [0.5, 0, 0], orientation = [0.0, 0.0, 0.7071080798594737, 0.7071054825112364], urdf = "/models/objects/table.urdf")
+    table1 = env.Box(height = 0.3, position = [0.5, 0, 0], orientation = [0.0, 0.0, 0.7071080798594737, 0.7071054825112364], urdf = package_path+"/models/objects/table.urdf")
     environment.add_object(table1, "table1")
 
     
@@ -144,7 +146,7 @@ if visualizationBullet:
     
     
 
-    cube2 = env.Cube(length = 1, position = [0.5, -0.2, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = "/models/objects/cube_small copy.urdf", fixed = True)
+    cube2 = env.Cube(length = 1, position = [0.5, -0.2, 0.35], orientation = [0.0, 0.0, 0.0, 1.0], urdf = package_path+"/models/objects/cube_small_col.urdf", fixed = True)
     environment.add_object(cube2, "cube2")
     environment.set_in_world_simulator(obj)
     cubeID = environment.get_object_ID("cube")
@@ -173,7 +175,7 @@ if visualizationBullet:
     # Execute the MPC loop
     for i in range(horizon_size * 100):
         print("----------- MPC execution -----------")
-
+        start = time.time()
         q_now = obj.readJointPositions(kinovaID, joint_indices)
         qd_now = obj.readJointVelocities(kinovaID, joint_indices)
         
@@ -221,7 +223,7 @@ if visualizationBullet:
 
         # Simulate
         obj.run_simulation(no_samples)
-
+        print("loop time: %f [ms]"%(1000*(time.time()-start)))
         # Termination criteria
         if "termination_criteria_true" in MPC_component.event_output_port:
             break

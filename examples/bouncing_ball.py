@@ -72,8 +72,8 @@ y_traj_log = []
 ocpx_sampler = []
 ocpy_sampler = []
 ocp_t_limit = []
-SIMULATION = False
-ANIMATE = False
+SIMULATION = True
+ANIMATE = True
 if SIMULATION:
     import matplotlib.pyplot as plt
     plt.figure()
