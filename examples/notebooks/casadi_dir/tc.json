@@ -1,0 +1,110 @@
+{
+    "q_indy7": {
+        "start": 0,
+        "size": 6,
+        "jump": 6,
+        "end": 66
+    },
+    "qd_indy7": {
+        "start": 66,
+        "size": 6,
+        "jump": 6,
+        "end": 132
+    },
+    "qdd_indy7": {
+        "start": 132,
+        "size": 6,
+        "jump": 6,
+        "end": 192
+    },
+    "q_init_indy7": {
+        "start": 192,
+        "size": 6,
+        "jump": 6,
+        "end": 198
+    },
+    "goal_pose_indy7": {
+        "start": 198,
+        "size": 16,
+        "jump": 16,
+        "end": 214
+    },
+    "qd_init_indy7": {
+        "start": 214,
+        "size": 6,
+        "jump": 6,
+        "end": 220
+    },
+    "lam_g": {
+        "start": 220,
+        "size": 318,
+        "end": 538
+    },
+    "time_grid_stage_0": {
+        "start": 538,
+        "end": 549,
+        "size": 11
+    },
+    "monitor_names": [
+        "termination_criteria"
+    ],
+    "monitor_locations": {
+        "termination_criteria": 549
+    },
+    "mpc_fun_name": "tc_mpc",
+    "mpc_file": "./casadi_dir/tc_mpc.casadi",
+    "pred_file": "./casadi_dir/tc_pred.casadi",
+    "pred_fun_name": "F",
+    "num_inp_ports": 3,
+    "num_out_ports": 2,
+    "num_props": 0,
+    "num_states": 2,
+    "num_controls": 1,
+    "num_parameters": 3,
+    "states": [
+        "q_indy7",
+        "qd_indy7"
+    ],
+    "controls": [
+        "qdd_indy7"
+    ],
+    "parameters": [
+        "q_init_indy7",
+        "goal_pose_indy7",
+        "qd_init_indy7"
+    ],
+    "inp_ports": [
+        {
+            "name": "port_inp_q_init_indy7",
+            "var": "q_init_indy7",
+            "desc": "[default] Read values for parameter q_init_indy7"
+        },
+        {
+            "name": "port_inp_goal_pose_indy7",
+            "var": "goal_pose_indy7",
+            "desc": "[default] Read values for parameter goal_pose_indy7"
+        },
+        {
+            "name": "port_inp_qd_init_indy7",
+            "var": "qd_init_indy7",
+            "desc": "[default] Read values for parameter qd_init_indy7"
+        }
+    ],
+    "out_ports": [
+        {
+            "name": "port_out_qdd_indy7",
+            "var": "qdd_indy7",
+            "desc": "[default] write values for control qdd_indy7"
+        },
+        {
+            "name": "port_out_qd_indy7",
+            "var": "qd_indy7",
+            "desc": "output port for the joint velocities"
+        }
+    ],
+    "props": [],
+    "horizon": 10,
+    "sampling_time": 0.05,
+    "ocp_fun_name": "tc_ocp",
+    "ocp_file": "./casadi_dir/tc_ocp.casadi"
+}

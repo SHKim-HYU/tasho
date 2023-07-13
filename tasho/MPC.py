@@ -217,17 +217,17 @@ class MPC:
         # concatenate the initial states
         for var in json_dict["states"]:
             X = cs.vertcat(X, self._get_initial_state_control(var))
-
+        print(X)
         # concatenate initial controls
         U = []
         for var in json_dict["controls"]:
             U = cs.vertcat(U, self._get_initial_state_control(var))
-
+        print(U)
         # concatenate initial parameters
         P = []
         for var in json_dict["parameters"]:
             P = cs.vertcat(P, self._get_initial_state_control(var))
-
+        print(P)
         self.X_new = self.pred_fun(X, U, 0, self.sampling_time, P)
 
     def runMPC(self):
@@ -278,9 +278,15 @@ class MPC:
         json_dict = self.json_dict
         for i in range(self.num_inp_ports):
             port = json_dict["inp_ports"][i]
-            start = json_dict[port["var"]]["start"]
-            size = json_dict[port["var"]]["size"]
-            self.x_vals[start : start + size] = cs.DM(self.input_ports[port["name"]]["val"])
+            if 'grid' in port:
+                start = json_dict[port["var"]]["start"]
+                size = json_dict[port["var"]]["size"]
+                end = json_dict[port["var"]]["end"]
+                self.x_vals[start : end] = cs.DM(self.input_ports[port["name"]]["val"])
+            else:
+                start = json_dict[port["var"]]["start"]
+                size = json_dict[port["var"]]["size"]
+                self.x_vals[start : start + size] = cs.DM(self.input_ports[port["name"]]["val"])
 
     def _write_output_ports(self, sequence):
 

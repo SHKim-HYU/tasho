@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     print("Bin pick motion skill:")
 
-    visualizationBullet = False
+    visualizationBullet = True
     horizon_size = 10
     max_joint_acc = 500 * 3.14159 / 180
     max_joint_vel = 40 * 3.14159 / 180
@@ -187,7 +187,7 @@ if __name__ == "__main__":
         "greater": True,  # doesn't matter
         "initial": True,
     }
-)
+    )
 
     ## Performing code-generation (to potentially deploy an orocos component)
     cg_opts = {"ocp_cg_opts":{"jit":False, "save":True, "codegen":False}}
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     #Load casadi function to test:
     casfun = cs.Function.load("./bin_picking_tc_ocp.casadi")
 
-    sol_cg = casfun([0]*1168)
+    sol_cg = casfun([0]*1165)
 
 
 
@@ -323,4 +323,4 @@ pprint.pprint(varsdb)
 #Load casadi function to test:
 casfun2 = cs.Function.load("./bin_dropping_tc_ocp.casadi")
 
-sol_cg = casfun2([0]*858)
+sol_cg = casfun2([0]*856)

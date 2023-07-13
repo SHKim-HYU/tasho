@@ -1,0 +1,136 @@
+{
+    "q0": {
+        "start": 0,
+        "size": 6,
+        "jump": 6,
+        "end": 66
+    },
+    "q_dot0": {
+        "start": 66,
+        "size": 6,
+        "jump": 6,
+        "end": 132
+    },
+    "q1": {
+        "start": 132,
+        "size": 6,
+        "jump": 6,
+        "end": 168
+    },
+    "q_dot1": {
+        "start": 168,
+        "size": 6,
+        "jump": 6,
+        "end": 204
+    },
+    "q_ddot0": {
+        "start": 204,
+        "size": 6,
+        "jump": 6,
+        "end": 264
+    },
+    "q_ddot1": {
+        "start": 264,
+        "size": 6,
+        "jump": 6,
+        "end": 294
+    },
+    "sep_hyp": {
+        "start": 294,
+        "size": 4,
+        "jump": 4,
+        "end": 314
+    },
+    "q00": {
+        "start": 314,
+        "size": 6,
+        "jump": 6,
+        "end": 320
+    },
+    "q_dot00": {
+        "start": 320,
+        "size": 6,
+        "jump": 6,
+        "end": 326
+    },
+    "lam_g": {
+        "start": 326,
+        "size": 530,
+        "end": 856
+    },
+    "time_grid_stage_0": {
+        "start": 856,
+        "end": 867,
+        "size": 11
+    },
+    "time_grid_stage_1": {
+        "start": 867,
+        "end": 873,
+        "size": 6
+    },
+    "monitor_names": [
+        "termination_criteria"
+    ],
+    "monitor_locations": {
+        "termination_criteria": 873
+    },
+    "num_inp_ports": 2,
+    "num_out_ports": 3,
+    "num_props": 0,
+    "num_states": 4,
+    "num_controls": 3,
+    "num_parameters": 2,
+    "states": [
+        "q0",
+        "q_dot0",
+        "q1",
+        "q_dot1"
+    ],
+    "controls": [
+        "q_ddot0",
+        "q_ddot1",
+        "sep_hyp"
+    ],
+    "parameters": [
+        "q00",
+        "q_dot00"
+    ],
+    "inp_ports": [
+        {
+            "name": "port_inp_q00",
+            "var": "q00",
+            "desc": "[default] Read values for parameter q00",
+            "warm_start": 1,
+            "wvar": "q0"
+        },
+        {
+            "name": "port_inp_q_dot00",
+            "var": "q_dot00",
+            "desc": "[default] Read values for parameter q_dot00",
+            "warm_start": 1,
+            "wvar": "q_dot0"
+        }
+    ],
+    "out_ports": [
+        {
+            "name": "port_out_q_ddot0",
+            "var": "q_ddot0",
+            "desc": "[default] write values for control q_ddot0"
+        },
+        {
+            "name": "port_out_q_ddot1",
+            "var": "q_ddot1",
+            "desc": "[default] write values for control q_ddot1"
+        },
+        {
+            "name": "port_out_sep_hyp",
+            "var": "sep_hyp",
+            "desc": "[default] write values for control sep_hyp"
+        }
+    ],
+    "props": [],
+    "horizon": 10,
+    "sampling_time": null,
+    "ocp_fun_name": "tc_ocp",
+    "ocp_file": "./bin_dropping_tc_ocp.casadi"
+}

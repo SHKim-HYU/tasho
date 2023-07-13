@@ -53,15 +53,15 @@ def WMR(robot, tc=None,  options={}, stage = 0):
                 "lub": True,
                 "hard": True,
                 "expression": v,
-                "upper_limits": robot.task_vel_ub,
-                "lower_limits": robot.task_vel_lb,
+                "upper_limits": robot.task_vel_ub[0],
+                "lower_limits": robot.task_vel_lb[0],
             }
             w_limits = {
                 "lub": True,
                 "hard": True,
                 "expression": w,
-                "upper_limits": robot.task_acc_ub,
-                "lower_limits": robot.task_acc_lb,
+                "upper_limits": robot.task_vel_ub[1],
+                "lower_limits": robot.task_vel_lb[1],
             }
             task_constraints = {"path_constraints": [v_limits, w_limits]}
             tc.add_task_constraint(task_constraints, stage = stage)
@@ -116,29 +116,29 @@ def WMR(robot, tc=None,  options={}, stage = 0):
                 "lub": True,
                 "hard": True,
                 "expression": v,
-                "upper_limits": robot.task_vel_ub,
-                "lower_limits": robot.task_vel_lb,
+                "upper_limits": robot.task_vel_ub[0],
+                "lower_limits": robot.task_vel_lb[0],
             }
             w_limits = {
                 "lub": True,
                 "hard": True,
                 "expression": w,
-                "upper_limits": robot.task_acc_ub,
-                "lower_limits": robot.task_acc_lb,
+                "upper_limits": robot.task_vel_ub[1],
+                "lower_limits": robot.task_vel_lb[1],
             }
             dv_limits = {
                 "lub": True,
                 "hard": True,
                 "expression": dv,
-                "upper_limits": robot.task_vel_ub,
-                "lower_limits": robot.task_vel_lb,
+                "upper_limits": robot.task_acc_ub[0],
+                "lower_limits": robot.task_acc_lb[0],
             }
             dw_limits = {
                 "lub": True,
                 "hard": True,
                 "expression": dw,
-                "upper_limits": robot.task_acc_ub,
-                "lower_limits": robot.task_acc_lb,
+                "upper_limits": robot.task_acc_ub[1],
+                "lower_limits": robot.task_acc_lb[1],
             }
             task_constraints = {"path_constraints": [v_limits, w_limits, dv_limits, dw_limits]}
             tc.add_task_constraint(task_constraints, stage = stage)

@@ -7,7 +7,7 @@
 
 from tasho import task_prototype_rockit as tp
 import numpy as np
-from tasho import robot as rob
+from robotshyu import Robot as rob
 import casadi as cs
 
 tc = tp.task_context(1.0)

@@ -1,110 +1,222 @@
 {
-    "q_kinova": {
+    "x0": {
         "start": 0,
-        "size": 7,
-        "jump": 7,
+        "size": 1,
+        "jump": 1,
+        "end": 11
+    },
+    "y0": {
+        "start": 11,
+        "size": 1,
+        "jump": 1,
+        "end": 22
+    },
+    "th0": {
+        "start": 22,
+        "size": 1,
+        "jump": 1,
+        "end": 33
+    },
+    "v0": {
+        "start": 33,
+        "size": 1,
+        "jump": 1,
+        "end": 44
+    },
+    "w0": {
+        "start": 44,
+        "size": 1,
+        "jump": 1,
+        "end": 55
+    },
+    "dv0": {
+        "start": 55,
+        "size": 1,
+        "jump": 1,
+        "end": 65
+    },
+    "dw0": {
+        "start": 65,
+        "size": 1,
+        "jump": 1,
+        "end": 75
+    },
+    "x00": {
+        "start": 75,
+        "size": 1,
+        "jump": 1,
+        "end": 76
+    },
+    "y00": {
+        "start": 76,
+        "size": 1,
+        "jump": 1,
         "end": 77
     },
-    "qd_kinova": {
+    "th00": {
         "start": 77,
-        "size": 7,
-        "jump": 7,
-        "end": 154
+        "size": 1,
+        "jump": 1,
+        "end": 78
     },
-    "qdd_kinova": {
-        "start": 154,
-        "size": 7,
-        "jump": 7,
-        "end": 224
+    "v00": {
+        "start": 78,
+        "size": 1,
+        "jump": 1,
+        "end": 79
     },
-    "q_init_kinova": {
-        "start": 224,
-        "size": 7,
-        "jump": 7,
-        "end": 231
+    "w00": {
+        "start": 79,
+        "size": 1,
+        "jump": 1,
+        "end": 80
     },
-    "goal_pose_kinova": {
-        "start": 231,
-        "size": 16,
-        "jump": 16,
-        "end": 247
+    "waypoints": {
+        "start": 80,
+        "size": 3,
+        "jump": 3,
+        "end": 110
     },
-    "qd_init_kinova": {
-        "start": 247,
-        "size": 7,
-        "jump": 7,
-        "end": 254
+    "waypoint_last": {
+        "start": 110,
+        "size": 3,
+        "jump": 3,
+        "end": 113
     },
     "lam_g": {
-        "start": 254,
-        "size": 371,
-        "end": 625
+        "start": 113,
+        "size": 100,
+        "end": 213
     },
     "time_grid_stage_0": {
-        "start": 625,
-        "end": 636,
+        "start": 213,
+        "end": 224,
         "size": 11
     },
     "monitor_names": [
         "termination_criteria"
     ],
     "monitor_locations": {
-        "termination_criteria": 636
+        "termination_criteria": 224
     },
     "mpc_fun_name": "tc_mpc",
     "mpc_file": "./tc_mpc.casadi",
     "pred_file": "./tc_pred.casadi",
     "pred_fun_name": "F",
-    "num_inp_ports": 3,
-    "num_out_ports": 2,
+    "num_inp_ports": 7,
+    "num_out_ports": 7,
     "num_props": 0,
-    "num_states": 2,
-    "num_controls": 1,
-    "num_parameters": 3,
+    "num_states": 5,
+    "num_controls": 2,
+    "num_parameters": 7,
     "states": [
-        "q_kinova",
-        "qd_kinova"
+        "x0",
+        "y0",
+        "th0",
+        "v0",
+        "w0"
     ],
     "controls": [
-        "qdd_kinova"
+        "dv0",
+        "dw0"
     ],
     "parameters": [
-        "q_init_kinova",
-        "goal_pose_kinova",
-        "qd_init_kinova"
+        "x00",
+        "y00",
+        "th00",
+        "v00",
+        "w00",
+        "waypoints",
+        "waypoint_last"
     ],
     "inp_ports": [
         {
-            "name": "port_inp_q_init_kinova",
-            "var": "q_init_kinova",
-            "desc": "[default] Read values for parameter q_init_kinova"
+            "name": "port_inp_x00",
+            "var": "x00",
+            "desc": "[default] Read values for parameter x00",
+            "warm_start": 1,
+            "wvar": "x0"
         },
         {
-            "name": "port_inp_goal_pose_kinova",
-            "var": "goal_pose_kinova",
-            "desc": "[default] Read values for parameter goal_pose_kinova"
+            "name": "port_inp_y00",
+            "var": "y00",
+            "desc": "[default] Read values for parameter y00",
+            "warm_start": 1,
+            "wvar": "y0"
         },
         {
-            "name": "port_inp_qd_init_kinova",
-            "var": "qd_init_kinova",
-            "desc": "[default] Read values for parameter qd_init_kinova"
+            "name": "port_inp_th00",
+            "var": "th00",
+            "desc": "[default] Read values for parameter th00",
+            "warm_start": 1,
+            "wvar": "th0"
+        },
+        {
+            "name": "port_inp_v00",
+            "var": "v00",
+            "desc": "[default] Read values for parameter v00",
+            "warm_start": 1,
+            "wvar": "v0"
+        },
+        {
+            "name": "port_inp_w00",
+            "var": "w00",
+            "desc": "[default] Read values for parameter w00",
+            "warm_start": 1,
+            "wvar": "w0"
+        },
+        {
+            "name": "port_inp_waypoints",
+            "var": "waypoints",
+            "grid": "control",
+            "desc": "[default] Read values for parameter waypoints"
+        },
+        {
+            "name": "port_inp_waypoint_last",
+            "var": "waypoint_last",
+            "desc": "[default] Read values for parameter waypoint_last"
         }
     ],
     "out_ports": [
         {
-            "name": "port_out_qdd_kinova",
-            "var": "qdd_kinova",
-            "desc": "[default] write values for control qdd_kinova"
+            "name": "port_out_dv0",
+            "var": "dv0",
+            "desc": "[default] write values for control dv0"
         },
         {
-            "name": "port_out_qd_kinova",
-            "var": "qd_kinova",
-            "desc": "output port for the joint velocities"
+            "name": "port_out_dw0",
+            "var": "dw0",
+            "desc": "[default] write values for control dw0"
+        },
+        {
+            "name": "port_out_x0",
+            "var": "x0",
+            "desc": "output port for the task position x"
+        },
+        {
+            "name": "port_out_y0",
+            "var": "y0",
+            "desc": "output port for the task position x"
+        },
+        {
+            "name": "port_out_th0",
+            "var": "th0",
+            "desc": "output port for the task position th"
+        },
+        {
+            "name": "port_out_v0",
+            "var": "v0",
+            "desc": "output port for the task linear velocities"
+        },
+        {
+            "name": "port_out_w0",
+            "var": "w0",
+            "desc": "output port for the task angular velocities"
         }
     ],
     "props": [],
     "horizon": 10,
-    "sampling_time": 0.05,
+    "sampling_time": 0.1,
     "ocp_fun_name": "tc_ocp",
     "ocp_file": "./tc_ocp.casadi"
 }

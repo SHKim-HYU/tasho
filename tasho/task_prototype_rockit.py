@@ -233,10 +233,23 @@ class task_context:
 
         if port_or_property == 1:
             # declaring a port and making connections with the associated parameter
-            self.tc_dict["inp_ports"].append(
+            if grid == None:
+                self.tc_dict["inp_ports"].append(
+                    {
+                        "name": "port_inp_" + name,
+                        "var": name,
+                        "desc": "[default] Read values for parameter " + name,
+                    }
+                )
+                self.tc_dict["parameters"][name]["assoc_port"] = (
+                    len(self.tc_dict["inp_ports"]) - 1
+                )
+            else:
+                self.tc_dict["inp_ports"].append(
                 {
                     "name": "port_inp_" + name,
                     "var": name,
+                    "grid": grid,
                     "desc": "[default] Read values for parameter " + name,
                 }
             )
@@ -1066,7 +1079,7 @@ class task_context:
         # obtain the opti variables related to control
         for control in self.controls.keys():
             stage = self.controls[control][1]
-            ocp = self.stages[self.controls[control][1]]
+            ocp = self.stages[stage]
             _, temp = ocp.sample(cs.vec(self.controls[control][0]), grid="control")
             temp2 = []
             for i in range(self.horizon[stage]):
@@ -1099,15 +1112,32 @@ class task_context:
         for parameter in self.parameters.keys():
             stage = self.parameters[parameter][1]
             ocp = self.stages[stage]
-            temp = ocp._method.eval_at_control(ocp, cs.vec(self.parameters[parameter][0]), 0)
-            op_xplm.append(temp)
-            vars_db[parameter] = {
-                "start": counter,
-                "size": temp.shape[0],
-                "jump": temp.shape[0],
-            }
-            counter += temp.shape[0]
-            vars_db[parameter]["end"] = counter
+            pid = self.tc_dict['parameters'][parameter]['assoc_port']
+            if 'grid' in self.tc_dict['inp_ports'][pid].keys():
+                _, temp = ocp.sample(cs.vec(self.parameters[parameter][0]), grid="control")
+                temp2 = []
+                for i in range(self.horizon[stage]):
+                    temp2.append(
+                        ocp._method.eval_at_control(ocp, cs.vec(self.parameters[parameter][0]), i)
+                    )
+                vars_db[parameter] = {
+                    "start": counter,
+                    "size": temp.shape[0],
+                    "jump": temp.shape[0],
+                }
+                counter += temp.shape[0] * (temp.shape[1] - 1)
+                vars_db[parameter]["end"] = counter
+                op_xplm.append(cs.vcat(temp2))
+            else:
+                temp = ocp._method.eval_at_control(ocp, cs.vec(self.parameters[parameter][0]), 0)
+                op_xplm.append(temp)
+                vars_db[parameter] = {
+                    "start": counter,
+                    "size": temp.shape[0],
+                    "jump": temp.shape[0],
+                }
+                counter += temp.shape[0]
+                vars_db[parameter]["end"] = counter
 
         ocp = self.stages[0]
         op_xplm.append(self.ocp._method.opti.lam_g)
