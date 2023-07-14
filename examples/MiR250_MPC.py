@@ -91,7 +91,7 @@ dq0_val = [0.0, 0.0]
 
 # Update robot's parameters if needed
 max_task_vel_ub = cs.DM([1, pi/6])
-max_task_vel_lb = cs.DM([0, pi/6])
+max_task_vel_lb = cs.DM([0, -pi/6])
 max_task_acc = cs.DM([1, pi])
 robot.set_task_velocity_limits(lb=max_task_vel_lb, ub=max_task_vel_ub)
 robot.set_task_acceleration_limits(lb=-max_task_acc, ub=max_task_acc)
@@ -120,11 +120,11 @@ waypoint_last = tc.create_parameter('waypoint_last', (3,1), stage=0)
 p = cs.vertcat(x_0,y_0,th_0)
 
 # Regularization
-tc.add_regularization(expression = v_0, weight = 5e-1, stage = 0)
-tc.add_regularization(expression = w_0, weight = 5e-1, stage = 0)
+tc.add_regularization(expression = v_0, weight = 1e-1, stage = 0)
+tc.add_regularization(expression = w_0, weight = 1e-1, stage = 0)
 
-tc.add_regularization(expression = dv_0, weight = 2e0, stage = 0)
-tc.add_regularization(expression = dw_0, weight = 2e0, stage = 0)
+tc.add_regularization(expression = dv_0, weight = 4e-1, stage = 0)
+tc.add_regularization(expression = dw_0, weight = 4e-1, stage = 0)
 
 # Path_constraint
 path_pos1 = {'hard':False, 'expression':x_0, 'reference':waypoints[0], 'gain':1e0, 'norm':'L2'}
@@ -150,19 +150,24 @@ tc.set_initial(dv_0, 0, stage=0)
 tc.set_initial(dw_0, 0, stage=0)
 
 # Define reference path
-pathpoints = 30
+pathpoints = 300
 ref_path = {}
 ref_path['x'] = 5*np.sin(np.linspace(0,4*np.pi, pathpoints+1))
 ref_path['y'] = np.linspace(0,2, pathpoints+1)**2*10
 theta_path = [cs.arctan2(ref_path['y'][k+1]-ref_path['y'][k], ref_path['x'][k+1]-ref_path['x'][k]) for k in range(pathpoints)] 
 ref_path['theta'] = theta_path + [theta_path[-1]]
+
+# ref_path['x'] = np.linspace(0,5, pathpoints+1)
+# ref_path['y'] = np.linspace(0,0, pathpoints+1)
+# ref_path['theta'] = np.linspace(0,0, pathpoints+1)
+
 wp = cs.horzcat(ref_path['x'], ref_path['y'], ref_path['theta']).T
 
 # First waypoint is current position
 index_closest_point = 0
 
 # Create a list of N waypoints
-current_waypoints = get_current_waypoints(index_closest_point, wp, horizon_samples, dist=6)
+current_waypoints = get_current_waypoints(index_closest_point, wp, horizon_samples, dist=0.1)
 
 # Set initial value for waypoint parameters
 tc.set_value(waypoints,current_waypoints[:,:-1], stage=0)
@@ -179,9 +184,9 @@ tc.tc_dict["out_ports"].append({"name":"port_out_w0", "var":"w0", "desc": "outpu
 tc.add_monitor(
     {
         "name":"termination_criteria", 
-        "expression":cs.sqrt(cs.sumsqr(p-waypoint_last)) - 1e-2, 
+        "expression":cs.sqrt(cs.sumsqr(p-wp[:,-1])) - 1e-2, 
         "reference": 0.0, 
-        "greater": True, 
+        "lower": True, 
         "initial": True,
     }
 )
@@ -230,6 +235,17 @@ vars_db = tc.generate_MPC_component("./", cg_opts)
 
 MPC_component = MPC("mir250_path_following", "./" + tc.name + ".json")
 
+start = time.time()
+# Begin the visualization by applying the initial control signal
+t_sol, x_0_sol     = tc.sol_sample(x_0, grid="control",     stage = 0)
+t_sol, y_0_sol     = tc.sol_sample(y_0, grid="control",     stage = 0)
+t_sol, th_0_sol = tc.sol_sample(th_0, grid="control", stage = 0)
+t_sol, v_0_sol = tc.sol_sample(v_0, grid="control", stage = 0)
+t_sol, w_0_sol     = tc.sol_sample(w_0, grid="control",     stage = 0)
+
+print("comp time = %f[ms]"%(1000*(time.time()-start)))
+print("x_sol", x_0_sol)
+print("Time grids", t_sol)
 
 ################################################
 # MPC Simulation
@@ -288,10 +304,6 @@ if visualizationBullet:
     t_sol, v_0_sol = tc.sol_sample(v_0, grid="control", stage = 0)
     t_sol, w_0_sol     = tc.sol_sample(w_0, grid="control",     stage = 0)
 
-    print("comp time = %f[ms]"%(1000*(time.time()-start)))
-    print("x_sol", x_0_sol)
-    print("Time grids", t_sol)
-
     obj.resetJointState(robotID,joint_indices,q0_val)
     if frame_enable==True:
         obj.resetMultiJointState(frameIDs, joint_indices, [q0_val])
@@ -306,21 +318,27 @@ if visualizationBullet:
     q_log = []
     q_dot_log = []
     predicted_pos_log = []
+    
+    x_pred = [0]*horizon_samples
+    y_pred = [0]*horizon_samples
+    th_pred = [0]*horizon_samples
     q_pred = [0]*horizon_samples
 
     cnt=0
+
     while True:
         print("----------- MPC execution -----------")
         start = time.time()
         q_now = obj.readJointPositions(robotID, joint_indices)
         dq_now = obj.readJointVelocities(robotID, joint_indices)
-        
+        print(q_now)
+        print(dq_now)
 
         # initialize values
         MPC_component.input_ports["port_inp_x00"]["val"] = q_now[0]
         MPC_component.input_ports["port_inp_y00"]["val"] = q_now[1]
         MPC_component.input_ports["port_inp_th00"]["val"] = q_now[2]
-        MPC_component.input_ports["port_inp_v00"]["val"] = np.sqrt(dq_now[0]**2+dq_now[0]**2)
+        MPC_component.input_ports["port_inp_v00"]["val"] = np.sqrt(dq_now[0]**2+dq_now[1]**2)
         MPC_component.input_ports["port_inp_w00"]["val"] = dq_now[2]
 
 
@@ -354,11 +372,20 @@ if visualizationBullet:
 
         MPC_component.input_ports["port_inp_waypoints"]["val"] = cs.vec(current_waypoints[:,:-1]) # Input must be 'list'
         MPC_component.input_ports["port_inp_waypoint_last"]["val"] = cs.vec(current_waypoints[:,-1]) # Input must be 'list'
-        
+
         if cnt == 0:
             MPC_component.configMPC()
 
         MPC_component.runMPC()
+
+        if frame_enable==True:
+            sol = MPC_component.res_vals
+            for i in range(horizon_samples):
+                x_pred[i]=sol[i+1].full()
+                y_pred[i]=sol[horizon_samples+i+1].full()
+                th_pred[i]=sol[2*horizon_samples+i+1].full()
+                q_pred[i] = [x_pred[i], y_pred[i], th_pred[i]]
+            obj.resetMultiJointState(frameIDs, joint_indices, q_pred)
 
         q_log.append(q_now)
         q_dot_log.append(dq_now)
@@ -371,9 +398,8 @@ if visualizationBullet:
         wd_control_sig = MPC_component.output_ports["port_out_w0"]["val"].full()
         dvd_control_sig = (MPC_component.output_ports["port_out_dv0"]["val"] * t_mpc).full()
         dwd_control_sig = (MPC_component.output_ports["port_out_dw0"]["val"] * t_mpc).full()
-
-        twist_d = [(vd_control_sig + dvd_control_sig)*np.cos(thd_control_sig), (vd_control_sig + dvd_control_sig)*np.sin(thd_control_sig),wd_control_sig + dwd_control_sig]
-
+        twist_d = [(vd_control_sig+dvd_control_sig)*np.cos(thd_control_sig), (vd_control_sig+dvd_control_sig)*np.sin(thd_control_sig),wd_control_sig+dwd_control_sig]
+        # print(twist_d)
         obj.setController(
             robotID, "velocity", joint_indices, targetVelocities=twist_d
         )
@@ -383,9 +409,10 @@ if visualizationBullet:
         print("loop time: %f [ms]"%(1000*(time.time()-start)))
 
         # Termination criteria
-        if "termination_criteria_true" in MPC_component.event_output_port:
-            break
+        # if "termination_criteria_true" in MPC_component.event_output_port:
+        #     break
+
         cnt+=1
 
-    obj.end_simulation()
 
+    obj.end_simulation()
