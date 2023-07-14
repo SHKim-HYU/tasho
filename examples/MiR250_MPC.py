@@ -323,16 +323,16 @@ if visualizationBullet:
     y_pred = [0]*horizon_samples
     th_pred = [0]*horizon_samples
     q_pred = [0]*horizon_samples
-
+    
     cnt=0
 
     while True:
         print("----------- MPC execution -----------")
+        if cnt!=0:
+            print("loop time: %f [ms]"%(1000*(end-start)))
         start = time.time()
         q_now = obj.readJointPositions(robotID, joint_indices)
         dq_now = obj.readJointVelocities(robotID, joint_indices)
-        print(q_now)
-        print(dq_now)
 
         # initialize values
         MPC_component.input_ports["port_inp_x00"]["val"] = q_now[0]
@@ -406,8 +406,8 @@ if visualizationBullet:
 
         # Simulate
         obj.run_simulation(no_samples)
-        print("loop time: %f [ms]"%(1000*(time.time()-start)))
-
+        end=time.time()
+        
         # Termination criteria
         # if "termination_criteria_true" in MPC_component.event_output_port:
         #     break
