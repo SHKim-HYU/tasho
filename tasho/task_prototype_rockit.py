@@ -565,10 +565,10 @@ class task_context:
                                     include_first=False,
                                 )
                     else:
-                        con_violation = cs.fmax(
-                            path_con["expression"] - path_con["upper_limits"], 0
-                        )
                         if "norm" not in path_con or path_con["norm"] == "L2":
+                            con_violation = cs.fmax(
+                                path_con["expression"] - path_con["upper_limits"], 0
+                            )
                             obj = (
                                 ocp.integral(con_violation ** 2, grid="control")
                                 * path_con["gain"]
@@ -577,23 +577,42 @@ class task_context:
                             if "name" in path_con:
                                 self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "L1":
-                            slack_variable = self.create_expression(
-                                "slack_path_con_" + str(np.random.randint(0, 100000)),
-                                "control",
-                                path_con["expression"].shape,
-                            )
-                            ocp.subject_to(
-                                path_con["expression"] - path_con["upper_limits"]
-                                <= slack_variable
-                            )
-                            ocp.subject_to(0 >= -slack_variable)
-                            obj = (
-                                ocp.integral(slack_variable, grid="control")
-                                * path_con["gain"]
-                            )
-                            ocp.add_objective(obj)
-                            if "name" in path_con:
-                                self.constraints[path_con["name"]] = {"obj": obj}
+                            if "upper_limits" in path_con:
+                                slack_variable = self.create_expression(
+                                    "slack_path_con_" + str(np.random.randint(0, 100000)),
+                                    "control",
+                                    path_con["expression"].shape,
+                                )
+                                ocp.subject_to(
+                                    path_con["expression"] - path_con["upper_limits"]
+                                    <= slack_variable
+                                )
+                                ocp.subject_to(0 >= -slack_variable)
+                                obj = (
+                                    ocp.integral(slack_variable, grid="control")
+                                    * path_con["gain"]
+                                )
+                                ocp.add_objective(obj)
+                                if "name" in path_con:
+                                    self.constraints[path_con["name"]] = {"obj": obj}
+                            else:
+                                slack_variable = self.create_expression(
+                                    "slack_path_con_" + str(np.random.randint(0, 100000)),
+                                    "control",
+                                    path_con["expression"].shape,
+                                )
+                                ocp.subject_to(
+                                    path_con["expression"] - path_con["lower_limits"]
+                                    >= slack_variable
+                                )
+                                ocp.subject_to(0 <= slack_variable)
+                                obj = (
+                                    ocp.integral(slack_variable, grid="control")
+                                    * path_con["gain"]
+                                )
+                                ocp.add_objective(obj)
+                                if "name" in path_con:
+                                    self.constraints[path_con["name"]] = {"obj": obj}
                         elif path_con["norm"] == "squaredL2":
                             slack_variable = self.create_expression(
                                 path_con["slack_name"], "control", (1, 1)

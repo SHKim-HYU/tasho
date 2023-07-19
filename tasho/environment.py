@@ -38,6 +38,10 @@ class Environment:
                 # print("*********** THIS IS A BOX ************")
                 objectID = world_simulator.add_object_urdf(position = value.position, orientation = value.orientation, urdf = value.urdf, fixedBase = value.fixed, globalScaling = value.height)
                 self.objectID[key] = objectID
+            elif _className == "Frame":
+                # print("*********** THIS IS A FRAME ************")
+                objectID = world_simulator.add_object_urdf(position = value.position, orientation = value.orientation, urdf = value.urdf, fixedBase = value.fixed, globalScaling = value.length)
+                self.objectID[key] = objectID
 
     def get_object_ID(self, name):
         return self.objectID[name]
@@ -75,6 +79,16 @@ class Cube(Object):
         self.fixed = fixed
 
 class Box(Object):
+    def __init__(self, length = 0.1, depth = 0.1, height = 0.1 , position = [0,0,0], orientation = [0,0,0], urdf = None, fixed = False):
+        self.length = length
+        self.depth = depth
+        self.height = height
+        self.position = position
+        self.orientation = orientation
+        self.urdf = urdf
+        self.fixed = fixed
+
+class Frame(Object):
     def __init__(self, length = 0.1, depth = 0.1, height = 0.1 , position = [0,0,0], orientation = [0,0,0], urdf = None, fixed = False):
         self.length = length
         self.depth = depth

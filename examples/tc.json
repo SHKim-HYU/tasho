@@ -3,112 +3,130 @@
         "start": 0,
         "size": 1,
         "jump": 1,
-        "end": 11
+        "end": 51
     },
     "y0": {
-        "start": 11,
+        "start": 51,
         "size": 1,
         "jump": 1,
-        "end": 22
+        "end": 102
     },
     "th0": {
-        "start": 22,
+        "start": 102,
         "size": 1,
         "jump": 1,
-        "end": 33
+        "end": 153
     },
     "v0": {
-        "start": 33,
+        "start": 153,
         "size": 1,
         "jump": 1,
-        "end": 44
+        "end": 204
     },
     "w0": {
-        "start": 44,
+        "start": 204,
         "size": 1,
         "jump": 1,
-        "end": 55
+        "end": 255
     },
     "dv0": {
-        "start": 55,
+        "start": 255,
         "size": 1,
         "jump": 1,
-        "end": 65
+        "end": 305
     },
     "dw0": {
-        "start": 65,
+        "start": 305,
         "size": 1,
         "jump": 1,
-        "end": 75
+        "end": 355
+    },
+    "slack_path_con_85083": {
+        "start": 355,
+        "size": 1,
+        "jump": 1,
+        "end": 405
     },
     "x00": {
-        "start": 75,
+        "start": 405,
         "size": 1,
         "jump": 1,
-        "end": 76
+        "end": 406
     },
     "y00": {
-        "start": 76,
+        "start": 406,
         "size": 1,
         "jump": 1,
-        "end": 77
+        "end": 407
     },
     "th00": {
-        "start": 77,
+        "start": 407,
         "size": 1,
         "jump": 1,
-        "end": 78
+        "end": 408
     },
     "v00": {
-        "start": 78,
+        "start": 408,
         "size": 1,
         "jump": 1,
-        "end": 79
+        "end": 409
     },
     "w00": {
-        "start": 79,
+        "start": 409,
         "size": 1,
         "jump": 1,
-        "end": 80
+        "end": 410
     },
     "waypoints": {
-        "start": 80,
+        "start": 410,
         "size": 3,
         "jump": 3,
-        "end": 110
+        "end": 560
     },
     "waypoint_last": {
-        "start": 110,
+        "start": 560,
         "size": 3,
         "jump": 3,
-        "end": 113
+        "end": 563
+    },
+    "switch": {
+        "start": 563,
+        "size": 1,
+        "jump": 1,
+        "end": 564
+    },
+    "obs_p": {
+        "start": 564,
+        "size": 2,
+        "jump": 2,
+        "end": 566
     },
     "lam_g": {
-        "start": 113,
-        "size": 100,
-        "end": 213
+        "start": 566,
+        "size": 562,
+        "end": 1128
     },
     "time_grid_stage_0": {
-        "start": 213,
-        "end": 224,
-        "size": 11
+        "start": 1128,
+        "end": 1179,
+        "size": 51
     },
     "monitor_names": [
         "termination_criteria"
     ],
     "monitor_locations": {
-        "termination_criteria": 224
+        "termination_criteria": 1179
     },
     "mpc_fun_name": "tc_mpc",
     "mpc_file": "./tc_mpc.casadi",
     "pred_file": "./tc_pred.casadi",
     "pred_fun_name": "F",
-    "num_inp_ports": 7,
-    "num_out_ports": 7,
+    "num_inp_ports": 9,
+    "num_out_ports": 8,
     "num_props": 0,
     "num_states": 5,
-    "num_controls": 2,
-    "num_parameters": 7,
+    "num_controls": 3,
+    "num_parameters": 9,
     "states": [
         "x0",
         "y0",
@@ -118,7 +136,8 @@
     ],
     "controls": [
         "dv0",
-        "dw0"
+        "dw0",
+        "slack_path_con_85083"
     ],
     "parameters": [
         "x00",
@@ -127,7 +146,9 @@
         "v00",
         "w00",
         "waypoints",
-        "waypoint_last"
+        "waypoint_last",
+        "switch",
+        "obs_p"
     ],
     "inp_ports": [
         {
@@ -175,6 +196,16 @@
             "name": "port_inp_waypoint_last",
             "var": "waypoint_last",
             "desc": "[default] Read values for parameter waypoint_last"
+        },
+        {
+            "name": "port_inp_switch",
+            "var": "switch",
+            "desc": "[default] Read values for parameter switch"
+        },
+        {
+            "name": "port_inp_obs_p",
+            "var": "obs_p",
+            "desc": "[default] Read values for parameter obs_p"
         }
     ],
     "out_ports": [
@@ -187,6 +218,11 @@
             "name": "port_out_dw0",
             "var": "dw0",
             "desc": "[default] write values for control dw0"
+        },
+        {
+            "name": "port_out_slack_path_con_85083",
+            "var": "slack_path_con_85083",
+            "desc": "[default] write values for control slack_path_con_85083"
         },
         {
             "name": "port_out_x0",
@@ -215,7 +251,7 @@
         }
     ],
     "props": [],
-    "horizon": 10,
+    "horizon": 50,
     "sampling_time": 0.1,
     "ocp_fun_name": "tc_ocp",
     "ocp_file": "./tc_ocp.casadi"
