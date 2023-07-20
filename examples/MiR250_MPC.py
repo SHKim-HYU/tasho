@@ -20,8 +20,7 @@ import tf
 
 print("Path follow for MiR250")
 
-visualizationBullet = True #by default turned off
-frame_enable = False
+frame_enable = True
 HSL = False
 time_optimal = False
 obstacle_avoidance = True
@@ -161,21 +160,26 @@ tc.set_initial(dv_0, 0, stage=0)
 tc.set_initial(dw_0, 0, stage=0)
 
 # Define reference path
-pathpoints = 300
+# pathpoints = 300
+# ref_path = {}
+# ref_path['x'] = 1.7*np.sin(np.linspace(0,4*np.pi, pathpoints+1))
+# ref_path['y'] = np.linspace(0,2, pathpoints+1)**2*2.5
+# theta_path = [cs.arctan2(ref_path['y'][k+1]-ref_path['y'][k], ref_path['x'][k+1]-ref_path['x'][k]) for k in range(pathpoints)] 
+# ref_path['theta'] = theta_path + [theta_path[-1]]
+
+pathpoints = 200
 ref_path = {}
-ref_path['x'] = 1.7*np.sin(np.linspace(0,4*np.pi, pathpoints+1))
-ref_path['y'] = np.linspace(0,2, pathpoints+1)**2*2.5
-theta_path = [cs.arctan2(ref_path['y'][k+1]-ref_path['y'][k], ref_path['x'][k+1]-ref_path['x'][k]) for k in range(pathpoints)] 
-ref_path['theta'] = theta_path + [theta_path[-1]]
+ref_path['x'] = np.linspace(0,0, pathpoints+1)
+ref_path['y'] = np.linspace(0,10, pathpoints+1)
+ref_path['theta'] = np.linspace(pi/2,pi/2, pathpoints+1)
+
 
 if obstacle_avoidance==True:
     ref_obs = {}
     ref_obs['x'] = np.array([0.2, -0.2])
     ref_obs['y'] = np.array([2.5, 6])
 
-# ref_path['x'] = np.linspace(0,5, pathpoints+1)
-# ref_path['y'] = np.linspace(0,0, pathpoints+1)
-# ref_path['theta'] = np.linspace(0,0, pathpoints+1)
+
 
 wp = cs.horzcat(ref_path['x'], ref_path['y'], ref_path['theta']).T
 
@@ -183,7 +187,7 @@ wp = cs.horzcat(ref_path['x'], ref_path['y'], ref_path['theta']).T
 index_closest_point = 0
 
 # Create a list of N waypoints
-current_waypoints = get_current_waypoints(index_closest_point, wp, horizon_samples, dist=1)
+current_waypoints = get_current_waypoints(index_closest_point, wp, horizon_samples, dist=5)
 
 # Set initial value for waypoint parameters
 tc.set_value(waypoints,current_waypoints[:,:-1], stage=0)
@@ -268,9 +272,7 @@ t_sol, th_0_sol = tc.sol_sample(th_0, grid="control", stage = 0)
 t_sol, v_0_sol = tc.sol_sample(v_0, grid="control", stage = 0)
 t_sol, w_0_sol     = tc.sol_sample(w_0, grid="control",     stage = 0)
 
-print("comp time = %f[ms]"%(1000*(time.time()-start)))
-print("x_sol", x_0_sol)
-print("Time grids", t_sol)
+
 
 ################################################
 # MPC Simulation
@@ -411,9 +413,9 @@ while True:
     thd_control_sig = MPC_component.output_ports["port_out_th0"]["val"].full()
     vd_control_sig = MPC_component.output_ports["port_out_v0"]["val"].full()
     wd_control_sig = MPC_component.output_ports["port_out_w0"]["val"].full()
-    dvd_control_sig = (MPC_component.output_ports["port_out_dv0"]["val"] * t_mpc).full()
-    dwd_control_sig = (MPC_component.output_ports["port_out_dw0"]["val"] * t_mpc).full()
-    twist_d = [(vd_control_sig+dvd_control_sig)*np.cos(thd_control_sig), (vd_control_sig+dvd_control_sig)*np.sin(thd_control_sig),wd_control_sig+dwd_control_sig]
+    dvd_control_sig = (MPC_component.output_ports["port_out_dv0"]["val"]).full()
+    dwd_control_sig = (MPC_component.output_ports["port_out_dw0"]["val"]).full()
+    twist_d = [(vd_control_sig)*np.cos(thd_control_sig), (vd_control_sig)*np.sin(thd_control_sig),wd_control_sig]
     # print(twist_d)
     obj.setController(
         robotID, "velocity", joint_indices, targetVelocities=twist_d

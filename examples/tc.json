@@ -41,7 +41,7 @@
         "jump": 1,
         "end": 355
     },
-    "slack_path_con_85083": {
+    "slack_path_con_28122": {
         "start": 355,
         "size": 1,
         "jump": 1,
@@ -137,7 +137,7 @@
     "controls": [
         "dv0",
         "dw0",
-        "slack_path_con_85083"
+        "slack_path_con_28122"
     ],
     "parameters": [
         "x00",
@@ -220,9 +220,9 @@
             "desc": "[default] write values for control dw0"
         },
         {
-            "name": "port_out_slack_path_con_85083",
-            "var": "slack_path_con_85083",
-            "desc": "[default] write values for control slack_path_con_85083"
+            "name": "port_out_slack_path_con_28122",
+            "var": "slack_path_con_28122",
+            "desc": "[default] write values for control slack_path_con_28122"
         },
         {
             "name": "port_out_x0",
