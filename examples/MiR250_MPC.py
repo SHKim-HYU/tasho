@@ -397,10 +397,10 @@ while True:
 
     if frame_enable==True:
         sol = MPC_component.res_vals
-        for i in range(horizon_samples):
-            x_pred[i]=sol[i+1].full()
-            y_pred[i]=sol[horizon_samples+i+1].full()
-            th_pred[i]=sol[2*horizon_samples+i+1].full()
+        for i in range(horizon_samples+1):
+            x_pred[i]=sol[i].full()
+            y_pred[i]=sol[horizon_samples+1+i].full()
+            th_pred[i]=sol[2*(horizon_samples+1)+i].full()
             q_pred[i] = [x_pred[i], y_pred[i], th_pred[i]]
         obj.resetMultiJointState(frameIDs, joint_indices, q_pred)
 

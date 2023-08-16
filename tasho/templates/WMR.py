@@ -258,6 +258,128 @@ def WMR(robot, tc=None,  options={}, stage = 0):
             else:
                 return x, y, th, v, w, dv, dw, ddv, ddw
 
+        elif "snap" in options:
+            if 'init_parameter' not in options:
+                init_parameter = True
+            else:
+                init_parameter = options['init_parameter']
+
+            if init_parameter:
+                # x=[x,y,theta].T
+                x, x0 = tc.create_state("x" + str(stage), (1, 1), init_parameter = True, stage = stage)  # joint positions over the trajectory
+                y, y0 = tc.create_state("y" + str(stage), (1, 1), init_parameter = True, stage = stage)  # joint positions over the trajectory
+                th, th0 = tc.create_state("th" + str(stage), (1, 1), init_parameter = True, stage = stage)  # joint positions over the trajectory
+                v, v0 = tc.create_state("v" + str(stage), (1, 1), init_parameter = True, stage = stage)  # joint positions over the trajectory
+                w, w0 = tc.create_state("w" + str(stage), (1, 1), init_parameter = True, stage = stage)  # joint positions over the trajectory
+                dv, dv0 = tc.create_state("dv" + str(stage), (1, 1), init_parameter = True, stage = stage)  # joint positions over the trajectory
+                dw, dw0 = tc.create_state("dw" + str(stage), (1, 1), init_parameter = True, stage = stage)  # joint positions over the trajectory
+                ddv, ddv0 = tc.create_state("ddv" + str(stage), (1, 1), init_parameter = True, stage = stage)  # joint positions over the trajectory
+                ddw, ddw0 = tc.create_state("ddw" + str(stage), (1, 1), init_parameter = True, stage = stage)  # joint positions over the trajectory
+
+            else:
+                x = tc.create_state("x" + str(stage), (1, 1), init_parameter = False, stage = stage)  # joint positions over the trajectory
+                y = tc.create_state("y" + str(stage), (1, 1), init_parameter = False, stage = stage)  # joint positions over the trajectory
+                th = tc.create_state("th" + str(stage), (1, 1), init_parameter = False, stage = stage)  # joint positions over the trajectory
+                v = tc.create_state("v" + str(stage), (1, 1), init_parameter = False, stage = stage)  # joint positions over the trajectory
+                w = tc.create_state("w" + str(stage), (1, 1), init_parameter = False, stage = stage)  # joint positions over the trajectory
+                dv = tc.create_state("dv" + str(stage), (1, 1), init_parameter = False, stage = stage)  # joint positions over the trajectory
+                dw = tc.create_state("dw" + str(stage), (1, 1), init_parameter = False, stage = stage)  # joint positions over the trajectory
+                ddv = tc.create_state("ddv" + str(stage), (1, 1), init_parameter = False, stage = stage)  # joint positions over the trajectory
+                ddw = tc.create_state("ddw" + str(stage), (1, 1), init_parameter = False, stage = stage)  # joint positions over the trajectory
+                
+            # v=[v,w].T
+            sv = tc.create_control("sv"+ str(stage), (1, 1), stage = stage)
+            sw = tc.create_control("sw"+ str(stage), (1, 1), stage = stage)
+
+            tc.set_dynamics(x, v*cs.cos(th), stage = stage)
+            tc.set_dynamics(y, v*cs.sin(th), stage = stage)
+            tc.set_dynamics(th, w, stage = stage)
+            tc.set_dynamics(v, dv, stage = stage)
+            tc.set_dynamics(w, dw, stage = stage)
+            tc.set_dynamics(dv, ddv, stage = stage)
+            tc.set_dynamics(dw, ddw, stage = stage)
+            tc.set_dynamics(ddv, sv, stage = stage)
+            tc.set_dynamics(ddw, sw, stage = stage)
+
+            # add joint position, velocity and acceleration limits
+            v_limits = {
+                "lub": True,
+                "hard": True,
+                "expression": v,
+                "upper_limits": robot.task_vel_ub[0],
+                "lower_limits": robot.task_vel_lb[0],
+            }
+            w_limits = {
+                "lub": True,
+                "hard": True,
+                "expression": w,
+                "upper_limits": robot.task_vel_ub[1],
+                "lower_limits": robot.task_vel_lb[1],
+            }
+            dv_limits = {
+                "lub": True,
+                "hard": True,
+                "expression": dv,
+                "upper_limits": robot.task_acc_ub[0],
+                "lower_limits": robot.task_acc_lb[0],
+            }
+            dw_limits = {
+                "lub": True,
+                "hard": True,
+                "expression": dw,
+                "upper_limits": robot.task_acc_ub[1],
+                "lower_limits": robot.task_acc_lb[1],
+            }
+            ddv_limits = {
+                "lub": True,
+                "hard": True,
+                "expression": ddv,
+                "upper_limits": robot.task_jerk_ub[0],
+                "lower_limits": robot.task_jerk_lb[0],
+            }
+            ddw_limits = {
+                "lub": True,
+                "hard": True,
+                "expression": ddw,
+                "upper_limits": robot.task_jerk_ub[1],
+                "lower_limits": robot.task_jerk_lb[1],
+            }
+            sv_limits = {
+                "lub": True,
+                "hard": True,
+                "expression": sv,
+                "upper_limits": robot.task_snap_ub[0],
+                "lower_limits": robot.task_snap_lb[0],
+            }
+            sw_limits = {
+                "lub": True,
+                "hard": True,
+                "expression": sw,
+                "upper_limits": robot.task_snap_ub[1],
+                "lower_limits": robot.task_snap_lb[1],
+            }
+            task_constraints = {"path_constraints": [v_limits, w_limits, dv_limits, dw_limits, ddv_limits, ddw_limits, sv_limits, sw_limits]}
+            tc.add_task_constraint(task_constraints, stage = stage)
+
+            if init_parameter:
+                # adding the initial constraints on joint position and velocity
+                x_init_con = {"expression": x, "reference": x0}
+                y_init_con = {"expression": y, "reference": y0}
+                th_init_con = {"expression": th, "reference": th0}
+                v_init_con = {"expression": v, "reference": v0}
+                w_init_con = {"expression": w, "reference": w0}
+                dv_init_con = {"expression": dv, "reference": dv0}
+                dw_init_con = {"expression": dw, "reference": dw0}
+                ddv_init_con = {"expression": ddv, "reference": ddv0}
+                ddw_init_con = {"expression": ddw, "reference": ddw0}
+                init_constraints = {"initial_constraints": [x_init_con, y_init_con, th_init_con, v_init_con, w_init_con, dv_init_con, dw_init_con, ddv_init_con, ddw_init_con]}
+                tc.add_task_constraint(init_constraints, stage = stage)
+
+            if init_parameter:
+                return x, y, th, v, w, dv, dw, ddv, ddw, sv, sw, x0, y0, th0, v0, w0, dv0, dw0, ddv0, ddw0
+            else:
+                return x, y, th, v, w, dv, dw, ddv, ddw, sv, sw,
+
         else:
             print("ERROR: Not implemented and probably not recommended")
     # Omni-directional

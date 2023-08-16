@@ -237,7 +237,7 @@ class MPC:
 
         # First write the control actions computed during the previous iteration.
         # The first time the MPC is run, this value comes from the computation in the configMPC function.
-        self._write_output_ports(1)
+        self._write_output_ports(0)
         self._write_monitor_events()
         # Get the latest sensor readings
         self._read_input_ports()

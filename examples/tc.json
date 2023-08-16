@@ -33,111 +33,144 @@
         "start": 255,
         "size": 1,
         "jump": 1,
-        "end": 305
+        "end": 306
     },
     "dw0": {
-        "start": 305,
+        "start": 306,
         "size": 1,
         "jump": 1,
-        "end": 355
+        "end": 357
     },
-    "slack_path_con_28122": {
-        "start": 355,
-        "size": 1,
-        "jump": 1,
-        "end": 405
-    },
-    "x00": {
-        "start": 405,
-        "size": 1,
-        "jump": 1,
-        "end": 406
-    },
-    "y00": {
-        "start": 406,
-        "size": 1,
-        "jump": 1,
-        "end": 407
-    },
-    "th00": {
-        "start": 407,
+    "ddv0": {
+        "start": 357,
         "size": 1,
         "jump": 1,
         "end": 408
     },
-    "v00": {
+    "ddw0": {
         "start": 408,
         "size": 1,
         "jump": 1,
-        "end": 409
+        "end": 459
     },
-    "w00": {
-        "start": 409,
+    "sv0": {
+        "start": 459,
         "size": 1,
         "jump": 1,
-        "end": 410
+        "end": 509
     },
-    "waypoints": {
-        "start": 410,
-        "size": 3,
-        "jump": 3,
+    "sw0": {
+        "start": 509,
+        "size": 1,
+        "jump": 1,
+        "end": 559
+    },
+    "x00": {
+        "start": 559,
+        "size": 1,
+        "jump": 1,
         "end": 560
     },
-    "waypoint_last": {
+    "y00": {
         "start": 560,
-        "size": 3,
-        "jump": 3,
+        "size": 1,
+        "jump": 1,
+        "end": 561
+    },
+    "th00": {
+        "start": 561,
+        "size": 1,
+        "jump": 1,
+        "end": 562
+    },
+    "v00": {
+        "start": 562,
+        "size": 1,
+        "jump": 1,
         "end": 563
     },
-    "switch": {
+    "w00": {
         "start": 563,
         "size": 1,
         "jump": 1,
         "end": 564
     },
-    "obs_p": {
+    "dv00": {
         "start": 564,
-        "size": 2,
-        "jump": 2,
+        "size": 1,
+        "jump": 1,
+        "end": 565
+    },
+    "dw00": {
+        "start": 565,
+        "size": 1,
+        "jump": 1,
         "end": 566
     },
-    "lam_g": {
+    "ddv00": {
         "start": 566,
-        "size": 562,
-        "end": 1128
+        "size": 1,
+        "jump": 1,
+        "end": 567
+    },
+    "ddw00": {
+        "start": 567,
+        "size": 1,
+        "jump": 1,
+        "end": 568
+    },
+    "waypoints": {
+        "start": 568,
+        "size": 3,
+        "jump": 3,
+        "end": 718
+    },
+    "waypoint_last": {
+        "start": 718,
+        "size": 3,
+        "jump": 3,
+        "end": 721
+    },
+    "lam_g": {
+        "start": 721,
+        "size": 868,
+        "end": 1589
     },
     "time_grid_stage_0": {
-        "start": 1128,
-        "end": 1179,
+        "start": 1589,
+        "end": 1640,
         "size": 51
     },
     "monitor_names": [
         "termination_criteria"
     ],
     "monitor_locations": {
-        "termination_criteria": 1179
+        "termination_criteria": 1640
     },
     "mpc_fun_name": "tc_mpc",
     "mpc_file": "./tc_mpc.casadi",
     "pred_file": "./tc_pred.casadi",
     "pred_fun_name": "F",
-    "num_inp_ports": 9,
-    "num_out_ports": 8,
+    "num_inp_ports": 11,
+    "num_out_ports": 11,
     "num_props": 0,
-    "num_states": 5,
-    "num_controls": 3,
-    "num_parameters": 9,
+    "num_states": 9,
+    "num_controls": 2,
+    "num_parameters": 11,
     "states": [
         "x0",
         "y0",
         "th0",
         "v0",
-        "w0"
-    ],
-    "controls": [
+        "w0",
         "dv0",
         "dw0",
-        "slack_path_con_28122"
+        "ddv0",
+        "ddw0"
+    ],
+    "controls": [
+        "sv0",
+        "sw0"
     ],
     "parameters": [
         "x00",
@@ -145,10 +178,12 @@
         "th00",
         "v00",
         "w00",
+        "dv00",
+        "dw00",
+        "ddv00",
+        "ddw00",
         "waypoints",
-        "waypoint_last",
-        "switch",
-        "obs_p"
+        "waypoint_last"
     ],
     "inp_ports": [
         {
@@ -187,6 +222,34 @@
             "wvar": "w0"
         },
         {
+            "name": "port_inp_dv00",
+            "var": "dv00",
+            "desc": "[default] Read values for parameter dv00",
+            "warm_start": 1,
+            "wvar": "dv0"
+        },
+        {
+            "name": "port_inp_dw00",
+            "var": "dw00",
+            "desc": "[default] Read values for parameter dw00",
+            "warm_start": 1,
+            "wvar": "dw0"
+        },
+        {
+            "name": "port_inp_ddv00",
+            "var": "ddv00",
+            "desc": "[default] Read values for parameter ddv00",
+            "warm_start": 1,
+            "wvar": "ddv0"
+        },
+        {
+            "name": "port_inp_ddw00",
+            "var": "ddw00",
+            "desc": "[default] Read values for parameter ddw00",
+            "warm_start": 1,
+            "wvar": "ddw0"
+        },
+        {
             "name": "port_inp_waypoints",
             "var": "waypoints",
             "grid": "control",
@@ -196,33 +259,18 @@
             "name": "port_inp_waypoint_last",
             "var": "waypoint_last",
             "desc": "[default] Read values for parameter waypoint_last"
-        },
-        {
-            "name": "port_inp_switch",
-            "var": "switch",
-            "desc": "[default] Read values for parameter switch"
-        },
-        {
-            "name": "port_inp_obs_p",
-            "var": "obs_p",
-            "desc": "[default] Read values for parameter obs_p"
         }
     ],
     "out_ports": [
         {
-            "name": "port_out_dv0",
-            "var": "dv0",
-            "desc": "[default] write values for control dv0"
+            "name": "port_out_sv0",
+            "var": "sv0",
+            "desc": "[default] write values for control sv0"
         },
         {
-            "name": "port_out_dw0",
-            "var": "dw0",
-            "desc": "[default] write values for control dw0"
-        },
-        {
-            "name": "port_out_slack_path_con_28122",
-            "var": "slack_path_con_28122",
-            "desc": "[default] write values for control slack_path_con_28122"
+            "name": "port_out_sw0",
+            "var": "sw0",
+            "desc": "[default] write values for control sw0"
         },
         {
             "name": "port_out_x0",
@@ -248,6 +296,26 @@
             "name": "port_out_w0",
             "var": "w0",
             "desc": "output port for the task angular velocities"
+        },
+        {
+            "name": "port_out_dv0",
+            "var": "dv0",
+            "desc": "output port for the task linear acceleration"
+        },
+        {
+            "name": "port_out_dw0",
+            "var": "dw0",
+            "desc": "output port for the task angular acceleration"
+        },
+        {
+            "name": "port_out_ddv0",
+            "var": "ddv0",
+            "desc": "output port for the task linear acceleration"
+        },
+        {
+            "name": "port_out_ddw0",
+            "var": "ddw0",
+            "desc": "output port for the task angular acceleration"
         }
     ],
     "props": [],

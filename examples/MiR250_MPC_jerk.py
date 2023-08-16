@@ -25,7 +25,7 @@ visualizationBullet = True #by default turned off
 frame_enable = False
 HSL = False
 time_optimal = False
-obstacle_avoidance = True
+obstacle_avoidance = False
 
 ################################################
 # Define some functions to match current position with reference path
@@ -250,7 +250,8 @@ tc.mpc_solver = tc.ocp_solver
 tc.mpc_options = tc.ocp_options
 
 disc_options = {
-    "discretization method": "multiple shooting",
+    # "discretization method": "multiple shooting",
+    "discretization method": "external_method",
     "horizon size": horizon_samples,
     "order": 1,
     "integration": "rk",
@@ -411,13 +412,14 @@ while True:
 
     MPC_component.runMPC()
 
+    sol = MPC_component.res_vals
+    for i in range(horizon_samples+1):
+        x_pred[i]=sol[i].full()[0][0]
+        y_pred[i]=sol[horizon_samples+1+i].full()[0][0]
+        th_pred[i]=sol[2*(horizon_samples+1)+i].full()[0][0]
+        q_pred[i] = [x_pred[i], y_pred[i], th_pred[i]]
+    
     if frame_enable==True:
-        sol = MPC_component.res_vals
-        for i in range(horizon_samples):
-            x_pred[i]=sol[i+1].full()
-            y_pred[i]=sol[horizon_samples+i+1].full()
-            th_pred[i]=sol[2*horizon_samples+i+1].full()
-            q_pred[i] = [x_pred[i], y_pred[i], th_pred[i]]
         obj.resetMultiJointState(frameIDs, joint_indices, q_pred)
 
     q_log.append(q_now)

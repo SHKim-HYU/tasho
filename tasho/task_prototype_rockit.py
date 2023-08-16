@@ -2,16 +2,18 @@
 # returns a COP
 from sys import path
 
-from rockit import (
-    Ocp,
-    DirectMethod,
-    MultipleShooting,
-    FreeTime,
-    SingleShooting,
-    DirectCollocation,
-    UniformGrid,
+# from rockit import (
+#     Ocp,
+#     DirectMethod,
+#     MultipleShooting,
+#     FreeTime,
+#     SingleShooting,
+#     DirectCollocation,
+#     UniformGrid,
+#     external_method,
     
-)
+# )
+from rockit import *
 import numpy as np
 import casadi as cs
 from tasho import input_resolution
@@ -746,6 +748,8 @@ class task_context:
             ocp.method(SingleShooting(N=self.horizon[stage], M=M, intg=integrator))
         elif disc_method == "direct collocation":
             ocp.method(DirectCollocation(N=self.horizon[stage], M=M))
+        elif disc_method == "external_method":
+            ocp.method(external_method(name='fatrop', N=self.horizon[stage], intg=integrator))
         else:
             raise Exception(
                 "ERROR: discretization with "
