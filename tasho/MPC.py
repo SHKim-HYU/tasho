@@ -146,24 +146,24 @@ class MPC:
         if self.ocp_file != self.mpc_file:
             self.res_vals = self.mpc_fun(self.res_vals[0:self.x_vals.shape[0]])
 
-        # if self.parameters["codegen"]["compilation"]:
-        #     import os
-        #     if self.parameters["codegen"]["compiler"]:
-        #         compiler = self.parameters["codegen"]["compiler"]
-        #     else:
-        #         compiler = "gcc"
-        #     print("Compiling MPC function ...")
-        #     os.system(
-        #         compiler
-        #         + " "
-        #         + self.parameters["codegen"]["flags"]
-        #         + " "
-        #         + filename
-        #         + ".c -shared -fPIC -lm -o "
-        #         + filename
-        #         + ".so"
-        #     )
-        #     print("... Finished compilation of MPC function")
+        if self.parameters["codegen"]["compilation"]:
+            import os
+            if self.parameters["codegen"]["compiler"]:
+                compiler = self.parameters["codegen"]["compiler"]
+            else:
+                compiler = "gcc"
+            print("Compiling MPC function ...")
+            os.system(
+                compiler
+                + " "
+                + self.parameters["codegen"]["flags"]
+                + " "
+                + filename
+                + ".c -shared -fPIC -lm -o "
+                + filename
+                + ".so"
+            )
+            print("... Finished compilation of MPC function")
         # if self.parameters["codegen"]["jit"]:
         #     print("Using just-in-time compilation ...")
             # cg_opts = {"jit":True, "compiler": "shell", "jit_options": {"verbose":True, "compiler": "ccache gcc" , "compiler_flags": self.parameters["codegen"]["flags"]}, "verbose":False, "jit_serialize": "embed"}

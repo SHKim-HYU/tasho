@@ -1071,7 +1071,7 @@ class task_context:
 
         if cg_opts["save"]:
             ocp_fun.save(location + self.name + name + ".casadi")
-
+            
         if cg_opts["codegen"]:
             ocp_fun.generate(
                 location + self.name + name + ".c", {"with_header": True}
