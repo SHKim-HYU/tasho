@@ -228,7 +228,7 @@ class MPC:
         for var in json_dict["parameters"]:
             P = cs.vertcat(P, self._get_initial_state_control(var))
         
-        self.X_new = self.pred_fun(X, U, 0, self.sampling_time, P, 0, 0)
+        self.X_new = self.pred_fun(X, U, 0, self.sampling_time, P, 0)
 
     def runMPC(self):
         """
