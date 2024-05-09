@@ -35,6 +35,7 @@ class MPC:
         # initializing common properties
         self.horizon = json_dict["horizon"]
         self.sampling_time = json_dict["sampling_time"]
+        self.file_path = json_dict["file_path"]
         self.ocp_file = json_dict["ocp_file"]
         self.mpc_file = json_dict["mpc_file"]
         self.pred_file = json_dict["pred_file"]
@@ -69,16 +70,16 @@ class MPC:
             self.output_ports[out_port["name"]] = {'val':[], 'desc':out_port['desc']}
 
         # load the casadi OCP function
-        self.ocp_fun = self.load_casadi_fun(self.ocp_file, json_dict['ocp_fun_name'])
+        self.ocp_fun = self.load_casadi_fun(json_dict['file_path'] + self.ocp_file, json_dict['ocp_fun_name'])
 
         # load the casadi MPC function if different from the OCP function
         if self.ocp_file != self.mpc_file:
-            self.mpc_fun = self.load_casadi_fun(self.mpc_file, json_dict['mpc_fun_name'])
+            self.mpc_fun = self.load_casadi_fun(json_dict['file_path'] + self.mpc_file, json_dict['file_path']+json_dict['mpc_fun_name'])
         else:
             self.mpc_fun = self.ocp_fun
 
         # load the prediction function to simulate the dynamics of the system
-        self.pred_fun = self.load_casadi_fun(self.pred_file, json_dict['pred_fun_name'])
+        self.pred_fun = self.load_casadi_fun(json_dict['file_path'] + self.pred_file, json_dict['file_path']+json_dict['pred_fun_name'])
         self.variables_optiform_details = {}
 
         # creating the vector that will be the input to the CasADi functions

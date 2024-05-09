@@ -16,7 +16,7 @@ import time
 print("Moving-object picking with Kinova Gen3")
 
 visualizationBullet = True #by default turned off
-HSL = False
+HSL = True
 
 ################################################
 # Define robot and initial joint angles
@@ -173,7 +173,7 @@ if visualizationBullet:
     predicted_pos_log = []
 
     # Execute the MPC loop
-    for i in range(horizon_size * 100):
+    for i in range(horizon_size * 10000000000):
         print("----------- MPC execution -----------")
         start = time.time()
         q_now = obj.readJointPositions(kinovaID, joint_indices)
@@ -225,8 +225,8 @@ if visualizationBullet:
         obj.run_simulation(no_samples)
         print("loop time: %f [ms]"%(1000*(time.time()-start)))
         # Termination criteria
-        if "termination_criteria_true" in MPC_component.event_output_port:
-            break
+        # if "termination_criteria_true" in MPC_component.event_output_port:
+        #     break
 
     # # Execute the loop in the end to get a smooth video
     # obj.resetJointState(kinovaID, joint_indices, q0_val)

@@ -51,6 +51,9 @@ for i in range(30):
 	optip = optip[0]
 	_, optilam_g = tc.sol_sample(opti.lam_g, grid = 'control')
 	optilam_g = optilam_g[0]
+	print(optix)
+	print(optip) 
+	print(optilam_g)
 
 	#compute the truth value of the monitors and print
 	print(tc.monitors["first"]["monitor_fun"]([optix, optip, optilam_g]))

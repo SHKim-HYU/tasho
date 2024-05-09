@@ -162,16 +162,26 @@ class WorldSimulator:
         return robotID
 
     def add_object_urdf(
-        self, position, orientation, urdf, fixedBase=False, globalScaling=1
+        self, position, orientation, urdf, fixedBase=False, globalScaling=1, robot_pkg=None
     ):
+        if robot_pkg != None:
+            print(robot_pkg.object_dir+urdf)
+            objectID = p.loadURDF(
+                robot_pkg.object_dir+urdf,
+                position,
+                orientation,
+                useFixedBase=fixedBase,
+                globalScaling=globalScaling,
+            )
+        else:
+            objectID = p.loadURDF(
+                urdf,
+                position,
+                orientation,
+                useFixedBase=fixedBase,
+                globalScaling=globalScaling,
+            )
 
-        objectID = p.loadURDF(
-            urdf,
-            position,
-            orientation,
-            useFixedBase=fixedBase,
-            globalScaling=globalScaling,
-        )
         self.objectIDs.append(objectID)
         return objectID
 

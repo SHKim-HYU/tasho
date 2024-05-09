@@ -25,6 +25,37 @@ def P2P(robot, link_name, goal_pose, current_location, rot_tol = 1e-3):
 
     p2p = Task(robot.name, "P2P")
     
+    # # creating the state and control variables
+    # q = p2p.create_variable(robot.name, "q", "state", (robot.nq, 1))
+    # qd = p2p.create_variable(robot.name, "qd", "state", (robot.nq, 1))
+    # qdd = p2p.create_variable(robot.name, "qdd", "control", (robot.nq, 1))
+
+    # tau = robot.id(q, qd, qdd)
+    # print(tau)
+    # # setting the derivatives of the position and velocity terms
+    # p2p.set_der(q, qd)
+    # p2p.set_der(qd, qdd)
+
+    # # Current pose of the specified link
+    # fk_pose = Expression(robot.name, "pose_"+str(link_name), lambda q : robot.fk(q)[link_name], q)
+
+    # joint_pos_residual = Expression(q.uid +"_"+ current_location.uid, "error", lambda q, c : q - c, q, current_location)
+
+    # # Add the initial joint position constraint
+    # p2p.add_initial_constraints(ConstraintExpression(q.uid, "equality", joint_pos_residual, "hard", reference = 0),
+    #                             ConstraintExpression(qd.uid, "stationary", qd, "hard", reference = 0))
+
+    # # Adding the joint position, velocity and acceleration limits
+    # p2p.add_path_constraints(BoxConstraint(q, robot.joint_lb, robot.joint_ub),
+    #                         BoxConstraint(qd, robot.joint_vel_lb, robot.joint_vel_ub),
+    #                         BoxConstraint(qdd, robot.joint_acc_lb, robot.joint_acc_ub),#)
+    #                         Regularization(qdd, 1e-3), Regularization(tau, 1e-3))
+
+    # # Pose error between the specified link and the desired link
+    # p2p.add_terminal_constraints(*ConstraintSE3(fk_pose, goal_pose, rot_tol),
+    #                           ConstraintExpression(qd.uid, "stationary", qd, "hard", reference = 0))
+    
+    
     # creating the state and control variables
     q = p2p.create_variable(robot.name, "q", "state", (robot.nq, 1))
     qd = p2p.create_variable(robot.name, "qd", "state", (robot.nq, 1))
@@ -52,6 +83,6 @@ def P2P(robot, link_name, goal_pose, current_location, rot_tol = 1e-3):
     # Pose error between the specified link and the desired link
     p2p.add_terminal_constraints(*ConstraintSE3(fk_pose, goal_pose, rot_tol),
                               ConstraintExpression(qd.uid, "stationary", qd, "hard", reference = 0))
-
+    
     return p2p
 

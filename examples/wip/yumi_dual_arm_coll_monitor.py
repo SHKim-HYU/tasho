@@ -32,20 +32,20 @@ tc.add_monitor({"name":"workspace_right_free", "expression":fk_right_ee[1,3], "r
 tc.set_initial(q, 0)
 sol = tc.solve_ocp() #to configure the monitors
 
-# opti = tc.ocp._method.opti
-# _, optix = sol.sample(opti.x, grid = 'control')
-# optix = optix[0]
-# _, optip = sol.sample(opti.p, grid = 'control')
-# optip = optip[0]
-# _, optilam_g = sol.sample(opti.lam_g, grid = 'control')
-# optilam_g = optilam_g[0]
+opti = tc.ocp._method.opti
+_, optix = sol.sample(opti.x, grid = 'control')
+optix = optix[0]
+_, optip = sol.sample(opti.p, grid = 'control')
+optip = optip[0]
+_, optilam_g = sol.sample(opti.lam_g, grid = 'control')
+optilam_g = optilam_g[0]
 
-# print(optix)
-# print(optip)
-# print(optilam_g)
+print(optix)
+print(optip)
+print(optilam_g)
 
-# print(tc.monitors["workspace_right_free"]["monitor_fun"]([optix, optip, optilam_g]))
-# print(tc.monitors["workspace_left_free"]["monitor_fun"]([optix, optip, optilam_g]))
+print(tc.monitors["workspace_right_free"]["monitor_fun"]([optix, optip, optilam_g]))
+print(tc.monitors["workspace_left_free"]["monitor_fun"]([optix, optip, optilam_g]))
 
 q_sym = cs.SX.sym('q_sym', 18, 1)
 monitorexpr_wlf = tc.monitors["workspace_left_free"]["monitor_fun"]([cs.vertcat(q_sym, np.array([0]*18)), [], np.array([0]*18)])

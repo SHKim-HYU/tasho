@@ -990,13 +990,13 @@ class task_context:
             self.mpc_fun = mpc_fun
             # TODO: add monitor value in OCP and MPC xplm
             vars_db["mpc_fun_name"] = self.name + "_mpc"
-            vars_db["mpc_file"] = location + self.name + "_mpc.casadi"
+            vars_db["mpc_file"] = self.name + "_mpc.casadi"
             # TODO: also add the case where .c files are generated
 
             # generating the discrete-time system update function for the first stage
             disc_system = self.stages[0].discrete_system()
             disc_system.save(location + self.name+"_pred.casadi")
-            vars_db["pred_file"] = location + self.name+"_pred.casadi"
+            vars_db["pred_file"] = self.name+"_pred.casadi"
             vars_db["pred_fun_name"] = 'F'
 
         # Updating the json file and dumping it
@@ -1015,7 +1015,8 @@ class task_context:
         vars_db["horizon"] = self.horizon[0] #TODO: what to do here really?
         vars_db["sampling_time"] = self.ocp_rate
         vars_db["ocp_fun_name"] = self.name + "_ocp"
-        vars_db["ocp_file"] = location + self.name + "_ocp.casadi"
+        vars_db["ocp_file"] = self.name + "_ocp.casadi"
+        vars_db["file_path"] = location
 
         with open(location + self.name + '.json', "w") as write_file:
             json.dump(vars_db, write_file, indent = 4)
