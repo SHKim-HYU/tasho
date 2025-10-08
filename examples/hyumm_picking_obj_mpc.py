@@ -19,8 +19,8 @@ import os
 
 # Options for example codes
 frame_enable = True
-
-robot = rob.Robot("hyumm")
+robot_name = "hyumm_scan"
+robot = rob.Robot(robot_name)
 link_name = 6
 
 # Define initial conditions of the robot
@@ -44,17 +44,17 @@ goal_pose = Variable(robot.name, "goal_pose", 'parameter', (4,4))
 task_MoMa = MoMa(robot, link_name, goal_pose, q_init, rot_tol=1e-3)
 #task_MoMa.write_task_graph("hyumm_MoMa_Task4.svg")
 
-task_MoMa.remove_initial_constraints(task_MoMa.constraint_expressions['stationary_qd_hyumm'])
-task_MoMa.remove_terminal_constraints('rot_con_pose_'+str(link_name)+'_hyumm_vs_goal',
-                                    'trans_con_pose_'+str(link_name)+'_hyumm_vs_goal')
+task_MoMa.remove_initial_constraints(task_MoMa.constraint_expressions['stationary_qd_' + robot_name])
+task_MoMa.remove_terminal_constraints('rot_con_pose_'+str(link_name)+ '_' + robot_name + '_vs_goal',
+                                    'trans_con_pose_'+str(link_name)+ '_' + robot_name + '_vs_goal')
 #task_MoMa.write_task_graph("hyumm_MoMa_Task5.svg")
 
-task_MoMa.add_initial_constraints(ConstraintExpression(robot.name, "eq", Expression(robot.name, "err_qd_qinit", lambda a, b : a - b, qd_init, task_MoMa.variables['qd_hyumm']),
+task_MoMa.add_initial_constraints(ConstraintExpression(robot.name, "eq", Expression(robot.name, "err_qd_qinit", lambda a, b : a - b, qd_init, task_MoMa.variables['qd_'+robot_name]),
                              "hard", reference = 0))
-task_MoMa.add_path_constraints(Regularization(task_MoMa.expressions['trans_error_pose_'+str(link_name)+'_hyumm_vs_goal'], 5e2, norm = "L2"),
-                            Regularization(task_MoMa.expressions['ax_ang_error_pose_'+str(link_name)+'_hyumm_vs_goal'], 1e1), 
-                            Regularization(task_MoMa.variables['qd_hyumm'], 1e0),
-                            Regularization(task_MoMa.variables['qdd_hyumm'], 8e-3))
+task_MoMa.add_path_constraints(Regularization(task_MoMa.expressions['trans_error_pose_'+str(link_name)+'_' + robot_name + '_vs_goal'], 5e2, norm = "L2"),
+                            Regularization(task_MoMa.expressions['ax_ang_error_pose_'+str(link_name)+'_' + robot_name + '_vs_goal'], 1e1), 
+                            Regularization(task_MoMa.variables['qd_'+robot_name], 1e0),
+                            Regularization(task_MoMa.variables['qdd_'+robot_name], 8e-3))
 
 #task_MoMa.write_task_graph("hyumm_MoMa_Task6.svg")
 
@@ -76,11 +76,11 @@ tc.set_ocp_solver(tc.ocp_solver, tc.ocp_options)
 ################################################
 # Set parameter values
 ################################################
-q = pOCP.stage_tasks[0].variables['q_hyumm'].x
-qd = pOCP.stage_tasks[0].variables['qd_hyumm'].x
-q_0 = pOCP.stage_tasks[0].variables['q_init_hyumm'].x
-qd_0 = pOCP.stage_tasks[0].variables['qd_init_hyumm'].x
-goal_pose = pOCP.stage_tasks[0].variables['goal_pose_hyumm'].x
+q = pOCP.stage_tasks[0].variables['q_'+robot_name].x
+qd = pOCP.stage_tasks[0].variables['qd_'+robot_name].x
+q_0 = pOCP.stage_tasks[0].variables['q_init_'+robot_name].x
+qd_0 = pOCP.stage_tasks[0].variables['qd_init_'+robot_name].x
+goal_pose = pOCP.stage_tasks[0].variables['goal_pose_'+robot_name].x
 goal_pose_val =  cs.vertcat(
     cs.hcat([-1, 0, 0, 0.75]),
     cs.hcat([0, 1, 0, 0.0]),
@@ -93,10 +93,10 @@ tc.set_value(q_0, q0_val)
 tc.set_value(qd_0, qd0_val)
 
 # Add an output port for joint velocities as well
-tc.tc_dict["out_ports"].append({"name":"port_out_qd_hyumm", "var":"qd_hyumm", "desc": "output port for the joint velocities"})
+tc.tc_dict["out_ports"].append({"name":"port_out_qd_"+robot_name, "var":"qd_"+robot_name, "desc": "output port for the joint velocities"})
 
 # Add a monitor for termination criteria
-tc.add_monitor({"name":"termination_criteria", "expression":cs.sqrt(cs.sumsqr(pOCP.stage_tasks[0].expressions["trans_error_pose_"+str(link_name)+"_hyumm_vs_goal"].x)) - 2e-2, "reference":0, "lower":True, "initial":True})
+tc.add_monitor({"name":"termination_criteria", "expression":cs.sqrt(cs.sumsqr(pOCP.stage_tasks[0].expressions["trans_error_pose_"+str(link_name)+"_" + robot_name + "_vs_goal"].x)) - 2e-2, "reference":0, "lower":True, "initial":True})
 
 # os.system("export OMP_NUM_THREADS = 1")
 
@@ -139,7 +139,7 @@ if no_samples != t_mpc / obj.physics_ts:
     print("[ERROR] MPC sampling time not integer multiple of physics sampling time")
 
 # Correspondence between joint numbers in bullet and OCP
-joint_indices = [0, 1, 2, 8, 9, 10, 11, 12, 13]
+joint_indices = [0, 1, 2, 4, 5, 6, 7, 8, 9]
 
  # Begin the visualization by applying the initial control signal
 ts, q_sol = tc.sol_sample(q, grid="control")
@@ -172,8 +172,8 @@ for i in range(horizon_size * 100000):
 
     com_x = robot.CoM_x(q_now).full().T[0]
     p.resetBasePositionAndOrientation(comID, com_x, identity_orientation)
-    MPC_component.input_ports["port_inp_q_init_hyumm"]["val"] = q_now
-    MPC_component.input_ports["port_inp_qd_init_hyumm"]["val"] = qd_now
+    MPC_component.input_ports["port_inp_q_init_"+robot_name]["val"] = q_now
+    MPC_component.input_ports["port_inp_qd_init_"+robot_name]["val"] = qd_now
 
     # the position of the target object (cube)
     lin_pos, _ = p.getBasePositionAndOrientation(cubeID)
@@ -190,7 +190,7 @@ for i in range(horizon_size * 100000):
         cs.hcat([0, 0, 0, 1]),
     )
 
-    MPC_component.input_ports["port_inp_goal_pose_hyumm"]["val"] = cs.vec(predicted_pos_val)
+    MPC_component.input_ports["port_inp_goal_pose_"+robot_name]["val"] = cs.vec(predicted_pos_val)
         
     if i == 0:
         MPC_component.configMPC()
@@ -206,8 +206,8 @@ for i in range(horizon_size * 100000):
     q_dot_log.append(qd_now)
 
     # Set control signal to the simulated robot
-    qd_control_sig = MPC_component.output_ports["port_out_qd_hyumm"]["val"].full()
-    qdd_control_sig = (MPC_component.output_ports["port_out_qdd_hyumm"]["val"] * t_mpc).full()
+    qd_control_sig = MPC_component.output_ports["port_out_qd_"+robot_name]["val"].full()
+    qdd_control_sig = (MPC_component.output_ports["port_out_qdd_"+robot_name]["val"] * t_mpc).full()
     
     obj.setController(
         robotID, "velocity", joint_indices, targetVelocities=qd_control_sig+qdd_control_sig
