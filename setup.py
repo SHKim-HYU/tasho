@@ -25,7 +25,7 @@ setuptools.setup(
     install_requires=[
         'rockit-meco>=0.1.28',
         'casadi<4.0,>=3.5',
-        'numpy',
+        'numpy<1.24',
         'matplotlib',
         'scipy',
         'networkx',
